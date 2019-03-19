@@ -1,3 +1,7 @@
+build/
+*.user
+*.user.*
+
 # Prerequisites
 *.d
 
