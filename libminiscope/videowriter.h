@@ -23,20 +23,44 @@
 #include <memory>
 #include <opencv2/core.hpp>
 
+/**
+ * @brief The VideoContainer enum
+ *
+ * Video container formats that we support in VideoWriter.
+ * Each container must be compatible with every codec type
+ * that we also support.
+ */
 enum class VideoContainer {
     Matroska,
-    WebM,
-    AVI,
-    OGV
+    MP4,
+    AVI
 };
 
+/**
+ * @brief The VideoCodec enum
+ *
+ * Video codecs that we support in VideoWriter.
+ * Each codec must be compatible with every container type
+ * that we also support, to avoid unnecessary user confusion and
+ * API errors.
+ * (The only exception from this rule is the "Raw" fake-codec, which
+ * will only work with the AVI container)
+ */
 enum class VideoCodec {
+    Raw,
     AV1,
     VP9,
-    Dirac,
-    H264
+    MPEG4
 };
 
+/**
+ * @brief The VideoWriter class
+ *
+ * A simple class to write OpenCV matrices to disk as quickly as possible,
+ * with a pleasant but very simplified API and all the nasty video encoding
+ * issues hidden away.
+ * This class intentionally supports only few container/codec formats and options.
+ */
 class VideoWriter
 {
 public:
@@ -58,6 +82,9 @@ public:
     int width() const;
     int height() const;
     int fps() const;
+
+    bool lossless() const;
+    void setLossless(bool enabled);
 
 private:
     class VideoWriterData;

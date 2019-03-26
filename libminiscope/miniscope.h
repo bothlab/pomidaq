@@ -42,7 +42,7 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/videostab.hpp>
 
-#define MS_BUFFER_LENGTH 256
+#include "videowriter.h"
 
 class MiniScopeData;
 class MiniScope
@@ -64,14 +64,28 @@ public:
 
     bool connect();
     void disconnect();
-    bool record();
+
+    bool run();
+    void stop();
+    bool startRecording();
+    void stopRecording();
 
     bool running() const;
+    bool recording() const;
 
     void setOnMessage(std::function<void(const std::string&)> callback);
 
     cv::Mat currentFrame();
     uint currentFPS() const;
+
+    VideoCodec videoCodec() const;
+    void setVideoCodec(VideoCodec codec);
+
+    VideoContainer videoContainer() const;
+    void setVideoContainer(VideoContainer container);
+
+    bool recordLossless() const;
+    void setRecordLossless(bool lossless);
 
 private:
     std::unique_ptr<MiniScopeData> d;
@@ -82,6 +96,7 @@ private:
     void startCaptureThread();
     void finishCaptureThread();
     void emitMessage(const std::string& msg);
+    void fail(const std::string& msg);
 };
 
 #endif // MINISCOPE_H

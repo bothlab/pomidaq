@@ -25,6 +25,7 @@
 
 class MiniScope;
 class VideoViewWidget;
+class QLabel;
 
 namespace Ui {
 class MainWindow;
@@ -44,12 +45,16 @@ private slots:
     void on_sbExposure_valueChanged(int arg1);
     void on_sbExcitation_valueChanged(int value);
     void on_sbGain_valueChanged(int arg1);
+    void on_losslessCheckBox_toggled(bool checked);
+    void on_containerComboBox_currentIndexChanged(const QString &arg1);
+    void on_codecComboBox_currentIndexChanged(const QString &arg1);
 
 protected:
     void closeEvent (QCloseEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
+    QLabel *m_statusBarLabel;
 
     MiniScope *m_mscope;
     VideoViewWidget *m_scopeView;
@@ -59,6 +64,7 @@ private:
     QQueue<QString> m_newMessages;
 
     void addLogMessage(const QString &msg);
+    void setStatusText(const QString& msg);
 };
 
 #endif // MAINWINDOW_H

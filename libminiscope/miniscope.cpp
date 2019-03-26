@@ -23,6 +23,7 @@
 #include <thread>
 #include <mutex>
 #include <boost/circular_buffer.hpp>
+#include <boost/format.hpp>
 
 #include "definitions.h"
 #include "videowriter.h"
@@ -34,11 +35,14 @@ public:
     MiniScopeData()
         : thread(nullptr),
           scopeCamId(0),
-          scopeConnected(false),
-          record(false),
-          display(false)
+          connected(false),
+          running(false),
+          recording(false),
+          failed(false)
     {
         frameRing = boost::circular_buffer<cv::Mat>(64);
+        videoCodec = VideoCodec::VP9;
+        videoContainer = VideoContainer::Matroska;
     }
 
     std::thread *thread;
@@ -46,7 +50,6 @@ public:
 
     cv::VideoCapture cam;
     int scopeCamId;
-    bool scopeConnected;
 
     int exposure;
     int gain;
@@ -59,8 +62,11 @@ public:
     int minFluorDisplay;
     int maxFluorDisplay;
 
-    bool record;
-    bool display;
+    bool connected;
+    bool running;
+    bool recording;
+    bool failed;
+
     std::chrono::time_point<std::chrono::system_clock> recordStart;
 
     size_t droppedFramesCount;
@@ -71,6 +77,10 @@ public:
     std::function<void (std::string)> onMessageCallback;
 
     bool colorCheck;
+
+    VideoCodec videoCodec;
+    VideoContainer videoContainer;
+    bool recordLossless;
 };
 #pragma GCC diagnostic pop
 
@@ -95,14 +105,14 @@ MiniScope::~MiniScope()
 void MiniScope::startCaptureThread()
 {
     finishCaptureThread();
-    d->display = true;
+    d->running = true;
     d->thread = new std::thread(captureThread, this);
 }
 
 void MiniScope::finishCaptureThread()
 {
     if (d->thread != nullptr) {
-        d->display = false;
+        d->running = false;
         d->thread->join();
         delete d->thread;
         d->thread = nullptr;
@@ -111,14 +121,22 @@ void MiniScope::finishCaptureThread()
 
 void MiniScope::emitMessage(const std::string &msg)
 {
-    if (!d->onMessageCallback)
+    if (!d->onMessageCallback) {
+        std::cout << msg << std::endl;
         return;
+    }
 
     d->mutex.lock();
     d->onMessageCallback(msg);
     d->mutex.unlock();
+}
 
-    std::cerr << msg << std::endl;
+void MiniScope::fail(const std::string &msg)
+{
+    d->recording = false;
+    d->running = false;
+    d->failed = true;
+    emitMessage(msg);
 }
 
 void MiniScope::setScopeCamId(int id)
@@ -166,12 +184,12 @@ int MiniScope::excitation() const
 
 bool MiniScope::connect()
 {
-    if (d->thread != nullptr) {
+    if (d->connected) {
         std::cerr << "Tried to reconnect already connected camera." << std::endl;
         return false;
     }
 
-    d->cam.open(d->scopeCamId + cv::CAP_V4L2);
+    d->cam.open(d->scopeCamId);
 
     d->cam.set(CV_CAP_PROP_SATURATION, SET_CMOS_SETTINGS); // Initiallizes CMOS sensor (FPS, gain and exposure enabled...)
 
@@ -180,39 +198,76 @@ bool MiniScope::connect()
     setGain(32);
     setExcitation(1);
 
-    d->scopeConnected = true;
+    d->connected = true;
 
     //mValueExcitation = 0;
     //mSliderExcitation.SetPos(mValueExcitation);
 
     setLed(0);
 
-    emitMessage("Init done.");
-
-    startCaptureThread();
+    emitMessage(boost::str(boost::format("Initialized camera %1%") % d->scopeCamId));
 
     return true;
 }
 
 void MiniScope::disconnect()
 {
-    finishCaptureThread();
+    stop();
     d->cam.release();
+    emitMessage(boost::str(boost::format("Disconnected camera %1%") % d->scopeCamId));
 }
 
-bool MiniScope::record()
+bool MiniScope::run()
 {
-    if (!d->scopeConnected)
+    if (!d->connected)
         return false;
+    if (d->failed) {
+        // try to recover from failed state by reconnecting
+        emitMessage("Reconnecting to recover from previous failure.");
+        disconnect();
+        if (!connect())
+            return false;
+    }
+
+    startCaptureThread();
+    return true;
+}
+
+void MiniScope::stop()
+{
+    d->running = false;
+    d->recording = false;
+    finishCaptureThread();
+}
+
+bool MiniScope::startRecording()
+{
+    if (!d->connected)
+        return false;
+    if (!d->running) {
+        if (!run())
+            return false;
+    }
 
     d->recordStart = std::chrono::high_resolution_clock::now();
+    d->recording = true;
 
     return true;
 }
 
+void MiniScope::stopRecording()
+{
+    d->recording = false;
+}
+
 bool MiniScope::running() const
 {
-    return d->display;
+    return d->running;
+}
+
+bool MiniScope::recording() const
+{
+    return d->running && d->recording;
 }
 
 void MiniScope::setOnMessage(std::function<void(const std::string&)> callback)
@@ -237,6 +292,36 @@ uint MiniScope::currentFPS() const
     return d->currentFPS;
 }
 
+VideoCodec MiniScope::videoCodec() const
+{
+    return d->videoCodec;
+}
+
+void MiniScope::setVideoCodec(VideoCodec codec)
+{
+    d->videoCodec = codec;
+}
+
+VideoContainer MiniScope::videoContainer() const
+{
+    return d->videoContainer;
+}
+
+void MiniScope::setVideoContainer(VideoContainer container)
+{
+    d->videoContainer = container;
+}
+
+bool MiniScope::recordLossless() const
+{
+    return d->recordLossless;
+}
+
+void MiniScope::setRecordLossless(bool lossless)
+{
+    d->recordLossless = lossless;
+}
+
 void MiniScope::setLed(int value)
 {
     // sanitize value
@@ -245,7 +330,7 @@ void MiniScope::setLed(int value)
 
     // maximum brighness reached at 50% already, so we divide by two to allow smaller stepsize
     double ledPower = static_cast<double>(value) / 2 / 100;
-    if (d->scopeConnected) {
+    if (d->connected) {
         d->cam.set(CV_CAP_PROP_HUE, ledPower);
     }
 }
@@ -282,24 +367,35 @@ void MiniScope::captureThread(void* msPtr)
     // grab initial frame
     auto ret = self->d->cam.grab();
     if (!ret) {
-        self->d->record = false;
-        self->emitMessage("Failed to grab test frame.");
+        self->fail("Failed to grab initial frame.");
         return;
     }
     try {
         ret = self->d->cam.retrieve(frame);
     } catch (cv::Exception& e) {
         ret = false;
-        std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
+        auto msg = boost::str(boost::format("Caught OpenCV exception: %1%") % e.what());
+        std::cerr << msg << std::endl;
+        self->emitMessage(msg);
     }
     if (!ret) {
-        self->emitMessage("Failed to retrieve test frame.");
+        self->fail("Failed to retrieve initial frame.");
+        return;
     }
 
-    auto vwriter = new VideoWriter();
-    vwriter->initialize("/tmp/test.mkv", 752, 480, 20, false);//frame.channels() == 3);
+    std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
+    vwriter->setCodec(self->d->videoCodec);
+    vwriter->setContainer(self->d->videoContainer);
+    vwriter->setLossless(self->d->recordLossless);
+    vwriter->initialize("/tmp/testvideo",
+                        frame.cols,
+                        frame.rows,
+                        static_cast<int>(self->d->fps),
+                        frame.channels() == 3);
 
-    while (self->d->display) {
+    while (self->d->running) {
+
+
 #if 0
         //Added for triggerable recording
         if (self->mCheckTrigRec == true) {
@@ -322,20 +418,14 @@ void MiniScope::captureThread(void* msPtr)
         }
 #endif
 
-        //-------------------------------
         auto status = self->d->cam.grab();
         if (!status) {
-            self->d->record = false;
-            self->emitMessage("Failed to grab frame.");
+            self->fail("Failed to grab frame.");
             continue;
         }
 
         previousTime = currentTime;
         currentTime = std::chrono::high_resolution_clock::now();
-
-        //! self->mMSCurrentFPS = 1/(((double)currentTime.QuadPart - previousTime.QuadPart)/self->Frequency.QuadPart);
-
-        //! self->msCapFrameTime[self->msWritePos%BUFFERLENGTH] = 1000*((double)currentTime.QuadPart - self->startOfRecord.QuadPart)/self->Frequency.QuadPart;
         try {
             status = self->d->cam.retrieve(frame);
         } catch (cv::Exception& e) {
@@ -356,8 +446,7 @@ void MiniScope::captureThread(void* msPtr)
             }
 
             if (self->d->droppedFramesCount > 80)
-                self->d->display = false;
-
+                self->fail("Too many dropped frames. Giving up.");
             continue;
         }
 
@@ -410,10 +499,7 @@ void MiniScope::captureThread(void* msPtr)
 
 
                 self->addFrameToBuffer(frame);
-
-                cv::Mat greyMat;
-                cv::cvtColor(frame, greyMat, cv::COLOR_BGR2GRAY);
-                vwriter->encodeFrame(greyMat);
+                vwriter->encodeFrame(frame);
             } else {
 
                 cv::cvtColor(frame, frame, CV_BGR2GRAY); // added to correct green color stream
@@ -451,5 +537,4 @@ void MiniScope::captureThread(void* msPtr)
     }
 
     vwriter->finalize();
-    delete vwriter;
 }

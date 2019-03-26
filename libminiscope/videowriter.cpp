@@ -20,7 +20,9 @@
 #include "videowriter.h"
 
 #include <string.h>
+#include <iostream>
 #include <boost/format.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -31,9 +33,6 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/highgui.hpp>
-
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class VideoWriter::VideoWriterData
@@ -41,7 +40,7 @@ class VideoWriter::VideoWriterData
 public:
     VideoWriterData()
     {
-        codec = VideoCodec::AV1;
+        codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
 
         frame = nullptr;
@@ -52,6 +51,7 @@ public:
         vstrm = nullptr;
         cctx = nullptr;
         swsctx = nullptr;
+        lossless = false;
     }
 
     VideoCodec codec;
@@ -61,6 +61,7 @@ public:
     int width;
     int height;
     AVRational fps;
+    bool lossless;
 
     AVFrame *frame;
     AVFrame *inputFrame;
@@ -80,6 +81,7 @@ public:
 VideoWriter::VideoWriter()
     : d(new VideoWriterData())
 {
+    d->initialized = false;
 }
 
 VideoWriter::~VideoWriter()
@@ -127,9 +129,31 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->fps = {fps, 1};
     d->frames_n = 0;
 
-    int ret;
+    // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
+    // container, all other codecs have to work with all containers.
+    if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
+        std::cerr << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format." << std::endl;
+        d->container = VideoContainer::AVI;
+    }
+
+    // set container format
+    switch (d->container) {
+    case VideoContainer::Matroska:
+        if (!boost::algorithm::ends_with(fname, ".mkv"))
+            fname = fname + ".mkv";
+        break;
+    case VideoContainer::MP4:
+        if (!boost::algorithm::ends_with(fname, ".mp4"))
+            fname = fname + ".mp4";
+        break;
+    case VideoContainer::AVI:
+        if (!boost::algorithm::ends_with(fname, ".avi"))
+            fname = fname + ".avi";
+        break;
+    }
 
     // open output format context
+    int ret;
     d->octx = nullptr;
     ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
     if (ret < 0)
@@ -142,18 +166,65 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         throw std::runtime_error(boost::str(boost::format("Failed to open output I/O context: %1%") % ret));
     }
 
+    // select FFMpeg pixel format of OpenCV matrixes
+    d->inputPixFormat = hasColor? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
+
+    auto codecId = AV_CODEC_ID_AV1;
+    switch (d->codec) {
+    case VideoCodec::Raw:
+        codecId = AV_CODEC_ID_RAWVIDEO;
+        break;
+    case VideoCodec::AV1:
+        codecId = AV_CODEC_ID_AV1;
+        break;
+    case VideoCodec::VP9:
+        codecId = AV_CODEC_ID_VP9;
+        break;
+    case VideoCodec::MPEG4:
+        codecId = AV_CODEC_ID_MPEG4;
+        break;
+    }
+
     // set codec parameters
-    auto vcodec = avcodec_find_encoder(AV_CODEC_ID_VP9);
+    auto vcodec = avcodec_find_encoder(codecId);
     d->cctx = avcodec_alloc_context3(vcodec);
-    d->cctx->pix_fmt = vcodec->pix_fmts[0];
+    if (vcodec->pix_fmts != nullptr)
+        d->cctx->pix_fmt = vcodec->pix_fmts[0];
     d->cctx->time_base = av_inv_q(d->fps);
     d->cctx->width = d->width;
     d->cctx->height = d->height;
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
+    if (d->codec == VideoCodec::Raw)
+        d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
+                           d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
+                           d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
+
+    // enable experimental mode to encode AV1
+    if (d->codec == VideoCodec::AV1)
+        d->cctx->strict_std_compliance = -2;
+
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+
+    AVDictionary *codecopts = nullptr;
+    if (d->lossless) {
+        switch (d->codec) {
+        case VideoCodec::Raw:
+            break;
+        case VideoCodec::AV1:
+            av_dict_set_int(&codecopts, "lossless", 1, 0);
+            break;
+        case VideoCodec::VP9:
+            av_dict_set_int(&codecopts, "lossless", 1, 0);
+            break;
+        case VideoCodec::MPEG4:
+            // NOTE: MPEG-4 has no lossless option
+            break;
+        }
+    }
 
     // create new video stream
     d->vstrm = avformat_new_stream(d->octx, vcodec);
@@ -163,24 +234,14 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->vstrm->r_frame_rate = d->vstrm->avg_frame_rate = d->fps;
 
     // open video encoder
-    ret = avcodec_open2(d->cctx, vcodec, nullptr);
+    ret = avcodec_open2(d->cctx, vcodec, &codecopts);
     if (ret < 0) {
         finalize(false);
+        av_dict_free(&codecopts);
         throw std::runtime_error(boost::str(boost::format("Failed to open video encoder: %1%") % ret));
     }
 
-    std::cout
-        << "outfile: " << fname << "\n"
-        << "format:  " << d->octx->oformat->name << "\n"
-        << "vcodec:  " << vcodec->name << "\n"
-        << "size:    " << d->width << 'x' << d->height << "\n"
-        << "fps:     " << av_q2d(d->fps) << "\n"
-        << "color:   " << hasColor << "\n"
-        << "pixfmt:  " << av_get_pix_fmt_name(d->cctx->pix_fmt) << "\n"
-        << std::flush;
-
     // initialize sample scaler
-    d->inputPixFormat = hasColor? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
     d->swsctx = sws_getCachedContext(nullptr,
                                      d->width,
                                      d->height,
@@ -320,7 +381,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame)
     int ret;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N:" << d->frames_n + 1 << std::endl;
+        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << std::endl;
         return false;
     }
 
@@ -336,10 +397,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame)
     pkt.size = 0;
     av_init_packet(&pkt);
     ret = avcodec_receive_packet(d->cctx, &pkt);
-    if (ret != 0) {
-        std::cerr << "Unable to encode frame." << std::endl;
+    if (ret != 0)
         return false;
-    }
 
     // rescale packet timestamp
     pkt.duration = 1;
@@ -380,6 +439,16 @@ int VideoWriter::height() const
 int VideoWriter::fps() const
 {
     return d->fps.num;
+}
+
+bool VideoWriter::lossless() const
+{
+    return d->lossless;
+}
+
+void VideoWriter::setLossless(bool enabled)
+{
+    d->lossless = enabled;
 }
 
 void VideoWriter::setContainer(VideoContainer container)

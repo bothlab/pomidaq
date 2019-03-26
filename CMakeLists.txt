@@ -14,7 +14,7 @@ set(LIBSOVERSION 0)
 #
 add_definitions("-Wall" "-Wextra" "-Werror")
 add_definitions("-Wno-unused-but-set-variable")
-#add_definitions("-Werror")
+add_definitions("-Werror")
 
 #
 # Dependencies
