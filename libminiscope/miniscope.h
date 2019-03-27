@@ -44,6 +44,13 @@
 
 #include "videowriter.h"
 
+enum class ColorChannel {
+    ALL,
+    RED,
+    GREEN,
+    BLUE
+};
+
 class MiniScopeData;
 class MiniScope
 {
@@ -67,7 +74,7 @@ public:
 
     bool run();
     void stop();
-    bool startRecording();
+    bool startRecording(const std::string& fname = "");
     void stopRecording();
 
     bool running() const;
@@ -75,8 +82,23 @@ public:
 
     void setOnMessage(std::function<void(const std::string&)> callback);
 
+    bool useColor() const;
+    void setUseColor(bool color);
+
+    void setVisibleChannels(bool red, bool green, bool blue);
+    bool showRedChannel() const;
+    bool showGreenChannel() const;
+    bool showBlueChannel() const;
+
     cv::Mat currentFrame();
     uint currentFPS() const;
+    size_t droppedFramesCount() const;
+
+    bool externalRecordTrigger() const;
+    void setExternalRecordTrigger(bool enabled);
+
+    std::string videoFilename() const;
+    void setVideoFilename(const std::string& fname);
 
     VideoCodec videoCodec() const;
     void setVideoCodec(VideoCodec codec);

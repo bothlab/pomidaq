@@ -48,6 +48,7 @@ private slots:
     void on_losslessCheckBox_toggled(bool checked);
     void on_containerComboBox_currentIndexChanged(const QString &arg1);
     void on_codecComboBox_currentIndexChanged(const QString &arg1);
+    void on_cbExtRecTrigger_toggled(bool checked);
 
 protected:
     void closeEvent (QCloseEvent *event) override;

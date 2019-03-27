@@ -22,6 +22,7 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <boost/circular_buffer.hpp>
 #include <boost/format.hpp>
 
@@ -38,11 +39,21 @@ public:
           connected(false),
           running(false),
           recording(false),
-          failed(false)
+          failed(false),
+          checkRecTrigger(false),
+          droppedFramesCount(0),
+          useColor(false)
     {
         frameRing = boost::circular_buffer<cv::Mat>(64);
         videoCodec = VideoCodec::VP9;
         videoContainer = VideoContainer::Matroska;
+
+        showRed = true;
+        showGreen = true;
+        showBlue = true;
+
+        minFluorDisplay = 0;
+        maxFluorDisplay = 255;
     }
 
     std::thread *thread;
@@ -56,6 +67,7 @@ public:
     int excitation;
     uint fps;
     bool excitationX10;
+    std::string videoFname;
 
     double minFluor;
     double maxFluor;
@@ -63,20 +75,24 @@ public:
     int maxFluorDisplay;
 
     bool connected;
-    bool running;
-    bool recording;
-    bool failed;
+    std::atomic_bool running;
+    std::atomic_bool recording;
+    std::atomic_bool failed;
+    std::atomic_bool checkRecTrigger;
 
     std::chrono::time_point<std::chrono::system_clock> recordStart;
 
-    size_t droppedFramesCount;
-    uint currentFPS;
+    std::atomic<size_t> droppedFramesCount;
+    std::atomic_uint currentFPS;
 
     boost::circular_buffer<cv::Mat> frameRing;
 
     std::function<void (std::string)> onMessageCallback;
 
-    bool colorCheck;
+    bool useColor;
+    bool showRed;
+    bool showGreen;
+    bool showBlue;
 
     VideoCodec videoCodec;
     VideoContainer videoContainer;
@@ -240,7 +256,7 @@ void MiniScope::stop()
     finishCaptureThread();
 }
 
-bool MiniScope::startRecording()
+bool MiniScope::startRecording(const std::string &fname)
 {
     if (!d->connected)
         return false;
@@ -249,6 +265,8 @@ bool MiniScope::startRecording()
             return false;
     }
 
+    if (!fname.empty())
+        d->videoFname = fname;
     d->recordStart = std::chrono::high_resolution_clock::now();
     d->recording = true;
 
@@ -275,6 +293,38 @@ void MiniScope::setOnMessage(std::function<void(const std::string&)> callback)
     d->onMessageCallback = callback;
 }
 
+bool MiniScope::useColor() const
+{
+    return d->useColor;
+}
+
+void MiniScope::setUseColor(bool color)
+{
+    d->useColor = color;
+}
+
+void MiniScope::setVisibleChannels(bool red, bool green, bool blue)
+{
+    d->showRed = red;
+    d->showGreen = green;
+    d->showBlue = blue;
+}
+
+bool MiniScope::showRedChannel() const
+{
+    return d->showRed;
+}
+
+bool MiniScope::showGreenChannel() const
+{
+    return d->showGreen;
+}
+
+bool MiniScope::showBlueChannel() const
+{
+    return d->showBlue;
+}
+
 cv::Mat MiniScope::currentFrame()
 {
     std::lock_guard<std::mutex> lock(d->mutex);
@@ -290,6 +340,33 @@ cv::Mat MiniScope::currentFrame()
 uint MiniScope::currentFPS() const
 {
     return d->currentFPS;
+}
+
+size_t MiniScope::droppedFramesCount() const
+{
+    return d->droppedFramesCount;
+}
+
+bool MiniScope::externalRecordTrigger() const
+{
+    return d->checkRecTrigger;
+}
+
+void MiniScope::setExternalRecordTrigger(bool enabled)
+{
+    d->checkRecTrigger = enabled;
+}
+
+std::string MiniScope::videoFilename() const
+{
+    return d->videoFname;
+}
+
+void MiniScope::setVideoFilename(const std::string &fname)
+{
+    // TODO: Maybe mutex this, to prevent API users from doing the wrong thing
+    // and checking the value directly after the recording was started?
+    d->videoFname = fname;
 }
 
 VideoCodec MiniScope::videoCodec() const
@@ -345,7 +422,7 @@ void MiniScope::captureThread(void* msPtr)
 {
     MiniScope *self = static_cast<MiniScope*> (msPtr);
 
-    auto currentTime = self->d->recordStart;
+    auto currentTime = std::chrono::high_resolution_clock::now();
     auto previousTime = currentTime;
 
     std::vector<int> compression_params;
@@ -363,69 +440,36 @@ void MiniScope::captureThread(void* msPtr)
 
     self->d->droppedFramesCount = 0;
 
-    cv::Mat frame;
-    // grab initial frame
-    auto ret = self->d->cam.grab();
-    if (!ret) {
-        self->fail("Failed to grab initial frame.");
-        return;
-    }
-    try {
-        ret = self->d->cam.retrieve(frame);
-    } catch (cv::Exception& e) {
-        ret = false;
-        auto msg = boost::str(boost::format("Caught OpenCV exception: %1%") % e.what());
-        std::cerr << msg << std::endl;
-        self->emitMessage(msg);
-    }
-    if (!ret) {
-        self->fail("Failed to retrieve initial frame.");
-        return;
-    }
-
+    // prepare for recording
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
-    vwriter->setCodec(self->d->videoCodec);
-    vwriter->setContainer(self->d->videoContainer);
-    vwriter->setLossless(self->d->recordLossless);
-    vwriter->initialize("/tmp/testvideo",
-                        frame.cols,
-                        frame.rows,
-                        static_cast<int>(self->d->fps),
-                        frame.channels() == 3);
+    auto recordFrames = false;
 
     while (self->d->running) {
+        cv::Mat frame;
 
+        // check if we might want to trigger a recording start via external input
+        if (self->d->checkRecTrigger) {
+            auto temp = static_cast<int>(self->d->cam.get(CV_CAP_PROP_SATURATION));
 
-#if 0
-        //Added for triggerable recording
-        if (self->mCheckTrigRec == true) {
-            temp = self->msCam.get(CV_CAP_PROP_SATURATION);
-            //str.Format(L"GPIO State: %u",temp);
-            //self->AddListText(str);
+            std::cout << "GPIO state: " << temp << std::endl;
             if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
-                if (self->record == false) {
-                    self->setLed(0,self->mValueExcitation);
-                    self->OnBnClickedRecord();//Start recording
+                if (!self->d->recording) {
+                    // start recording
+                    self->d->recordStart = std::chrono::high_resolution_clock::now();
+                    self->d->recording = true;
                 }
-            }
-            else {
-                if(self->record == true) {
-                    self->OnBnClickedStoprecord();
-                    self->setLed(0,0);
-
-                }
+            } else {
+                // stop recording (if one was running)
+                self->d->recording = false;
             }
         }
-#endif
 
         auto status = self->d->cam.grab();
         if (!status) {
             self->fail("Failed to grab frame.");
-            continue;
+            break;
         }
 
-        previousTime = currentTime;
-        currentTime = std::chrono::high_resolution_clock::now();
         try {
             status = self->d->cam.retrieve(frame);
         } catch (cv::Exception& e) {
@@ -434,7 +478,9 @@ void MiniScope::captureThread(void* msPtr)
         }
 
         if (!status) {
-            //self->record = false;
+            // terminate recording
+            self->d->recording = false;
+
             self->d->droppedFramesCount++;
             self->emitMessage("Dropped frame.");
             self->addFrameToBuffer(droppedFrameImage);
@@ -450,91 +496,97 @@ void MiniScope::captureThread(void* msPtr)
             continue;
         }
 
-            /*
-            if (self->d->droppedFramesCount > 0 || self->d->currentFPS < self->d->fps / 2.0) {
-                std::cout << "Sending settings." << std::endl;
-                self->d->cam.set(CV_CAP_PROP_BRIGHTNESS, self->d->exposure);
-                self->d->cam.set(CV_CAP_PROP_GAIN, self->d->gain);
-                self->setLed(0, self->d->excitation);
-                self->d->droppedFramesCount = 0;
-                continue;
+        previousTime = currentTime;
+        currentTime = std::chrono::high_resolution_clock::now();
+        auto delayTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime);
+        self->d->currentFPS = static_cast<uint>(1 / (delayTime.count() / static_cast<double>(1000)));
+
+        // check if we are too slow, resend settings in case we are
+        // NOTE: This behaviour was copied from the original Miniscope DAQ software
+        // Previously, a second OR conadition was: self->d->currentFPS < self->d->fps / 2.0
+        if (self->d->droppedFramesCount > 0) {
+            self->emitMessage("Sending settings again.");
+            self->d->cam.set(CV_CAP_PROP_BRIGHTNESS, self->d->exposure);
+            self->d->cam.set(CV_CAP_PROP_GAIN, self->d->gain);
+            self->setLed(self->d->excitation);
+            self->d->droppedFramesCount = 0;
+        }
+
+        // "frame" is the frame that we record to disk, while the "displayFrame"
+        // is the one that we may also record as a video file
+        cv::Mat displayFrame;
+        frame.copyTo(displayFrame);
+
+        if (self->d->useColor) {
+            // we want a colored image
+            if (self->d->showRed || self->d->showGreen || self->d->showBlue) {
+                cv::Mat bgrChannels[3];
+                cv::split(frame,bgrChannels);
+
+                if (!self->d->showBlue)
+                    bgrChannels[0] = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
+                if (!self->d->showGreen)
+                    bgrChannels[1] = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
+                if (!self->d->showRed)
+                    bgrChannels[2] = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
+
+                cv::merge(bgrChannels, 3, frame);
             }
-            */
+         } else {
+            // grayscale image
+            cv::cvtColor(frame, frame, CV_BGR2GRAY); // added to correct green color stream
 
-#if 0
-            if (self->getScreenShot == true) {
+            cv::minMaxLoc(frame, &self->d->minFluor, &self->d->maxFluor);
+            frame.convertTo(displayFrame, CV_8U, 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay), -self->d->minFluorDisplay * 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay));
+        }
 
-                CT2CA pszConvertedAnsiString = self->folderLocation + "\\" + self->mMouseName + "_" + self->mNote + "_" + self->currentTime + ".png";
-                tempString = pszConvertedAnsiString;
-                cv::imwrite(tempString,self->msFrame[self->msWritePos%BUFFERLENGTH],compression_params);
-                self->getScreenShot = false;
-                str.Format(L"Image saved in %s",self->folderLocation);
-                self->AddListText(str);
-                self->mNote = "";
-                self->UpdateData(FALSE);
-            }
-            //cv::cvtColor(self->msFrame[self->msWritePos%BUFFERLENGTH],frame,CV_YUV2GRAY_YUYV);//added to correct green color stream
-#endif
+        // prepare video recording if it was enabled while we were running
+        if (self->recording()) {
+            if (!vwriter->initialized()) {
+                self->emitMessage("Recording enabled.");
+                // we want to record, but are not initialized yet
+                vwriter->setCodec(self->d->videoCodec);
+                vwriter->setContainer(self->d->videoContainer);
+                vwriter->setLossless(self->d->recordLossless);
 
-            if (self->d->colorCheck) {
-                //cv::Mat frame;
-
-                //cv::Mat channel[3];
-                cv::cvtColor(frame, frame, CV_BGR2GRAY);
-                //cv::cvtColor(self->msFrame[self->msWritePos%BUFFERLENGTH],frame,CV_YUV2GRAY_YUY2);//added to correct green color stream
-                cv::cvtColor(frame, frame,CV_BayerRG2BGR);
-
-#if 0
-                if (self->mRed == TRUE || self->mGreen == TRUE) {
-                    cv::Mat bgrChannels[3];
-                    cv::split(frame,bgrChannels);
-                    bgrChannels[0] = cv::Mat::zeros(frame.rows,frame.cols,CV_8UC1);
-                    if (self->mRed == FALSE)
-                        bgrChannels[2] = cv::Mat::zeros(frame.rows,frame.cols,CV_8UC1);
-                    if (self->mGreen == FALSE)
-                        bgrChannels[1] = cv::Mat::zeros(frame.rows,frame.cols,CV_8UC1);
-                    cv::merge(bgrChannels,3,frame);
+                try {
+                    vwriter->initialize(self->d->videoFname,
+                                        frame.cols,
+                                        frame.rows,
+                                        static_cast<int>(self->d->fps),
+                                        frame.channels() == 3);
+                } catch (cv::Exception& e) {
+                    self->fail(boost::str(boost::format("Unable to initialize recording: %1%") % e.what()));
+                    break;
                 }
-#endif
 
-
-                self->addFrameToBuffer(frame);
-                vwriter->encodeFrame(frame);
-            } else {
-
-                cv::cvtColor(frame, frame, CV_BGR2GRAY); // added to correct green color stream
-
-                cv::minMaxLoc(frame, &self->d->minFluor, &self->d->maxFluor);
-                frame.convertTo(frame, CV_8U, 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay), -self->d->minFluorDisplay * 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay));
-
-              //!  if (self->record == true)
-                    self->addFrameToBuffer(frame);
-
-                    //vwriter->encodeFrame(frame);
-                   // cv::imshow("msCam",frame);//added to correct green color stream
-               //! else {
-               //     cv::Mat dst;
-                    //cv::threshold(self->msFrame[self->msWritePos%BUFFERLENGTH],dst,self->mSaturationThresh,0,4);
-                    //cv::threshold(frame,dst,self->mSaturationThresh,0,4);//added to correct green color stream
-                    //cv::imshow("msCam", dst);
-              //!      cv::imshow("msCam",frame);
-
-              //!  }
-
+                // we are set for recording and initialized the video writer,
+                // so we allow recording frames now
+                recordFrames = true;
+                self->emitMessage("Initialized video recording.");
             }
-
-#if 0
-            if (self->record == true) {
-                msSingleLock.Lock();  // Attempt to lock the shared resource
-                if (msSingleLock.IsLocked()) { // Resource has been locked
-                    self->msWritePos++;
-                    msSingleLock.Unlock();
-                }
+        } else {
+            // we are not recording or stopped recording
+            if (recordFrames) {
+                // we were recording previously, so finalize the movie and stop adding
+                // new frames to the video.
+                // Also reset the video writer for a clean start
+                vwriter->finalize();
+                vwriter.reset(new VideoWriter());
+                recordFrames = false;
+                self->emitMessage("Recording finalized.");
             }
-#endif
+        }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        // add display frame to ringbuffer, and record the raw
+        // frame to disk if we want to record it.
+        self->addFrameToBuffer(displayFrame);
+        if (recordFrames)
+            vwriter->encodeFrame(frame);
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
+    // finalize recording (if there was any still ongoing)
     vwriter->finalize();
 }

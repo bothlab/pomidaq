@@ -143,6 +143,9 @@ void MainWindow::on_btnStartStop_clicked()
         if (!m_newMessages.isEmpty())
             addLogMessage(m_newMessages.dequeue());
 
+        ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFPS()));
+        ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
+
         QApplication::processEvents();
     }
 
@@ -158,6 +161,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->containerScopeControls->setEnabled(false);
     ui->btnRecord->setEnabled(false);
     ui->btnStartStop->setEnabled(true);
+    ui->labelCurrentFPS->setText(QStringLiteral("???"));
 }
 
 void MainWindow::on_sbGain_valueChanged(int arg1)
@@ -171,10 +175,15 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     if (!m_mscope->running())
         return;
 
-    if (checked)
-        m_mscope->startRecording();
-    else
+    if (checked) {
+        if (m_mscope->startRecording("/tmp/rectest"))
+            ui->gbRecording->setEnabled(false);
+        else
+            ui->btnRecord->setChecked(false);
+    } else {
         m_mscope->stopRecording();
+        ui->gbRecording->setEnabled(true);
+    }
 }
 
 void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
@@ -221,4 +230,11 @@ void MainWindow::on_containerComboBox_currentIndexChanged(const QString &arg1)
 void MainWindow::on_losslessCheckBox_toggled(bool checked)
 {
     m_mscope->setRecordLossless(checked);
+}
+
+void MainWindow::on_cbExtRecTrigger_toggled(bool checked)
+{
+    ui->btnRecord->setChecked(!checked);
+    ui->btnRecord->setEnabled(!checked);
+    m_mscope->setExternalRecordTrigger(checked);
 }
