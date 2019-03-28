@@ -43,13 +43,14 @@ enum class VideoContainer {
  * Each codec must be compatible with every container type
  * that we also support, to avoid unnecessary user confusion and
  * API errors.
- * (The only exception from this rule is the "Raw" fake-codec, which
- * will only work with the AVI container)
+ * (The only exception from this rule are the "Raw" and "FFV1" codecs, which
+ * will only work with the AVI (Raw) or MKV (FFV1) containers)
  */
 enum class VideoCodec {
     Raw,
     AV1,
     VP9,
+    FFV1,
     MPEG4
 };
 
@@ -71,7 +72,7 @@ public:
     void finalize(bool writeTrailer = true);
     bool initialized() const;
 
-    bool encodeFrame(const cv::Mat &frame);
+    bool pushFrame(const cv::Mat &frame);
 
     VideoCodec codec() const;
     void setCodec(VideoCodec codec);
@@ -90,7 +91,12 @@ private:
     class VideoWriterData;
     std::unique_ptr<VideoWriterData> d;
 
+    static void encodeThread(void* vwPtr);
+    bool getNextFrameFromQueue(cv::Mat *frame);
     bool prepareFrame(const cv::Mat &image);
+    bool encodeFrame(const cv::Mat& frame);
+    void startEncodeThread();
+    void stopEncodeThread();
 };
 
 #endif // VIDEOWRITER_H

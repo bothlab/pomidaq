@@ -44,8 +44,8 @@ public:
           droppedFramesCount(0),
           useColor(false)
     {
-        frameRing = boost::circular_buffer<cv::Mat>(64);
-        videoCodec = VideoCodec::VP9;
+        frameRing = boost::circular_buffer<cv::Mat>(32);
+        videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
 
         showRed = true;
@@ -66,11 +66,10 @@ public:
     int gain;
     int excitation;
     uint fps;
-    bool excitationX10;
     std::string videoFname;
 
-    double minFluor;
-    double maxFluor;
+    std::atomic_int minFluor;
+    std::atomic_int maxFluor;
     int minFluorDisplay;
     int maxFluorDisplay;
 
@@ -107,7 +106,6 @@ MiniScope::MiniScope()
     d->exposure = 100;
     d->gain = 32;
     d->excitation = 1;
-    d->excitationX10 = false;
     d->fps = 20;
 }
 
@@ -215,9 +213,6 @@ bool MiniScope::connect()
     setExcitation(1);
 
     d->connected = true;
-
-    //mValueExcitation = 0;
-    //mSliderExcitation.SetPos(mValueExcitation);
 
     setLed(0);
 
@@ -399,6 +394,36 @@ void MiniScope::setRecordLossless(bool lossless)
     d->recordLossless = lossless;
 }
 
+int MiniScope::minFluorDisplay() const
+{
+    return d->minFluorDisplay;
+}
+
+void MiniScope::setMinFluorDisplay(int value)
+{
+    d->minFluorDisplay = value;
+}
+
+int MiniScope::maxFluorDisplay() const
+{
+    return d->maxFluorDisplay;
+}
+
+void MiniScope::setMaxFluorDisplay(int value)
+{
+    d->maxFluorDisplay = value;
+}
+
+int MiniScope::minFluor() const
+{
+    return d->minFluor;
+}
+
+int MiniScope::maxFluor() const
+{
+    return d->maxFluor;
+}
+
 void MiniScope::setLed(int value)
 {
     // sanitize value
@@ -496,21 +521,24 @@ void MiniScope::captureThread(void* msPtr)
             continue;
         }
 
-        previousTime = currentTime;
-        currentTime = std::chrono::high_resolution_clock::now();
-        auto delayTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime);
-        self->d->currentFPS = static_cast<uint>(1 / (delayTime.count() / static_cast<double>(1000)));
-
         // check if we are too slow, resend settings in case we are
         // NOTE: This behaviour was copied from the original Miniscope DAQ software
-        // Previously, a second OR conadition was: self->d->currentFPS < self->d->fps / 2.0
-        if (self->d->droppedFramesCount > 0) {
+        if ((self->d->droppedFramesCount > 0) || (self->d->currentFPS < self->d->fps / 2.0)) {
             self->emitMessage("Sending settings again.");
             self->d->cam.set(CV_CAP_PROP_BRIGHTNESS, self->d->exposure);
             self->d->cam.set(CV_CAP_PROP_GAIN, self->d->gain);
             self->setLed(self->d->excitation);
             self->d->droppedFramesCount = 0;
         }
+
+        previousTime = currentTime;
+        currentTime = std::chrono::high_resolution_clock::now();
+        auto delayTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count();
+        self->d->currentFPS = static_cast<uint>(1 / (delayTime / static_cast<double>(1000)));
+
+        auto extraWaitTime = (1000 / self->d->fps) - delayTime;
+        if (extraWaitTime > 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(extraWaitTime));
 
         // "frame" is the frame that we record to disk, while the "displayFrame"
         // is the one that we may also record as a video file
@@ -536,7 +564,11 @@ void MiniScope::captureThread(void* msPtr)
             // grayscale image
             cv::cvtColor(frame, frame, CV_BGR2GRAY); // added to correct green color stream
 
-            cv::minMaxLoc(frame, &self->d->minFluor, &self->d->maxFluor);
+            double minF, maxF;
+            cv::minMaxLoc(frame, &minF, &maxF);
+            self->d->minFluor = static_cast<int>(minF);
+            self->d->maxFluor = static_cast<int>(maxF);
+
             frame.convertTo(displayFrame, CV_8U, 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay), -self->d->minFluorDisplay * 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay));
         }
 
@@ -582,9 +614,7 @@ void MiniScope::captureThread(void* msPtr)
         // frame to disk if we want to record it.
         self->addFrameToBuffer(displayFrame);
         if (recordFrames)
-            vwriter->encodeFrame(frame);
-
-        //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            vwriter->pushFrame(frame);
     }
 
     // finalize recording (if there was any still ongoing)

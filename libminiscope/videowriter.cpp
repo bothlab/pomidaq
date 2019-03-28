@@ -21,6 +21,10 @@
 
 #include <string.h>
 #include <iostream>
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <queue>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 extern "C" {
@@ -33,13 +37,21 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+/**
+ * @brief FRAME_QUEUE_MAX_COUNT
+ * The maximum number of frames we want to hold in the queue in memory
+ * before dropping frames.
+ */
+static const uint FRAME_QUEUE_MAX_COUNT = 512;
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class VideoWriter::VideoWriterData
 {
 public:
     VideoWriterData()
+        : thread(nullptr)
     {
+        initialized = false;
         codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
 
@@ -54,10 +66,15 @@ public:
         lossless = false;
     }
 
+    std::thread *thread;
+    std::mutex mutex;
+    std::queue<cv::Mat> frameQueue;
+
     VideoCodec codec;
     VideoContainer container;
 
     bool initialized;
+    std::atomic_bool acceptFrames;
     int width;
     int height;
     AVRational fps;
@@ -129,11 +146,15 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->fps = {fps, 1};
     d->frames_n = 0;
 
-    // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
+    // sanity check. 'Raw' and 'FFV1' are the only codecs that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
     if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
         std::cerr << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format." << std::endl;
         d->container = VideoContainer::AVI;
+    }
+    if ((d->codec == VideoCodec::FFV1) && (d->container != VideoContainer::Matroska)) {
+        std::cerr << "Video codec was set to 'FFV1', but container was not 'Matroska'. Assuming 'Matroska' as desired container format." << std::endl;
+        d->container = VideoContainer::Matroska;
     }
 
     // set container format
@@ -176,6 +197,9 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         break;
     case VideoCodec::AV1:
         codecId = AV_CODEC_ID_AV1;
+        break;
+    case VideoCodec::FFV1:
+        codecId = AV_CODEC_ID_FFV1;
         break;
     case VideoCodec::VP9:
         codecId = AV_CODEC_ID_VP9;
@@ -220,10 +244,23 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         case VideoCodec::VP9:
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
+        case VideoCodec::FFV1:
+            // This codec is lossless by default
+            break;
         case VideoCodec::MPEG4:
             // NOTE: MPEG-4 has no lossless option
+            std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
+            d->lossless = false;
             break;
         }
+    }
+
+    if (d->codec == VideoCodec::VP9)
+        av_dict_set(&codecopts, "deadline", "realtime", 0);
+
+    if (d->codec == VideoCodec::FFV1) {
+        d->lossless = true; // this codec is always lossless
+        av_dict_set_int(&codecopts, "level", 1, 0); // Use FFV1 v1 for higher compatibility
     }
 
     // create new video stream
@@ -274,10 +311,18 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->framePts = 0;
 
     d->initialized = true;
+
+    // start encoding data
+    startEncodeThread();
 }
 
 void VideoWriter::finalize(bool writeTrailer)
 {
+    // stop encoding frames and write the last bits to disk.
+    // wait for the encoding thread to join.
+    // if no thread was running, do nothing
+    stopEncodeThread();
+
     if (d->initialized) {
         if (d->vstrm != nullptr)
             avcodec_send_frame(d->cctx, nullptr);
@@ -411,6 +456,40 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame)
     return true;
 }
 
+void VideoWriter::startEncodeThread()
+{
+    assert(d->initialized);
+
+    stopEncodeThread();
+    while (!d->frameQueue.empty())
+        d->frameQueue.pop();
+    d->acceptFrames = true;
+    d->thread = new std::thread(encodeThread, this);
+}
+
+void VideoWriter::stopEncodeThread()
+{
+    if (d->thread == nullptr)
+        return;
+    assert(d->initialized);
+
+    d->acceptFrames = false;
+    d->thread->join();
+    delete d->thread;
+    d->thread = nullptr;
+}
+
+bool VideoWriter::pushFrame(const cv::Mat &frame)
+{
+    std::lock_guard<std::mutex> lock(d->mutex);
+    if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT)
+        return false;
+
+    d->frameQueue.push(frame);
+    std::cout << "Encode Queue Count: " << d->frameQueue.size() << std::endl;
+    return true;
+}
+
 VideoCodec VideoWriter::codec() const
 {
     return d->codec;
@@ -454,4 +533,27 @@ void VideoWriter::setLossless(bool enabled)
 void VideoWriter::setContainer(VideoContainer container)
 {
     d->container = container;
+}
+
+void VideoWriter::encodeThread(void *vwPtr)
+{
+    VideoWriter *self = static_cast<VideoWriter*> (vwPtr);
+
+    while (self->d->acceptFrames) {
+        cv::Mat frame;
+        while (self->getNextFrameFromQueue(&frame)) {
+            self->encodeFrame(frame);
+        }
+    }
+}
+
+bool VideoWriter::getNextFrameFromQueue(cv::Mat *frame)
+{
+    std::lock_guard<std::mutex> lock(d->mutex);
+    if (d->frameQueue.empty())
+        return false;
+
+    *frame = d->frameQueue.front();
+    d->frameQueue.pop();
+    return true;
 }

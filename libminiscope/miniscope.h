@@ -109,6 +109,15 @@ public:
     bool recordLossless() const;
     void setRecordLossless(bool lossless);
 
+    int minFluorDisplay() const;
+    void setMinFluorDisplay(int value);
+
+    int maxFluorDisplay() const;
+    void setMaxFluorDisplay(int value);
+
+    int minFluor() const;
+    int maxFluor() const;
+
 private:
     std::unique_ptr<MiniScopeData> d;
 

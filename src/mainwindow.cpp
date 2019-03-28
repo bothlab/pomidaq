@@ -47,9 +47,6 @@ MainWindow::MainWindow(QWidget *parent) :
         m_newMessages.enqueue(QString::fromStdString(msg));
     });
 
-    m_mscope->setVideoCodec(VideoCodec::VP9);
-    m_mscope->setVideoContainer(VideoContainer::Matroska);
-
     // display default values
     ui->sbExposure->setValue(m_mscope->exposure());
     ui->sbExcitation->setValue(m_mscope->excitation());
@@ -59,8 +56,11 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->containerScopeControls->setEnabled(false);
     ui->btnRecord->setEnabled(false);
 
-    ui->containerComboBox->setCurrentIndex(0);
+    // ensure codecs and container UI is aligned with the mscope settings
     ui->codecComboBox->setCurrentIndex(0);
+    this->on_codecComboBox_currentIndexChanged(ui->codecComboBox->currentText());
+    ui->containerComboBox->setCurrentIndex(0);
+    this->on_containerComboBox_currentIndexChanged(ui->containerComboBox->currentText());
     ui->losslessCheckBox->setChecked(true);
 }
 
@@ -138,13 +138,18 @@ void MainWindow::on_btnStartStop_clicked()
 
     while (m_mscope->running()) {
         auto frame = m_mscope->currentFrame();
-        if (!frame.empty())
+        if (!frame.empty()) {
             m_scopeView->showImage(frame);
+
+            ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFPS()));
+            ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
+
+            ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
+            ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
+        }
+
         if (!m_newMessages.isEmpty())
             addLogMessage(m_newMessages.dequeue());
-
-        ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFPS()));
-        ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
 
         QApplication::processEvents();
     }
@@ -192,12 +197,24 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
     ui->losslessCheckBox->setEnabled(true);
     ui->losslessLabel->setEnabled(true);
     ui->losslessCheckBox->setChecked(m_mscope->recordLossless());
+    ui->containerComboBox->setEnabled(true);
 
     if (arg1 == "VP9")
         m_mscope->setVideoCodec(VideoCodec::VP9);
     else if (arg1 == "AV1")
         m_mscope->setVideoCodec(VideoCodec::AV1);
-    else if (arg1 == "MPEG-4") {
+    else if (arg1 == "FFV1") {
+        m_mscope->setVideoCodec(VideoCodec::FFV1);
+
+        // FFV1 is always lossless
+        ui->losslessCheckBox->setEnabled(false);
+        ui->losslessLabel->setEnabled(false);
+        ui->losslessCheckBox->setChecked(true);
+
+        // FFV1 only works with MKV containers
+        ui->containerComboBox->setCurrentIndex(0);
+        ui->containerComboBox->setEnabled(false);
+    } else if (arg1 == "MPEG-4") {
         m_mscope->setVideoCodec(VideoCodec::MPEG4);
 
         // MPEG-4 can't do lossless encoding
@@ -211,6 +228,10 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
+
+        // Raw RGB only works with AVI containers
+        ui->containerComboBox->setCurrentIndex(3);
+        ui->containerComboBox->setEnabled(false);
     } else
         qCritical() << "Unknown video codec option selected:" << arg1;
 }
@@ -237,4 +258,15 @@ void MainWindow::on_cbExtRecTrigger_toggled(bool checked)
     ui->btnRecord->setChecked(!checked);
     ui->btnRecord->setEnabled(!checked);
     m_mscope->setExternalRecordTrigger(checked);
+}
+
+void MainWindow::on_sbDisplayMin_valueChanged(int arg1)
+{
+    m_mscope->setMinFluorDisplay(arg1);
+}
+
+
+void MainWindow::on_sbDisplayMax_valueChanged(int arg1)
+{
+    m_mscope->setMaxFluorDisplay(arg1);
 }
