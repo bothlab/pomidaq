@@ -25,6 +25,7 @@
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <fstream>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 extern "C" {
@@ -68,7 +69,7 @@ public:
 
     std::thread *thread;
     std::mutex mutex;
-    std::queue<cv::Mat> frameQueue;
+    std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
 
     VideoCodec codec;
     VideoContainer container;
@@ -79,6 +80,9 @@ public:
     int height;
     AVRational fps;
     bool lossless;
+
+    bool saveTimestamps;
+    std::ofstream timestampFile;
 
     AVFrame *frame;
     AVFrame *inputFrame;
@@ -136,7 +140,7 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
     return aframe;
 }
 
-void VideoWriter::initialize(std::string fname, int width, int height, int fps, bool hasColor)
+void VideoWriter::initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -145,6 +149,7 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->height = height;
     d->fps = {fps, 1};
     d->frames_n = 0;
+    d->saveTimestamps = saveTimestamps;
 
     // sanity check. 'Raw' and 'FFV1' are the only codecs that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
@@ -172,6 +177,10 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
             fname = fname + ".avi";
         break;
     }
+
+    // prepare timestamp filename
+    auto timestampFname = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
+    timestampFname = timestampFname + "_timestamps.csv";
 
     // open output format context
     int ret;
@@ -310,6 +319,14 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     }
     d->framePts = 0;
 
+    if (d->saveTimestamps) {
+        d->timestampFile.close(); // ensure file is closed
+        d->timestampFile.clear();
+        d->timestampFile.open(timestampFname);
+        d->timestampFile << "frame; timestamp" << "\n";
+        d->timestampFile.flush();
+    }
+
     d->initialized = true;
 
     // start encoding data
@@ -331,6 +348,10 @@ void VideoWriter::finalize(bool writeTrailer)
         if (writeTrailer && (d->octx != nullptr))
             av_write_trailer(d->octx);
     }
+
+    // ensure timestamps file is closed
+    if (d->saveTimestamps)
+        d->timestampFile.close();
 
     // free all FFmpeg resources
     if (d->frame != nullptr) {
@@ -421,7 +442,7 @@ bool VideoWriter::prepareFrame(const cv::Mat &image)
     return true;
 }
 
-bool VideoWriter::encodeFrame(const cv::Mat &frame)
+bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp)
 {
     int ret;
 
@@ -448,10 +469,15 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame)
     // rescale packet timestamp
     pkt.duration = 1;
     av_packet_rescale_ts(&pkt, d->cctx->time_base, d->vstrm->time_base);
+
     // write packet
     av_write_frame(d->octx, &pkt);
     d->frames_n++;
     av_packet_unref(&pkt);
+
+    // store timestamp (if necessary)
+    if (d->saveTimestamps)
+        d->timestampFile << d->framePts << "; " << timestamp.count() << "\n";
 
     return true;
 }
@@ -479,14 +505,13 @@ void VideoWriter::stopEncodeThread()
     d->thread = nullptr;
 }
 
-bool VideoWriter::pushFrame(const cv::Mat &frame)
+bool VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT)
         return false;
 
-    d->frameQueue.push(frame);
-    std::cout << "Encode Queue Count: " << d->frameQueue.size() << std::endl;
+    d->frameQueue.push(std::make_pair(frame, time));
     return true;
 }
 
@@ -541,19 +566,22 @@ void VideoWriter::encodeThread(void *vwPtr)
 
     while (self->d->acceptFrames) {
         cv::Mat frame;
-        while (self->getNextFrameFromQueue(&frame)) {
-            self->encodeFrame(frame);
+        std::chrono::milliseconds timestamp;
+        while (self->getNextFrameFromQueue(&frame, &timestamp)) {
+            self->encodeFrame(frame, timestamp);
         }
     }
 }
 
-bool VideoWriter::getNextFrameFromQueue(cv::Mat *frame)
+bool VideoWriter::getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     if (d->frameQueue.empty())
         return false;
 
-    *frame = d->frameQueue.front();
+    auto pair = d->frameQueue.front();
+    *frame = pair.first;
+    *timestamp = pair.second;
     d->frameQueue.pop();
     return true;
 }

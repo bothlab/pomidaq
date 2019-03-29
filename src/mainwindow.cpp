@@ -167,6 +167,11 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnRecord->setEnabled(false);
     ui->btnStartStop->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
+
+    if (!m_mscope->lastError().empty())
+        QMessageBox::critical(this,
+                              "Error",
+                              QString::fromStdString(m_mscope->lastError()));
 }
 
 void MainWindow::on_sbGain_valueChanged(int arg1)

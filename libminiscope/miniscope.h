@@ -121,6 +121,8 @@ public:
     int minFluor() const;
     int maxFluor() const;
 
+    std::string lastError() const;
+
 private:
     std::unique_ptr<MiniScopeData> d;
 

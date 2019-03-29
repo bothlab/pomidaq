@@ -86,8 +86,6 @@ public:
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
 
-    std::chrono::time_point<steady_hr_clock> recordStart;
-
     std::atomic<size_t> droppedFramesCount;
     std::atomic_uint currentFPS;
 
@@ -103,6 +101,8 @@ public:
     VideoCodec videoCodec;
     VideoContainer videoContainer;
     bool recordLossless;
+
+    std::string lastError;
 };
 #pragma GCC diagnostic pop
 
@@ -157,6 +157,7 @@ void MiniScope::fail(const std::string &msg)
     d->recording = false;
     d->running = false;
     d->failed = true;
+    d->lastError = msg;
     emitMessage(msg);
 }
 
@@ -269,7 +270,6 @@ bool MiniScope::startRecording(const std::string &fname)
 
     if (!fname.empty())
         d->videoFname = fname;
-    d->recordStart = std::chrono::steady_clock::now();
     d->recording = true;
 
     return true;
@@ -441,6 +441,11 @@ int MiniScope::maxFluor() const
     return d->maxFluor;
 }
 
+std::string MiniScope::lastError() const
+{
+    return d->lastError;
+}
+
 void MiniScope::setLed(int value)
 {
     // sanitize value
@@ -476,9 +481,14 @@ void MiniScope::captureThread(void* msPtr)
     self->d->droppedFramesCount = 0;
     self->d->currentFPS = static_cast<uint>(self->d->fps);
 
+    // reset errors
+    self->d->failed = false;
+    self->d->lastError.clear();
+
     // prepare for recording
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
+    auto recordStartTime = steady_hr_clock::now();
 
     while (self->d->running) {
         cv::Mat frame;
@@ -492,7 +502,6 @@ void MiniScope::captureThread(void* msPtr)
             if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
                 if (!self->d->recording) {
                     // start recording
-                    self->d->recordStart = std::chrono::steady_clock::now();
                     self->d->recording = true;
                 }
             } else {
@@ -502,6 +511,7 @@ void MiniScope::captureThread(void* msPtr)
         }
 
         auto status = self->d->cam.grab();
+        auto frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - recordStartTime);
         if (!status) {
             self->fail("Failed to grab frame.");
             break;
@@ -599,6 +609,8 @@ void MiniScope::captureThread(void* msPtr)
                 // so we allow recording frames now
                 recordFrames = true;
                 self->emitMessage("Initialized video recording.");
+                recordStartTime = steady_hr_clock::now();
+                frameTimestamp = std::chrono::milliseconds(0); // first frame happens at 0 time elapsed
             }
         } else {
             // we are not recording or stopped recording
@@ -616,8 +628,10 @@ void MiniScope::captureThread(void* msPtr)
         // add display frame to ringbuffer, and record the raw
         // frame to disk if we want to record it.
         self->addFrameToBuffer(displayFrame);
-        if (recordFrames)
-            vwriter->pushFrame(frame);
+        if (recordFrames) {
+            if (!vwriter->pushFrame(frame, frameTimestamp))
+                self->fail("Unable to send frames to encoder. Maybe encoding or storage is too slow.");
+        }
 
         // wait a bit if necessary, to keep the right framerate
         const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - cycleStartTime);

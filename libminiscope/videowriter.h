@@ -21,6 +21,7 @@
 #define VIDEOWRITER_H
 
 #include <memory>
+#include <chrono>
 #include <opencv2/core.hpp>
 
 /**
@@ -68,11 +69,11 @@ public:
     VideoWriter();
     ~VideoWriter();
 
-    void initialize(std::string fname, int width, int height, int fps, bool hasColor);
+    void initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps = true);
     void finalize(bool writeTrailer = true);
     bool initialized() const;
 
-    bool pushFrame(const cv::Mat &frame);
+    bool pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time);
 
     VideoCodec codec() const;
     void setCodec(VideoCodec codec);
@@ -92,9 +93,9 @@ private:
     std::unique_ptr<VideoWriterData> d;
 
     static void encodeThread(void* vwPtr);
-    bool getNextFrameFromQueue(cv::Mat *frame);
+    bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
     bool prepareFrame(const cv::Mat &image);
-    bool encodeFrame(const cv::Mat& frame);
+    bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
     void startEncodeThread();
     void stopEncodeThread();
 };
