@@ -94,6 +94,9 @@ public:
     uint currentFPS() const;
     size_t droppedFramesCount() const;
 
+    uint fps() const;
+    void setFps(uint fps);
+
     bool externalRecordTrigger() const;
     void setExternalRecordTrigger(bool enabled);
 

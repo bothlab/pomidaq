@@ -51,6 +51,7 @@ private slots:
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
+    void on_fpsSpinBox_valueChanged(int arg1);
 
 protected:
     void closeEvent (QCloseEvent *event) override;

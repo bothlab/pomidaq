@@ -270,3 +270,8 @@ void MainWindow::on_sbDisplayMax_valueChanged(int arg1)
 {
     m_mscope->setMaxFluorDisplay(arg1);
 }
+
+void MainWindow::on_fpsSpinBox_valueChanged(int arg1)
+{
+    m_mscope->setFps(static_cast<uint>(arg1));
+}

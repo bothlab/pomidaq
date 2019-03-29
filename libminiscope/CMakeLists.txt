@@ -25,6 +25,7 @@ target_include_directories(miniscope PRIVATE .)
 set_target_properties(miniscope PROPERTIES PUBLIC_HEADER ${LIBMINISCOPE_HEADERS})
 
 target_link_libraries(miniscope
+    ${CMAKE_THREAD_LIBS_INIT}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${Boost_LIBRARIES}

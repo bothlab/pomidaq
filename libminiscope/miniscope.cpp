@@ -29,6 +29,12 @@
 #include "definitions.h"
 #include "videowriter.h"
 
+using steady_hr_clock =
+    std::conditional<std::chrono::high_resolution_clock::is_steady,
+                     std::chrono::high_resolution_clock,
+                     std::chrono::steady_clock
+                    >::type;
+
 #pragma GCC diagnostic ignored "-Wpadded"
 class MiniScopeData
 {
@@ -44,6 +50,7 @@ public:
           droppedFramesCount(0),
           useColor(false)
     {
+        fps = 30;
         frameRing = boost::circular_buffer<cv::Mat>(32);
         videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
@@ -65,7 +72,7 @@ public:
     int exposure;
     int gain;
     int excitation;
-    uint fps;
+    std::atomic_uint fps;
     std::string videoFname;
 
     std::atomic_int minFluor;
@@ -79,7 +86,7 @@ public:
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
 
-    std::chrono::time_point<std::chrono::system_clock> recordStart;
+    std::chrono::time_point<steady_hr_clock> recordStart;
 
     std::atomic<size_t> droppedFramesCount;
     std::atomic_uint currentFPS;
@@ -262,7 +269,7 @@ bool MiniScope::startRecording(const std::string &fname)
 
     if (!fname.empty())
         d->videoFname = fname;
-    d->recordStart = std::chrono::high_resolution_clock::now();
+    d->recordStart = std::chrono::steady_clock::now();
     d->recording = true;
 
     return true;
@@ -340,6 +347,16 @@ uint MiniScope::currentFPS() const
 size_t MiniScope::droppedFramesCount() const
 {
     return d->droppedFramesCount;
+}
+
+uint MiniScope::fps() const
+{
+    return d->fps;
+}
+
+void MiniScope::setFps(uint fps)
+{
+    d->fps = fps;
 }
 
 bool MiniScope::externalRecordTrigger() const
@@ -447,13 +464,6 @@ void MiniScope::captureThread(void* msPtr)
 {
     MiniScope *self = static_cast<MiniScope*> (msPtr);
 
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    auto previousTime = currentTime;
-
-    std::vector<int> compression_params;
-    compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
-    compression_params.push_back(0);
-
     cv::Mat droppedFrameImage(cv::Size(752, 480), CV_8UC3);
     droppedFrameImage.setTo(cv::Scalar(255, 0, 0));
     cv::putText(droppedFrameImage,
@@ -464,6 +474,7 @@ void MiniScope::captureThread(void* msPtr)
                 cv::Scalar(255,255,255));
 
     self->d->droppedFramesCount = 0;
+    self->d->currentFPS = static_cast<uint>(self->d->fps);
 
     // prepare for recording
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
@@ -471,16 +482,17 @@ void MiniScope::captureThread(void* msPtr)
 
     while (self->d->running) {
         cv::Mat frame;
+        const auto cycleStartTime = steady_hr_clock::now();
 
         // check if we might want to trigger a recording start via external input
         if (self->d->checkRecTrigger) {
             auto temp = static_cast<int>(self->d->cam.get(CV_CAP_PROP_SATURATION));
 
-            std::cout << "GPIO state: " << temp << std::endl;
+            std::cout << "GPIO state: " << self->d->cam.get(CV_CAP_PROP_SATURATION) << std::endl;
             if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
                 if (!self->d->recording) {
                     // start recording
-                    self->d->recordStart = std::chrono::high_resolution_clock::now();
+                    self->d->recordStart = std::chrono::steady_clock::now();
                     self->d->recording = true;
                 }
             } else {
@@ -525,20 +537,11 @@ void MiniScope::captureThread(void* msPtr)
         // NOTE: This behaviour was copied from the original Miniscope DAQ software
         if ((self->d->droppedFramesCount > 0) || (self->d->currentFPS < self->d->fps / 2.0)) {
             self->emitMessage("Sending settings again.");
-            self->d->cam.set(CV_CAP_PROP_BRIGHTNESS, self->d->exposure);
-            self->d->cam.set(CV_CAP_PROP_GAIN, self->d->gain);
-            self->setLed(self->d->excitation);
+            self->setExposure(self->d->exposure);
+            self->setGain(self->d->gain);
+            self->setExcitation(self->d->excitation);
             self->d->droppedFramesCount = 0;
         }
-
-        previousTime = currentTime;
-        currentTime = std::chrono::high_resolution_clock::now();
-        auto delayTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - previousTime).count();
-        self->d->currentFPS = static_cast<uint>(1 / (delayTime / static_cast<double>(1000)));
-
-        auto extraWaitTime = (1000 / self->d->fps) - delayTime;
-        if (extraWaitTime > 0)
-            std::this_thread::sleep_for(std::chrono::milliseconds(extraWaitTime));
 
         // "frame" is the frame that we record to disk, while the "displayFrame"
         // is the one that we may also record as a video file
@@ -615,6 +618,15 @@ void MiniScope::captureThread(void* msPtr)
         self->addFrameToBuffer(displayFrame);
         if (recordFrames)
             vwriter->pushFrame(frame);
+
+        // wait a bit if necessary, to keep the right framerate
+        const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - cycleStartTime);
+        const auto extraWaitTime = std::chrono::milliseconds((1000 / self->d->fps) - cycleTime.count());
+        if (extraWaitTime.count() > 0)
+            std::this_thread::sleep_for(extraWaitTime);
+
+        const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - cycleStartTime);
+        self->d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 
     // finalize recording (if there was any still ongoing)

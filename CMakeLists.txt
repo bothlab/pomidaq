@@ -21,6 +21,7 @@ add_definitions("-Werror")
 # Dependencies
 #
 include(GNUInstallDirs)
+find_package(Threads)
 find_package(Boost 1.60 REQUIRED COMPONENTS container)
 find_package(Qt5Widgets REQUIRED)
 
