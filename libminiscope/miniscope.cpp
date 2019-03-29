@@ -207,8 +207,12 @@ int MiniScope::excitation() const
 bool MiniScope::connect()
 {
     if (d->connected) {
-        std::cerr << "Tried to reconnect already connected camera." << std::endl;
-        return false;
+        if (d->failed) {
+            disconnect();
+        } else {
+            std::cerr << "Tried to reconnect already connected camera." << std::endl;
+            return false;
+        }
     }
 
     d->cam.open(d->scopeCamId);
@@ -220,12 +224,10 @@ bool MiniScope::connect()
     setGain(32);
     setExcitation(1);
 
+    d->failed = false;
     d->connected = true;
 
-    setLed(0);
-
     emitMessage(boost::str(boost::format("Initialized camera %1%") % d->scopeCamId));
-
     return true;
 }
 
