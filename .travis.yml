@@ -1,0 +1,19 @@
+# Travis CI config for PoMiDAQ
+language: c
+sudo: required
+dist: trusty
+
+services:
+  - docker
+
+compiler:
+  - gcc
+
+before_script:
+  - docker build -t pomidaq -f data/ci/Dockerfile .
+  - if [ "$CC" = "clang" ]; then export CVENDOR="clang" CXX="clang" CC="clang"; fi
+  - if [ "$CC" = "gcc" ]; then export CVENDOR="gcc" CXX="g++" CC="gcc"; fi
+
+script:
+  - docker run -t -e COMPILER_VENDOR=$CVENDOR -e CC=$CC -e CXX=$CXX -v `pwd`:/build pomidaq
+    ./data/ci/cibuild.sh
