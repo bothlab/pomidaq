@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>923</width>
-    <height>795</height>
+    <width>1178</width>
+    <height>905</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -68,10 +68,10 @@
            <number>2</number>
           </property>
           <property name="rightMargin">
-           <number>2</number>
+           <number>6</number>
           </property>
           <property name="bottomMargin">
-           <number>2</number>
+           <number>0</number>
           </property>
           <item>
            <layout class="QFormLayout" name="formLayout">
@@ -170,7 +170,7 @@
                 </sizepolicy>
                </property>
                <property name="text">
-                <string>???</string>
+                <string>0</string>
                </property>
               </widget>
              </item>
@@ -243,15 +243,15 @@
            <number>2</number>
           </property>
           <property name="rightMargin">
-           <number>2</number>
+           <number>6</number>
           </property>
           <property name="bottomMargin">
-           <number>2</number>
+           <number>0</number>
           </property>
           <item>
            <layout class="QFormLayout" name="formLayout_2">
             <property name="horizontalSpacing">
-             <number>2</number>
+             <number>4</number>
             </property>
             <property name="verticalSpacing">
              <number>2</number>
@@ -262,14 +262,14 @@
             <property name="bottomMargin">
              <number>2</number>
             </property>
-            <item row="0" column="0">
+            <item row="1" column="0">
              <widget class="QLabel" name="codecLabel">
               <property name="text">
                <string>Codec</string>
               </property>
              </widget>
             </item>
-            <item row="0" column="1">
+            <item row="1" column="1">
              <widget class="QComboBox" name="codecComboBox">
               <item>
                <property name="text">
@@ -298,14 +298,14 @@
               </item>
              </widget>
             </item>
-            <item row="1" column="0">
+            <item row="2" column="0">
              <widget class="QLabel" name="containerLabel">
               <property name="text">
                <string>Container</string>
               </property>
              </widget>
             </item>
-            <item row="1" column="1">
+            <item row="2" column="1">
              <widget class="QComboBox" name="containerComboBox">
               <item>
                <property name="text">
@@ -329,14 +329,14 @@
               </item>
              </widget>
             </item>
-            <item row="3" column="0">
+            <item row="4" column="0">
              <widget class="QLabel" name="fpsLabel">
               <property name="text">
                <string>FPS</string>
               </property>
              </widget>
             </item>
-            <item row="3" column="1">
+            <item row="4" column="1">
              <widget class="QSpinBox" name="fpsSpinBox">
               <property name="maximum">
                <number>30</number>
@@ -346,15 +346,54 @@
               </property>
              </widget>
             </item>
-            <item row="2" column="0">
+            <item row="3" column="0">
              <widget class="QLabel" name="losslessLabel">
               <property name="text">
                <string>Lossless</string>
               </property>
              </widget>
             </item>
-            <item row="2" column="1">
+            <item row="3" column="1">
              <widget class="QCheckBox" name="losslessCheckBox"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="locationLabel">
+              <property name="text">
+               <string>Location</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QWidget" name="locationWidget" native="true">
+              <layout class="QHBoxLayout" name="horizontalLayout_10">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QToolButton" name="btnOpenSaveDir">
+                 <property name="text">
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="folder-open">
+                   <normaloff>.</normaloff>.</iconset>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
             </item>
            </layout>
           </item>
@@ -386,22 +425,28 @@
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_2">
              <property name="spacing">
-              <number>2</number>
+              <number>6</number>
              </property>
              <property name="leftMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="topMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="rightMargin">
-              <number>2</number>
+              <number>6</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QDial" name="dial">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="minimum">
                 <number>1</number>
                </property>
@@ -436,22 +481,28 @@
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_3">
              <property name="spacing">
-              <number>2</number>
+              <number>6</number>
              </property>
              <property name="leftMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="topMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="rightMargin">
-              <number>2</number>
+              <number>6</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QDial" name="dial_2">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="maximum">
                 <number>100</number>
                </property>
@@ -477,22 +528,28 @@
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_5">
              <property name="spacing">
-              <number>2</number>
+              <number>6</number>
              </property>
              <property name="leftMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="topMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="rightMargin">
-              <number>2</number>
+              <number>6</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QDial" name="dial_3">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="maximum">
                 <number>100</number>
                </property>
@@ -520,10 +577,22 @@
           <string>Display</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_5">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="leftMargin">
+           <number>4</number>
+          </property>
+          <property name="topMargin">
+           <number>2</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
           <item>
            <layout class="QFormLayout" name="formLayout_3">
             <property name="horizontalSpacing">
-             <number>2</number>
+             <number>4</number>
             </property>
             <property name="verticalSpacing">
              <number>2</number>
@@ -706,24 +775,60 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>923</width>
+     <width>1178</width>
      <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuApp">
     <property name="title">
-     <string>App</string>
+     <string>&amp;DAQ</string>
     </property>
+    <addaction name="actionSet_Data_Location"/>
+    <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuInfo">
     <property name="title">
      <string>&amp;Info</string>
     </property>
+    <addaction name="actionAbout_Video_Formats"/>
+    <addaction name="actionAbout"/>
    </widget>
    <addaction name="menuApp"/>
    <addaction name="menuInfo"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <action name="actionQuit">
+   <property name="icon">
+    <iconset theme="window-close"/>
+   </property>
+   <property name="text">
+    <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionSet_Data_Location">
+   <property name="icon">
+    <iconset theme="folder-open"/>
+   </property>
+   <property name="text">
+    <string>Set Data Location</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="icon">
+    <iconset theme="help-about"/>
+   </property>
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+  <action name="actionAbout_Video_Formats">
+   <property name="icon">
+    <iconset theme="video-webm"/>
+   </property>
+   <property name="text">
+    <string>About Video Formats</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources/>
@@ -735,12 +840,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>89</x>
-     <y>369</y>
+     <x>95</x>
+     <y>517</y>
     </hint>
     <hint type="destinationlabel">
-     <x>162</x>
-     <y>366</y>
+     <x>248</x>
+     <y>508</y>
     </hint>
    </hints>
   </connection>
@@ -751,12 +856,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>228</x>
-     <y>364</y>
+     <x>248</x>
+     <y>508</y>
     </hint>
     <hint type="destinationlabel">
-     <x>111</x>
-     <y>367</y>
+     <x>105</x>
+     <y>517</y>
     </hint>
    </hints>
   </connection>
@@ -767,12 +872,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>69</x>
-     <y>417</y>
+     <x>75</x>
+     <y>599</y>
     </hint>
     <hint type="destinationlabel">
-     <x>157</x>
-     <y>416</y>
+     <x>248</x>
+     <y>590</y>
     </hint>
    </hints>
   </connection>
@@ -783,12 +888,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>234</x>
-     <y>417</y>
+     <x>248</x>
+     <y>590</y>
     </hint>
     <hint type="destinationlabel">
-     <x>118</x>
-     <y>420</y>
+     <x>105</x>
+     <y>599</y>
     </hint>
    </hints>
   </connection>
@@ -799,12 +904,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>90</x>
-     <y>466</y>
+     <x>96</x>
+     <y>681</y>
     </hint>
     <hint type="destinationlabel">
-     <x>170</x>
-     <y>469</y>
+     <x>248</x>
+     <y>672</y>
     </hint>
    </hints>
   </connection>
@@ -815,12 +920,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>230</x>
-     <y>466</y>
+     <x>248</x>
+     <y>672</y>
     </hint>
     <hint type="destinationlabel">
-     <x>113</x>
-     <y>472</y>
+     <x>105</x>
+     <y>681</y>
     </hint>
    </hints>
   </connection>

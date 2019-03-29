@@ -53,6 +53,12 @@ private slots:
     void on_sbDisplayMin_valueChanged(int arg1);
     void on_fpsSpinBox_valueChanged(int arg1);
 
+    void on_actionAbout_triggered();
+    void on_actionAbout_Video_Formats_triggered();
+    void on_actionQuit_triggered();
+    void on_actionSet_Data_Location_triggered();
+    void on_btnOpenSaveDir_clicked();
+
 protected:
     void closeEvent (QCloseEvent *event) override;
 
@@ -67,8 +73,11 @@ private:
     int m_messageCount;
     QQueue<QString> m_newMessages;
 
+    QString dataDir;
+
     void addLogMessage(const QString &msg);
     void setStatusText(const QString& msg);
+    void setDataExportDir(const QString& dir);
 };
 
 #endif // MAINWINDOW_H

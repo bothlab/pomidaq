@@ -25,6 +25,10 @@
 #include <QMessageBox>
 #include <QLabel>
 #include <miniscope.h>
+#include <QStandardPaths>
+#include <QFileDialog>
+#include <QDateTime>
+#include <QMessageBox>
 #include "videoviewwidget.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -62,6 +66,11 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->containerComboBox->setCurrentIndex(0);
     this->on_containerComboBox_currentIndexChanged(ui->containerComboBox->currentText());
     ui->losslessCheckBox->setChecked(true);
+
+    // set export directory, default to /tmp
+    setDataExportDir(QStandardPaths::writableLocation(QStandardPaths::StandardLocation::TempLocation));
+    if (dataDir.isEmpty())
+        setDataExportDir("/tmp");
 }
 
 MainWindow::~MainWindow()
@@ -98,6 +107,12 @@ void MainWindow::setStatusText(const QString& msg)
 {
     m_statusBarLabel->setText(msg);
     QApplication::processEvents();
+}
+
+void MainWindow::setDataExportDir(const QString &dir)
+{
+    setWindowTitle(QStringLiteral("Portable Miniscope DAQ - %1").arg(dir));
+    dataDir = dir;
 }
 
 void MainWindow::on_sbExposure_valueChanged(int arg1)
@@ -185,8 +200,17 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     if (!m_mscope->running())
         return;
 
+    QFileInfo dataLocation(dataDir);
+    if (!dataLocation.isDir() || !dataLocation.isWritable() || dataDir.isEmpty()) {
+        QMessageBox::critical(this,
+                              "Recording Error",
+                              QStringLiteral("Data location '%1' is not a directory or not writable.").arg(dataDir));
+        return;
+    }
+
     if (checked) {
-        if (m_mscope->startRecording("/tmp/rectest"))
+        auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope").toStdString();
+        if (m_mscope->startRecording(videoFname))
             ui->gbRecording->setEnabled(false);
         else
             ui->btnRecord->setChecked(false);
@@ -279,4 +303,48 @@ void MainWindow::on_sbDisplayMax_valueChanged(int arg1)
 void MainWindow::on_fpsSpinBox_valueChanged(int arg1)
 {
     m_mscope->setFps(static_cast<uint>(arg1));
+}
+
+void MainWindow::on_btnOpenSaveDir_clicked()
+{
+    on_actionSet_Data_Location_triggered();
+}
+
+void MainWindow::on_actionSet_Data_Location_triggered()
+{
+    auto dir = QFileDialog::getExistingDirectory(this,
+                                                 "Select Directory",
+                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+                                                 QFileDialog::ShowDirsOnly);
+    if (!dir.isEmpty())
+        setDataExportDir(dir);
+}
+
+void MainWindow::on_actionQuit_triggered()
+{
+    this->close();
+}
+
+void MainWindow::on_actionAbout_Video_Formats_triggered()
+{
+    const auto infoText = QStringLiteral("TODO");
+    QMessageBox::information(this,
+                             QStringLiteral("Which video codec/container do I choose?"),
+                             infoText);
+}
+
+void MainWindow::on_actionAbout_triggered()
+{
+    const auto text = QStringLiteral(
+                "(c) 2019 Matthias Klumpp\n\n"
+                "PoMiDAQ is free software: you can redistribute it and/or modify "
+                "it under the terms of the GNU Lesser General Public License as published by "
+                "the Free Software Foundation, either version 3 of the License, or "
+                "(at your option) any later version.\n"
+                "\n"
+                "PoMiDAQ is distributed in the hope that it will be useful, "
+                "but WITHOUT ANY WARRANTY; without even the implied warranty of "
+                "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
+                "GNU Lesser General Public License for more details.");
+    QMessageBox::about(this, QStringLiteral("About this tool"), text);
 }
