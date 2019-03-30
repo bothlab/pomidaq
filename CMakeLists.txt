@@ -41,7 +41,7 @@ find_package(Qt5Widgets REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(FFmpeg 4.1 REQUIRED COMPONENTS avcodec avutil avformat)
+find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat)
 
 #
 # Compile options
