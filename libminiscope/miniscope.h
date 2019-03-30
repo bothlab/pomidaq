@@ -22,25 +22,7 @@
 
 #include <memory>
 #include <functional>
-
-#include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/core/hal/hal.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/ml.hpp>
-#include <opencv2/objdetect.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/opencv_modules.hpp>
-#include <opencv2/photo.hpp>
-#include <opencv2/shape.hpp>
-#include <opencv2/stitching.hpp>
-#include <opencv2/superres.hpp>
-#include <opencv2/video.hpp>
-#include <opencv2/videoio.hpp>
-#include <opencv2/videostab.hpp>
 
 #include "videowriter.h"
 

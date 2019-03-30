@@ -25,6 +25,11 @@
 #include <atomic>
 #include <boost/circular_buffer.hpp>
 #include <boost/format.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/opencv_modules.hpp>
+#include <opencv2/videoio.hpp>
 
 #include "definitions.h"
 #include "videowriter.h"
@@ -174,7 +179,7 @@ void MiniScope::setExposure(int value)
         value = 100;
 
     d->exposure = value;
-    d->cam.set(CV_CAP_PROP_BRIGHTNESS, static_cast<double>(d->exposure) / 100);
+    d->cam.set(cv::CAP_PROP_BRIGHTNESS, static_cast<double>(d->exposure) / 100);
 }
 
 int MiniScope::exposure() const
@@ -185,7 +190,7 @@ int MiniScope::exposure() const
 void MiniScope::setGain(int value)
 {
     d->gain = value;
-    d->cam.set(CV_CAP_PROP_GAIN, static_cast<double>(d->gain) / 100);
+    d->cam.set(cv::CAP_PROP_GAIN, static_cast<double>(d->gain) / 100);
 }
 
 int MiniScope::gain() const
@@ -217,7 +222,7 @@ bool MiniScope::connect()
 
     d->cam.open(d->scopeCamId);
 
-    d->cam.set(CV_CAP_PROP_SATURATION, SET_CMOS_SETTINGS); // Initiallizes CMOS sensor (FPS, gain and exposure enabled...)
+    d->cam.set(cv::CAP_PROP_SATURATION, SET_CMOS_SETTINGS); // Initiallizes CMOS sensor (FPS, gain and exposure enabled...)
 
     // set default values
     setExposure(100);
@@ -457,7 +462,7 @@ void MiniScope::setLed(int value)
     // maximum brighness reached at 50% already, so we divide by two to allow smaller stepsize
     double ledPower = static_cast<double>(value) / 2 / 100;
     if (d->connected) {
-        d->cam.set(CV_CAP_PROP_HUE, ledPower);
+        d->cam.set(cv::CAP_PROP_HUE, ledPower);
     }
 }
 
@@ -498,9 +503,9 @@ void MiniScope::captureThread(void* msPtr)
 
         // check if we might want to trigger a recording start via external input
         if (self->d->checkRecTrigger) {
-            auto temp = static_cast<int>(self->d->cam.get(CV_CAP_PROP_SATURATION));
+            auto temp = static_cast<int>(self->d->cam.get(cv::CAP_PROP_SATURATION));
 
-            std::cout << "GPIO state: " << self->d->cam.get(CV_CAP_PROP_SATURATION) << std::endl;
+            std::cout << "GPIO state: " << self->d->cam.get(cv::CAP_PROP_SATURATION) << std::endl;
             if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
                 if (!self->d->recording) {
                     // start recording
@@ -577,7 +582,7 @@ void MiniScope::captureThread(void* msPtr)
             }
          } else {
             // grayscale image
-            cv::cvtColor(frame, frame, CV_BGR2GRAY); // added to correct green color stream
+            cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY); // added to correct green color stream
 
             double minF, maxF;
             cv::minMaxLoc(frame, &minF, &maxF);
