@@ -95,7 +95,7 @@ public:
     SwsContext *swsctx;
     AVPixelFormat inputPixFormat;
 
-    ulong frames_n;
+    size_t frames_n;
 };
 #pragma GCC diagnostic pop
 
