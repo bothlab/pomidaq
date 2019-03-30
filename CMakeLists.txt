@@ -1,6 +1,9 @@
 project(PoMiDAQ)
 cmake_minimum_required(VERSION 3.2)
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/data/cmake/")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -11,11 +14,22 @@ set(PROJECT_VERSION 0.1)
 set(LIBSOVERSION 0)
 
 #
+# Options
+#
+option(MAINTAINER "Enable maintainer mode" OFF)
+
+#
 # Compiler flags
 #
-add_definitions("-Wall" "-Wextra" "-Werror")
-add_definitions("-Wno-unused-but-set-variable")
-add_definitions("-Werror")
+add_definitions("-Wall")
+
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    add_definitions("-Wextra")
+endif()
+
+if (MAINTAINER)
+    add_definitions("-Werror")
+endif()
 
 #
 # Dependencies
