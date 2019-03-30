@@ -26,8 +26,11 @@ target_link_libraries(pomidaq
     miniscope
 )
 
-include_directories(
+include_directories(SYSTEM
     ${OpenCV_INCLUDE_DIRS}
+
+)
+include_directories(
     ../libminiscope/
 )
 

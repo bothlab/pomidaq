@@ -18,6 +18,7 @@ set(LIBSOVERSION 0)
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
 
+
 #
 # Compiler flags
 #
@@ -40,6 +41,10 @@ endif()
 set(BUILD_SHARED_LIBS ON)
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
     set(BUILD_SHARED_LIBS OFF)
+
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        add_definitions("-Wno-old-style-cast")
+    endif()
 endif()
 
 
@@ -55,11 +60,6 @@ find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
-#
-# Compile options
-#
-
-# NONE
 
 #
 # Subdirectories
