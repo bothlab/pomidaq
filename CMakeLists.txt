@@ -23,13 +23,25 @@ option(MAINTAINER "Enable maintainer mode" OFF)
 #
 add_definitions("-Wall")
 
-if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions("-Wextra")
+endif()
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    add_definitions("-Wno-c++98-compat" "-Wno-c++98-compat-pedantic")
 endif()
 
 if (MAINTAINER)
-    add_definitions("-Werror")
+    if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        add_definitions("-Werror")
+    endif()
 endif()
+
+# Don't build shared libminiscope on Windows
+set(BUILD_SHARED_LIBS ON)
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+    set(BUILD_SHARED_LIBS OFF)
+endif()
+
 
 #
 # Dependencies
@@ -41,7 +53,7 @@ find_package(Qt5Widgets REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat)
+find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
 #
 # Compile options

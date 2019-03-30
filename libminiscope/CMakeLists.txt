@@ -13,7 +13,7 @@ set(LIBMINISCOPE_HEADERS
     miniscope.h
 )
 
-add_library(miniscope SHARED
+add_library(miniscope
     ${LIBMINISCOPE_SRC}
     ${LIBMINISCOPE_HEADERS}
     ${LIBMINISCOPE_PRIV_HEADERS}
@@ -39,6 +39,8 @@ include_directories(
 )
 
 install(TARGETS miniscope
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    COMPONENT library
 )

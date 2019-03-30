@@ -1,0 +1,64 @@
+image: Visual Studio 2017
+
+environment:
+  matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    GENERATOR: Ninja
+    VCVARS: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+    PLATFORM:
+    VER_SUFFIX: win64
+    QT_DIR: C:\Qt\5.12\msvc2017_64
+    OPENCV_DIR: C:\tools\opencv\build\x64\vc15\lib
+    BOOST_DIR: C:\Libraries\boost_1_69_0
+
+init:
+- call "%QT_DIR%\bin\qtenv2.bat"
+- set PATH=C:\msys64\bin;C:\msys64\usr\bin;C:\Qt\Tools\QtCreator\bin;C:\Program Files\CMake\bin;%PATH%
+- call "%VCVARS%" %PLATFORM%
+- cd /D "%APPVEYOR_BUILD_FOLDER%"
+
+install:
+- choco upgrade cmake ninja
+- choco install opencv
+- ps: |
+      mkdir -p $env:APPVEYOR_BUILD_FOLDER\ffmpeg-root\
+      cd $env:APPVEYOR_BUILD_FOLDER\ffmpeg-root\
+      bash -c "wget -q -O - http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ffmpeg-4.1.1-1-any.pkg.tar.xz | tar -xJ"
+      # Rename all precompiled lib*.dll.a -> *.lib, so MSVC will find them
+      Get-ChildItem mingw64\lib\lib*.dll.a | %{
+        $new_name = $_.Name.SubString(3) -replace ".dll.a", ".lib"
+        $new_fullname = Join-Path $_.DirectoryName $new_name
+        Rename-Item $_.FullName $new_fullname
+      }
+- cd /D "%APPVEYOR_BUILD_FOLDER%"
+
+before_build:
+- if defined APPVEYOR_REPO_TAG_NAME (set VERSION=%APPVEYOR_REPO_TAG_NAME%) else for /F %%I in ('git rev-list --count HEAD') do set VERSION=git%%I
+- set DEPLOY_DIR=PoMiDAQ-%VERSION%
+- mkdir build
+- cd build
+- cmake -B.
+    -S..
+    -G "%GENERATOR%"
+    -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DCMAKE_INSTALL_PREFIX="%DEPLOY_DIR%"
+    -DOpenCV_DIR="%OPENCV_DIR%"
+    -DFFmpegPath="%APPVEYOR_BUILD_FOLDER%\ffmpeg-root\mingw64\include"
+    -DBoost_COMPILER="-vc141"
+    -DBOOST_ROOT="%BOOST_DIR%" -DBOOST_LIBRARYDIR="%BOOST_DIR%\lib64-msvc-14.1"
+- cd ..
+
+build_script:
+- cmake --build build
+
+after_build:
+- cmake --build build --target install
+- cd build
+- 7z a pomidaq-%VERSION%-%VER_SUFFIX%.zip "%DEPLOY_DIR%"
+- cd ..
+
+test: off
+
+artifacts:
+- path: build/pomidaq*.zip
