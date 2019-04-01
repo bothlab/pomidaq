@@ -244,6 +244,7 @@ void MiniScope::disconnect()
 {
     stop();
     d->cam.release();
+    d->connected = false;
     emitMessage(boost::str(boost::format("Disconnected camera %1%") % d->scopeCamId));
 }
 
