@@ -64,6 +64,8 @@ public:
         showGreen = true;
         showBlue = true;
 
+        deltaFByF = false;
+
         minFluorDisplay = 0;
         maxFluorDisplay = 255;
     }
@@ -84,6 +86,8 @@ public:
     std::atomic_int maxFluor;
     int minFluorDisplay;
     int maxFluorDisplay;
+
+    std::atomic_bool deltaFByF;
 
     bool connected;
     std::atomic_bool running;
@@ -448,6 +452,16 @@ int MiniScope::maxFluor() const
     return d->maxFluor;
 }
 
+bool MiniScope::displayFluoDelta() const
+{
+    return d->deltaFByF;
+}
+
+void MiniScope::setDisplayFluoDelta(bool enabled)
+{
+    d->deltaFByF = enabled;
+}
+
 std::string MiniScope::lastError() const
 {
     return d->lastError;
@@ -491,6 +505,9 @@ void MiniScope::captureThread(void* msPtr)
     // reset errors
     self->d->failed = false;
     self->d->lastError.clear();
+
+    // prepare accumulator image for running average (for dF/F)
+    cv::Mat accumulatedMat;
 
     // prepare for recording
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
@@ -630,6 +647,19 @@ void MiniScope::captureThread(void* msPtr)
                 recordFrames = false;
                 self->emitMessage("Recording finalized.");
             }
+        }
+
+        // calculate dF/F if selected
+        if (accumulatedMat.rows == 0)
+            accumulatedMat = cv::Mat::zeros(frame.rows, frame.cols, CV_32FC(frame.channels()));
+
+        cv::Mat displayF32;
+        displayFrame.convertTo(displayF32, CV_32F, 1.0 / 255.0);
+        cv::accumulateWeighted(displayF32, accumulatedMat, 0.01);
+        if (self->d->deltaFByF) {
+            cv::Mat tmpMat;
+            cv::divide(displayF32, accumulatedMat, tmpMat, 1, CV_32FC(frame.channels()));
+            tmpMat.convertTo(displayFrame, displayFrame.type(), 250.0);
         }
 
         // add display frame to ringbuffer, and record the raw

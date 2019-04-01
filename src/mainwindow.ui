@@ -392,6 +392,22 @@
                  </property>
                 </widget>
                </item>
+               <item>
+                <spacer name="horizontalSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeType">
+                  <enum>QSizePolicy::Minimum</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
               </layout>
              </widget>
             </item>
@@ -716,6 +732,16 @@
               </layout>
              </widget>
             </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="deltaFLabel">
+              <property name="text">
+               <string>ΔF/F</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QCheckBox" name="deltaFCheckBox"/>
+            </item>
            </layout>
           </item>
          </layout>
@@ -799,34 +825,38 @@
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionQuit">
    <property name="icon">
-    <iconset theme="window-close"/>
+    <iconset theme="window-close">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>Quit</string>
+    <string>&amp;Quit</string>
    </property>
   </action>
   <action name="actionSet_Data_Location">
    <property name="icon">
-    <iconset theme="folder-open"/>
+    <iconset theme="folder-open">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>Set Data Location</string>
+    <string>&amp;Set Data Location</string>
    </property>
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset theme="help-about"/>
+    <iconset theme="help-about">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>About</string>
+    <string>A&amp;bout</string>
    </property>
   </action>
   <action name="actionAbout_Video_Formats">
    <property name="icon">
-    <iconset theme="video-webm"/>
+    <iconset theme="video-webm">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>About Video Formats</string>
+    <string>&amp;About Video Formats</string>
    </property>
   </action>
  </widget>

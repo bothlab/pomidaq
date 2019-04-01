@@ -348,3 +348,8 @@ void MainWindow::on_actionAbout_triggered()
                 "GNU Lesser General Public License for more details.");
     QMessageBox::about(this, QStringLiteral("About this tool"), text);
 }
+
+void MainWindow::on_deltaFCheckBox_toggled(bool checked)
+{
+    m_mscope->setDisplayFluoDelta(checked);
+}

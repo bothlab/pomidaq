@@ -58,6 +58,7 @@ private slots:
     void on_actionQuit_triggered();
     void on_actionSet_Data_Location_triggered();
     void on_btnOpenSaveDir_clicked();
+    void on_deltaFCheckBox_toggled(bool checked);
 
 protected:
     void closeEvent (QCloseEvent *event) override;

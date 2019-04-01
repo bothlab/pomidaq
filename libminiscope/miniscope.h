@@ -103,6 +103,9 @@ public:
     int minFluor() const;
     int maxFluor() const;
 
+    bool displayFluoDelta() const;
+    void setDisplayFluoDelta(bool enabled);
+
     std::string lastError() const;
 
 private:
