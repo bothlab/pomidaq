@@ -13,9 +13,12 @@ set(POMIDAQ_UI
 
 qt5_wrap_ui(POMIDAQ_UI_SRC ${POMIDAQ_UI})
 
+qt5_add_resources(POMIDAQ_RES_SRC ../data/resources.qrc)
+
 add_executable(pomidaq
     ${POMIDAQ_SRC}
     ${POMIDAQ_UI_SRC}
+    ${POMIDAQ_RES_SRC}
 )
 
 target_link_libraries(pomidaq

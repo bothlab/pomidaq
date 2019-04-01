@@ -387,8 +387,8 @@
                   <string>...</string>
                  </property>
                  <property name="icon">
-                  <iconset theme="folder-open">
-                   <normaloff>.</normaloff>.</iconset>
+                  <iconset theme="folder-open" resource="../data/resources.qrc">
+                   <normaloff>:/icons/document-open.png</normaloff>:/icons/document-open.png</iconset>
                  </property>
                 </widget>
                </item>
@@ -861,7 +861,9 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources/>
+ <resources>
+  <include location="../data/resources.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>dial</sender>
