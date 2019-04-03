@@ -57,12 +57,7 @@ after_build:
       cp .\ffmpeg-bin\*\bin\*.dll $env:DEPLOY_DIR\bin\
 
       cp $env:OPENCV_DIR\..\bin\opencv_world401.dll $env:DEPLOY_DIR\bin\
-
-      mkdir -p $env:DEPLOY_DIR\bin\platforms
-      cp $env:QT_DIR\bin\Qt5Widgets.dll $env:DEPLOY_DIR\bin\
-      cp $env:QT_DIR\bin\Qt5Gui.dll $env:DEPLOY_DIR\bin\
-      cp $env:QT_DIR\bin\Qt5Core.dll $env:DEPLOY_DIR\bin\
-      cp $env:QT_DIR\plugins\platforms\*.dll $env:DEPLOY_DIR\bin\platforms
+      windeployqt $env:DEPLOY_DIR\bin\pomidaq.exe
 
       cp $env:APPVEYOR_BUILD_FOLDER\LICENSE $env:DEPLOY_DIR\LICENSE.txt
       cp $env:APPVEYOR_BUILD_FOLDER\README.md $env:DEPLOY_DIR
