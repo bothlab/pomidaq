@@ -24,13 +24,8 @@ install:
 - ps: |
       mkdir -p $env:FFMPEG_DIR
       cd $env:FFMPEG_DIR
-      bash -c "wget -q -O - http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ffmpeg-4.1.1-1-any.pkg.tar.xz | tar -xJ"
-      # Rename all precompiled lib*.dll.a -> *.lib, so MSVC will find them
-      Get-ChildItem mingw64\lib\lib*.dll.a | %{
-        $new_name = $_.Name.SubString(3) -replace ".dll.a", ".lib"
-        $new_fullname = Join-Path $_.DirectoryName $new_name
-        Rename-Item $_.FullName $new_fullname
-      }
+      bash -c "wget -q -O ffmpeg.zip https://ffmpeg.zeranoe.com/builds/win64/dev/ffmpeg-4.1.1-win64-dev.zip"
+      Expand-Archive ffmpeg.zip -DestinationPath .
 - cd /D "%APPVEYOR_BUILD_FOLDER%"
 
 before_build:
@@ -45,7 +40,7 @@ before_build:
     -DCMAKE_BUILD_TYPE=RelWithDebInfo
     -DCMAKE_INSTALL_PREFIX="%DEPLOY_DIR%"
     -DOpenCV_DIR="%OPENCV_DIR%"
-    -DFFmpegPath="%FFMPEG_DIR%\mingw64\include"
+    -DFFmpegPath="%FFMPEG_DIR%/ffmpeg-4.1.1-win64-dev/include"
     -DBoost_COMPILER="-vc141"
     -DBOOST_ROOT="%BOOST_DIR%" -DBOOST_LIBRARYDIR="%BOOST_DIR%\lib64-msvc-14.1"
 - cd ..
