@@ -26,11 +26,10 @@
 
 #include "videowriter.h"
 
-enum class ColorChannel {
-    ALL,
-    RED,
-    GREEN,
-    BLUE
+enum class BackgroundDiffMethod {
+    NONE,
+    SUBTRACTION,
+    DIVISION
 };
 
 class MiniScopeData;
@@ -103,8 +102,8 @@ public:
     int minFluor() const;
     int maxFluor() const;
 
-    bool displayFluoDelta() const;
-    void setDisplayFluoDelta(bool enabled);
+    BackgroundDiffMethod displayBgDiffMethod() const;
+    void setDisplayBgDiffMethod(BackgroundDiffMethod method);
 
     std::string lastError() const;
 

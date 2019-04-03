@@ -349,7 +349,22 @@ void MainWindow::on_actionAbout_triggered()
     QMessageBox::about(this, QStringLiteral("About this tool"), text);
 }
 
-void MainWindow::on_deltaFCheckBox_toggled(bool checked)
+void MainWindow::on_bgSubstCheckBox_toggled(bool checked)
 {
-    m_mscope->setDisplayFluoDelta(checked);
+    if (checked) {
+        ui->bgDivCheckBox->setChecked(false);
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::SUBTRACTION);
+    } else {
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::NONE);
+    }
+}
+
+void MainWindow::on_bgDivCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        ui->bgSubstCheckBox->setChecked(false);
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::DIVISION);
+    } else {
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::NONE);
+    }
 }

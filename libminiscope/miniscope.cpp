@@ -64,7 +64,7 @@ public:
         showGreen = true;
         showBlue = true;
 
-        deltaFByF = false;
+        bgDiffMethod = BackgroundDiffMethod::NONE;
 
         minFluorDisplay = 0;
         maxFluorDisplay = 255;
@@ -87,7 +87,7 @@ public:
     int minFluorDisplay;
     int maxFluorDisplay;
 
-    std::atomic_bool deltaFByF;
+    std::atomic<BackgroundDiffMethod> bgDiffMethod;
 
     bool connected;
     std::atomic_bool running;
@@ -453,14 +453,14 @@ int MiniScope::maxFluor() const
     return d->maxFluor;
 }
 
-bool MiniScope::displayFluoDelta() const
+BackgroundDiffMethod MiniScope::displayBgDiffMethod() const
 {
-    return d->deltaFByF;
+    return d->bgDiffMethod;
 }
 
-void MiniScope::setDisplayFluoDelta(bool enabled)
+void MiniScope::setDisplayBgDiffMethod(BackgroundDiffMethod method)
 {
-    d->deltaFByF = enabled;
+    d->bgDiffMethod = method;
 }
 
 std::string MiniScope::lastError() const
@@ -650,17 +650,21 @@ void MiniScope::captureThread(void* msPtr)
             }
         }
 
-        // calculate dF/F if selected
+        // calculate various background differences, if selected
         if (accumulatedMat.rows == 0)
             accumulatedMat = cv::Mat::zeros(frame.rows, frame.cols, CV_32FC(frame.channels()));
 
         cv::Mat displayF32;
         displayFrame.convertTo(displayF32, CV_32F, 1.0 / 255.0);
         cv::accumulateWeighted(displayF32, accumulatedMat, 0.01);
-        if (self->d->deltaFByF) {
+        if (self->d->bgDiffMethod == BackgroundDiffMethod::DIVISION) {
             cv::Mat tmpMat;
             cv::divide(displayF32, accumulatedMat, tmpMat, 1, CV_32FC(frame.channels()));
             tmpMat.convertTo(displayFrame, displayFrame.type(), 250.0);
+        } else if (self->d->bgDiffMethod == BackgroundDiffMethod::SUBTRACTION) {
+            cv::Mat tmpBgMat;
+            accumulatedMat.convertTo(tmpBgMat, CV_8UC1, 255.0);
+            cv::subtract(displayFrame, tmpBgMat, displayFrame);
         }
 
         // add display frame to ringbuffer, and record the raw
