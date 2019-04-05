@@ -1,3 +1,10 @@
+# CMakeLists for PoMiDAQ GUI executable
+
+if(WIN32)
+  set(GUI_TYPE WIN32)
+elseif(APPLE)
+  set(GUI_TYPE MACOSX_BUNDLE)
+endif()
 
 set(POMIDAQ_SRC
     main.cpp
@@ -16,6 +23,7 @@ qt5_wrap_ui(POMIDAQ_UI_SRC ${POMIDAQ_UI})
 qt5_add_resources(POMIDAQ_RES_SRC ../data/resources.qrc)
 
 add_executable(pomidaq
+    ${GUI_TYPE}
     ${POMIDAQ_SRC}
     ${POMIDAQ_UI_SRC}
     ${POMIDAQ_RES_SRC}
@@ -38,3 +46,13 @@ include_directories(
 )
 
 install(TARGETS pomidaq DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Windows stuff
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+   add_definitions("-D_UNICODE" "-DUNICODE")
+   set_target_properties(pomidaq PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE")
+   set_target_properties(pomidaq PROPERTIES COMPILE_DEFINITIONS_DEBUG "_CONSOLE")
+   set_target_properties(pomidaq PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:windows")
+   set_target_properties(pomidaq PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:windows")
+   set_target_properties(pomidaq PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:windows")
+endif()
