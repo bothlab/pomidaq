@@ -8,7 +8,7 @@ environment:
     PLATFORM:
     VER_SUFFIX: win64
     QT_DIR: C:\Qt\5.12\msvc2017_64
-    OPENCV_DIR: C:\tools\opencv\build\x64\vc15\lib
+    OPENCV_DIR: C:\tools\opencv\build\x64\vc14\lib
     BOOST_DIR: C:\Libraries\boost_1_69_0
     FFMPEG_DIR: C:\projects\ffmpeg-root
 
@@ -20,7 +20,7 @@ init:
 
 install:
 - choco upgrade cmake ninja
-- choco install opencv
+- choco install opencv --version 3.2.0
 - ps: |
       mkdir -p $env:FFMPEG_DIR
       cd $env:FFMPEG_DIR
@@ -56,7 +56,7 @@ after_build:
       Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-bin
       cp .\ffmpeg-bin\*\bin\*.dll $env:DEPLOY_DIR\bin\
 
-      cp $env:OPENCV_DIR\..\bin\opencv_world401.dll $env:DEPLOY_DIR\bin\
+      cp $env:OPENCV_DIR\..\bin\opencv_world[0-9][0-9][0-9].dll $env:DEPLOY_DIR\bin\
       windeployqt $env:DEPLOY_DIR\bin\pomidaq.exe
 
       cp $env:APPVEYOR_BUILD_FOLDER\LICENSE $env:DEPLOY_DIR\LICENSE.txt
