@@ -19,10 +19,15 @@ RUN eatmydata apt-get install -yq --no-install-recommends \
     libqt5opengl5-dev \
     libboost-dev \
     libboost-container-dev \
-    libopencv-dev \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev
+
+# build a fresh OpenCV version
+RUN mkdir /build
+ADD data/ci/opencv_quickbuild.sh /build/
+RUN cd /build && eatmydata /build/opencv_quickbuild.sh
+RUN rm -rf /build
 
 # finish
 RUN mkdir /build
