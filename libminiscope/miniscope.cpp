@@ -182,8 +182,10 @@ void MiniScope::setExposure(int value)
     if (value > 100)
         value = 100;
 
+    // NOTE: With V4L as backend, 255 seems to be the max value here
+
     d->exposure = value;
-    d->cam.set(cv::CAP_PROP_BRIGHTNESS, static_cast<double>(d->exposure) / 100);
+    d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * 2.55);
 }
 
 int MiniScope::exposure() const
@@ -193,8 +195,10 @@ int MiniScope::exposure() const
 
 void MiniScope::setGain(int value)
 {
+    // NOTE: With V4L as backend, 100 seems to be the max value here
+
     d->gain = value;
-    d->cam.set(cv::CAP_PROP_GAIN, static_cast<double>(d->gain) / 100);
+    d->cam.set(cv::CAP_PROP_GAIN, value);
 }
 
 int MiniScope::gain() const
@@ -474,8 +478,8 @@ void MiniScope::setLed(int value)
     if (value > 100)
         value = 100;
 
-    // maximum brighness reached at 50% already, so we divide by two to allow smaller stepsize
-    double ledPower = static_cast<double>(value) / 2 / 100;
+    // NOTE: With V4L, max value seems to be 125 here
+    double ledPower = static_cast<double>(value) * 0.8;
     if (d->connected) {
         d->cam.set(cv::CAP_PROP_HUE, ledPower);
     }
