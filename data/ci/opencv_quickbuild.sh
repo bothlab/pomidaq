@@ -21,12 +21,14 @@ set -e
 set -x
 
 OPENCV_VERSION=4.1.0
+WITH_PROTOBUF=OFF
 
 apt-get install -yq --no-install-recommends \
     git \
     ca-certificates \
     cmake \
     build-essential \
+    ninja-build \
     libavcodec-dev \
     libavformat-dev \
     libavresample-dev \
@@ -67,9 +69,10 @@ fi
 cd opencv
 mkdir -p build && cd build
 
-cmake  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON \
+cmake -G Ninja \
+    -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON \
     -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON \
-    -DCMAKE_INSTALL_RUNSTATEDIR=/run "-GUnix Makefiles" \
+    -DCMAKE_INSTALL_RUNSTATEDIR=/run \
     -DCMAKE_INSTALL_LIBDIR=lib/x86_64-linux-gnu \
     -DANT_EXECUTABLE=/usr/bin/ant \
     -DBUILD_EXAMPLES=OFF \
@@ -112,6 +115,7 @@ cmake  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON \
     -DWITH_UNICAP=OFF \
     -DWITH_VTK=ON \
     -DWITH_XINE=OFF \
+    -DWITH_PROTOBUF=$WITH_PROTOBUF \
     -DCPU_DISPATCH= \
     -DCPU_BASELINE=SSE2 \
     -DCPU_BASELINE_REQUIRE=SSE2 \
@@ -126,6 +130,6 @@ cmake  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON \
     ..
 
 NUMCPUS=`grep -c '^processor' /proc/cpuinfo`
-make -j$NUMCPUS --load-average=$NUMCPUS
+ninja -j$NUMCPUS -l$NUMCPUS
 
-make install
+ninja install
