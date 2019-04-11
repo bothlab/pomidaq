@@ -37,7 +37,7 @@ before_build:
     -S..
     -G "%GENERATOR%"
     -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX="%DEPLOY_DIR%"
     -DOpenCV_DIR="%OPENCV_DIR%"
     -DFFmpegPath="%FFMPEG_DIR%/ffmpeg-4.1.1-win64-dev/include"
