@@ -218,9 +218,19 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         break;
     }
 
-    // set codec parameters
+    // initialize codec and context
     auto vcodec = avcodec_find_encoder(codecId);
     d->cctx = avcodec_alloc_context3(vcodec);
+
+    // create new video stream
+    d->vstrm = avformat_new_stream(d->octx, vcodec);
+    if (!d->vstrm)
+        throw std::runtime_error("Failed to create new video stream.");
+    avcodec_parameters_to_context(d->cctx, d->vstrm->codecpar);
+
+    // set codec parameters
+    d->cctx->codec_id = codecId;
+    d->cctx->codec_type = AVMEDIA_TYPE_VIDEO;
     if (vcodec->pix_fmts != nullptr)
         d->cctx->pix_fmt = vcodec->pix_fmts[0];
     d->cctx->time_base = av_inv_q(d->fps);
@@ -229,10 +239,14 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
-    if (d->codec == VideoCodec::Raw)
+    if (d->codec == VideoCodec::Raw) {
         d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
                            d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
                            d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
+
+        // somehow setting this explicitly is required to make rawvideo encoding work properly
+        d->cctx->codec_tag = avcodec_pix_fmt_to_codec_tag(d->cctx->pix_fmt);
+    }
 
     // enable experimental mode to encode AV1
     if (d->codec == VideoCodec::AV1)
@@ -240,7 +254,6 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-
 
     AVDictionary *codecopts = nullptr;
     if (d->lossless) {
@@ -272,10 +285,6 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         av_dict_set_int(&codecopts, "level", 1, 0); // Use FFV1 v1 for higher compatibility
     }
 
-    // create new video stream
-    d->vstrm = avformat_new_stream(d->octx, vcodec);
-    if (!d->vstrm)
-        throw std::runtime_error("Failed to create new video stream.");
     avcodec_parameters_from_context(d->vstrm->codecpar, d->cctx);
     d->vstrm->r_frame_rate = d->vstrm->avg_frame_rate = d->fps;
 
