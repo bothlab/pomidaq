@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1178</width>
-    <height>935</height>
+    <height>962</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -302,12 +302,17 @@
               </item>
               <item>
                <property name="text">
+                <string>AV1</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
                 <string>VP9</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>AV1</string>
+                <string>H.265</string>
                </property>
               </item>
               <item>
@@ -337,11 +342,6 @@
               <item>
                <property name="text">
                 <string>MKV</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>OGV</string>
                </property>
               </item>
               <item>

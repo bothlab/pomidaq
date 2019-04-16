@@ -152,11 +152,16 @@ void VideoWriter::initializeInternal()
     if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
         std::cerr << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format." << std::endl;
         d->container = VideoContainer::AVI;
-    }
-    if ((d->codec == VideoCodec::FFV1) && (d->container != VideoContainer::Matroska)) {
-        std::cerr << "Video codec was set to 'FFV1', but container was not 'Matroska'. Assuming 'Matroska' as desired container format." << std::endl;
+
+    } else if ((d->codec == VideoCodec::FFV1) && ((d->container != VideoContainer::Matroska) || (d->container != VideoContainer::AVI))) {
+        std::cerr << "Video codec was set to 'FFV1', but container was not 'Matroska' or 'AVI'. Assuming 'Matroska' as desired container format." << std::endl;
+        d->container = VideoContainer::Matroska;
+
+    } else if ((d->codec == VideoCodec::H265) && ((d->container != VideoContainer::Matroska) || (d->container != VideoContainer::MP4))) {
+        std::cerr << "Video codec was set to 'H.265', but container was not 'Matroska' or 'MP4'. Assuming 'Matroska' as desired container format." << std::endl;
         d->container = VideoContainer::Matroska;
     }
+    // FIXME: There are more container/codec incompatibilities, we should probably catch them all
 
     // if file slicing is used, give our new file the appropriate name
     std::string fname;
@@ -203,17 +208,20 @@ void VideoWriter::initializeInternal()
     case VideoCodec::Raw:
         codecId = AV_CODEC_ID_RAWVIDEO;
         break;
-    case VideoCodec::AV1:
-        codecId = AV_CODEC_ID_AV1;
-        break;
     case VideoCodec::FFV1:
         codecId = AV_CODEC_ID_FFV1;
+        break;
+    case VideoCodec::AV1:
+        codecId = AV_CODEC_ID_AV1;
         break;
     case VideoCodec::VP9:
         codecId = AV_CODEC_ID_VP9;
         break;
     case VideoCodec::MPEG4:
         codecId = AV_CODEC_ID_MPEG4;
+        break;
+    case VideoCodec::H265:
+        codecId = AV_CODEC_ID_H265;
         break;
     }
 
@@ -254,15 +262,20 @@ void VideoWriter::initializeInternal()
     if (d->lossless) {
         switch (d->codec) {
         case VideoCodec::Raw:
+            // uncompressed frames are always lossless
             break;
         case VideoCodec::AV1:
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
+        case VideoCodec::FFV1:
+            // This codec is lossless by default
+            break;
         case VideoCodec::VP9:
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
-        case VideoCodec::FFV1:
-            // This codec is lossless by default
+        case VideoCodec::H265:
+            av_dict_set_int(&codecopts, "crf", 0, 0);
+            av_dict_set(&codecopts, "preset", "veryfast", 0);
             break;
         case VideoCodec::MPEG4:
             // NOTE: MPEG-4 has no lossless option
@@ -278,8 +291,9 @@ void VideoWriter::initializeInternal()
     if (d->codec == VideoCodec::FFV1) {
         d->lossless = true; // this codec is always lossless
         d->cctx->level = 3; // Ensure we use FFV1 v3
-        d->cctx->gop_size = 1; // For archival use, GOP-size should be 1
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
+        // NOTE: For archival use, GOP-size should be 1, but that also increases the file size quite a bit.
+        // Keeping a good balance between recording space/performance/integrity is difficult sometimes.
     }
 
     // open video encoder

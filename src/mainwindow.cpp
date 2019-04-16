@@ -231,11 +231,10 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
     ui->losslessCheckBox->setChecked(m_mscope->recordLossless());
     ui->containerComboBox->setEnabled(true);
 
-    if (arg1 == "VP9")
-        m_mscope->setVideoCodec(VideoCodec::VP9);
-    else if (arg1 == "AV1")
+    if (arg1 == "AV1") {
         m_mscope->setVideoCodec(VideoCodec::AV1);
-    else if (arg1 == "FFV1") {
+
+    } else if (arg1 == "FFV1") {
         m_mscope->setVideoCodec(VideoCodec::FFV1);
 
         // FFV1 is always lossless
@@ -243,9 +242,20 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
-        // FFV1 only works with MKV containers
+        // FFV1 only works with MKV and AVI containers, select MKV by default
         ui->containerComboBox->setCurrentIndex(0);
         ui->containerComboBox->setEnabled(false);
+
+    } else if (arg1 == "VP9") {
+        m_mscope->setVideoCodec(VideoCodec::VP9);
+
+    } else if (arg1 == "H.265") {
+        m_mscope->setVideoCodec(VideoCodec::H265);
+
+        // H.256 only works with MKV and MP4 containers, select MKV by default
+        ui->containerComboBox->setCurrentIndex(0);
+        ui->containerComboBox->setEnabled(false);
+
     } else if (arg1 == "MPEG-4") {
         m_mscope->setVideoCodec(VideoCodec::MPEG4);
 
@@ -253,6 +263,7 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
+
     } else if (arg1 == "None") {
         m_mscope->setVideoCodec(VideoCodec::Raw);
 
@@ -262,8 +273,9 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessCheckBox->setChecked(true);
 
         // Raw RGB only works with AVI containers
-        ui->containerComboBox->setCurrentIndex(3);
+        ui->containerComboBox->setCurrentIndex(2);
         ui->containerComboBox->setEnabled(false);
+
     } else
         qCritical() << "Unknown video codec option selected:" << arg1;
 }

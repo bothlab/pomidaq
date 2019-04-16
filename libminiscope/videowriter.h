@@ -41,17 +41,21 @@ enum class VideoContainer {
  * @brief The VideoCodec enum
  *
  * Video codecs that we support in VideoWriter.
- * Each codec must be compatible with every container type
+ * Ideally, each codec should be compatible with every container type
  * that we also support, to avoid unnecessary user confusion and
  * API errors.
- * (The only exception from this rule are the "Raw" and "FFV1" codecs, which
- * will only work with the AVI (Raw) or MKV (FFV1) containers)
+ * However, this is currently no possible, therefore the following codecs are
+ * only supported with some containers:
+ * + Raw: only AVI
+ * + FFV1: only MKV, AVI
+ * + H.256: only MKV, MP4
  */
 enum class VideoCodec {
     Raw,
+    FFV1,
     AV1,
     VP9,
-    FFV1,
+    H265,
     MPEG4
 };
 
