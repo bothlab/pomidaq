@@ -346,11 +346,6 @@
               </item>
               <item>
                <property name="text">
-                <string>MP4</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
                 <string>AVI</string>
                </property>
               </item>

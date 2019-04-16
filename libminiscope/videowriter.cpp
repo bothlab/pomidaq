@@ -147,21 +147,13 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
 
 void VideoWriter::initializeInternal()
 {
-    // sanity check. 'Raw' and 'FFV1' are the only codecs that we allow to only actually work with one
+    // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
     if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
         std::cerr << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format." << std::endl;
         d->container = VideoContainer::AVI;
 
-    } else if ((d->codec == VideoCodec::FFV1) && ((d->container != VideoContainer::Matroska) || (d->container != VideoContainer::AVI))) {
-        std::cerr << "Video codec was set to 'FFV1', but container was not 'Matroska' or 'AVI'. Assuming 'Matroska' as desired container format." << std::endl;
-        d->container = VideoContainer::Matroska;
-
-    } else if ((d->codec == VideoCodec::H265) && ((d->container != VideoContainer::Matroska) || (d->container != VideoContainer::MP4))) {
-        std::cerr << "Video codec was set to 'H.265', but container was not 'Matroska' or 'MP4'. Assuming 'Matroska' as desired container format." << std::endl;
-        d->container = VideoContainer::Matroska;
     }
-    // FIXME: There are more container/codec incompatibilities, we should probably catch them all
 
     // if file slicing is used, give our new file the appropriate name
     std::string fname;
@@ -178,10 +170,6 @@ void VideoWriter::initializeInternal()
     case VideoContainer::Matroska:
         if (!boost::algorithm::ends_with(fname, ".mkv"))
             fname = fname + ".mkv";
-        break;
-    case VideoContainer::MP4:
-        if (!boost::algorithm::ends_with(fname, ".mp4"))
-            fname = fname + ".mp4";
         break;
     case VideoContainer::AVI:
         if (!boost::algorithm::ends_with(fname, ".avi"))

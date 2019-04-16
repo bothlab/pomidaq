@@ -242,10 +242,6 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
-        // FFV1 only works with MKV and AVI containers, select MKV by default
-        ui->containerComboBox->setCurrentIndex(0);
-        ui->containerComboBox->setEnabled(false);
-
     } else if (arg1 == "VP9") {
         m_mscope->setVideoCodec(VideoCodec::VP9);
 
@@ -273,7 +269,7 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessCheckBox->setChecked(true);
 
         // Raw RGB only works with AVI containers
-        ui->containerComboBox->setCurrentIndex(2);
+        ui->containerComboBox->setCurrentIndex(1);
         ui->containerComboBox->setEnabled(false);
 
     } else
@@ -284,8 +280,6 @@ void MainWindow::on_containerComboBox_currentIndexChanged(const QString &arg1)
 {
     if (arg1 == "MKV")
         m_mscope->setVideoContainer(VideoContainer::Matroska);
-    else if (arg1 == "MP4")
-        m_mscope->setVideoContainer(VideoContainer::MP4);
     else if (arg1 == "AVI")
         m_mscope->setVideoContainer(VideoContainer::AVI);
     else

@@ -33,7 +33,6 @@
  */
 enum class VideoContainer {
     Matroska,
-    MP4,
     AVI
 };
 
@@ -41,14 +40,11 @@ enum class VideoContainer {
  * @brief The VideoCodec enum
  *
  * Video codecs that we support in VideoWriter.
- * Ideally, each codec should be compatible with every container type
+ * Each codec must be compatible with every container type
  * that we also support, to avoid unnecessary user confusion and
  * API errors.
- * However, this is currently no possible, therefore the following codecs are
- * only supported with some containers:
- * + Raw: only AVI
- * + FFV1: only MKV, AVI
- * + H.256: only MKV, MP4
+ * Currently, the only permanent exception to this rule is the "Raw" encoder,
+ * which only supports the AVI container.
  */
 enum class VideoCodec {
     Raw,
