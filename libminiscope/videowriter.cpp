@@ -238,14 +238,10 @@ void VideoWriter::initializeInternal()
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
-    if (d->codec == VideoCodec::Raw) {
+    if (d->codec == VideoCodec::Raw)
         d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
                            d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
                            d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
-
-        // somehow setting this explicitly is required to make rawvideo encoding work properly
-        d->cctx->codec_tag = avcodec_pix_fmt_to_codec_tag(d->cctx->pix_fmt);
-    }
 
     // enable experimental mode to encode AV1
     if (d->codec == VideoCodec::AV1)
@@ -281,11 +277,10 @@ void VideoWriter::initializeInternal()
 
     if (d->codec == VideoCodec::FFV1) {
         d->lossless = true; // this codec is always lossless
-        av_dict_set_int(&codecopts, "level", 1, 0); // Use FFV1 v1 for higher compatibility
+        d->cctx->level = 3; // Ensure we use FFV1 v3
+        d->cctx->gop_size = 1; // For archival use, GOP-size should be 1
+        av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
     }
-
-    avcodec_parameters_from_context(d->vstrm->codecpar, d->cctx);
-    d->vstrm->r_frame_rate = d->vstrm->avg_frame_rate = d->fps;
 
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
@@ -294,6 +289,10 @@ void VideoWriter::initializeInternal()
         av_dict_free(&codecopts);
         throw std::runtime_error(boost::str(boost::format("Failed to open video encoder: %1%") % ret));
     }
+
+    // stream codec parameters must be set after opening the encoder
+    avcodec_parameters_from_context(d->vstrm->codecpar, d->cctx);
+    d->vstrm->r_frame_rate = d->vstrm->avg_frame_rate = d->fps;
 
     // initialize sample scaler
     d->swsctx = sws_getCachedContext(nullptr,
