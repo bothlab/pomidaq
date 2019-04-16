@@ -111,6 +111,9 @@ public:
     BackgroundDiffMethod displayBgDiffMethod() const;
     void setDisplayBgDiffMethod(BackgroundDiffMethod method);
 
+    uint recordingSliceInterval() const;
+    void setRecordingSliceInterval(uint minutes);
+
     std::string lastError() const;
 
 private:

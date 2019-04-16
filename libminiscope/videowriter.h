@@ -70,7 +70,7 @@ public:
     ~VideoWriter();
 
     void initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps = true);
-    void finalize(bool writeTrailer = true);
+    void finalize();
     bool initialized() const;
 
     bool pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time);
@@ -88,10 +88,15 @@ public:
     bool lossless() const;
     void setLossless(bool enabled);
 
+    uint fileSliceInterval() const;
+    void setFileSliceInterval(uint minutes);
+
 private:
     class VideoWriterData;
     std::unique_ptr<VideoWriterData> d;
 
+    void initializeInternal();
+    void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
     static void encodeThread(void* vwPtr);
     bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
     bool prepareFrame(const cv::Mat &image);

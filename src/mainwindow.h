@@ -52,6 +52,7 @@ private slots:
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
     void on_fpsSpinBox_valueChanged(int arg1);
+    void on_sliceIntervalSpinBox_valueChanged(int arg1);
 
     void on_actionAbout_triggered();
     void on_actionAbout_Video_Formats_triggered();

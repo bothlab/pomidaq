@@ -55,6 +55,7 @@ public:
         initialized = false;
         codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
+        fileSliceIntervalMin = 0;  // never slice our recording by default
 
         frame = nullptr;
         inputFrame = nullptr;
@@ -71,6 +72,9 @@ public:
     std::mutex mutex;
     std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
 
+    std::string fnameBase;
+    uint fileSliceIntervalMin;
+    uint currentSliceNo;
     VideoCodec codec;
     VideoContainer container;
 
@@ -107,7 +111,7 @@ VideoWriter::VideoWriter()
 
 VideoWriter::~VideoWriter()
 {
-    finalize(true);
+    finalize();
 }
 
 /**
@@ -140,17 +144,8 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
     return aframe;
 }
 
-void VideoWriter::initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
+void VideoWriter::initializeInternal()
 {
-    if (d->initialized)
-        throw std::runtime_error("Tried to initialize an already initialized video writer.");
-
-    d->width = width;
-    d->height = height;
-    d->fps = {fps, 1};
-    d->frames_n = 0;
-    d->saveTimestamps = saveTimestamps;
-
     // sanity check. 'Raw' and 'FFV1' are the only codecs that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
     if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
@@ -161,6 +156,16 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         std::cerr << "Video codec was set to 'FFV1', but container was not 'Matroska'. Assuming 'Matroska' as desired container format." << std::endl;
         d->container = VideoContainer::Matroska;
     }
+
+    // if file slicing is used, give our new file the appropriate name
+    std::string fname;
+    if (d->fileSliceIntervalMin > 0)
+        fname = boost::str(boost::format("%1%_%2%") % d->fnameBase % d->currentSliceNo);
+    else
+        fname = d->fnameBase;
+
+    // prepare timestamp filename
+    auto timestampFname = fname + "_timestamps.csv";
 
     // set container format
     switch (d->container) {
@@ -178,10 +183,6 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
         break;
     }
 
-    // prepare timestamp filename
-    auto timestampFname = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
-    timestampFname = timestampFname + "_timestamps.csv";
-
     // open output format context
     int ret;
     d->octx = nullptr;
@@ -192,12 +193,9 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     // open output IO context
     ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
     if (ret < 0) {
-        finalize(false);
+        finalizeInternal(false);
         throw std::runtime_error(boost::str(boost::format("Failed to open output I/O context: %1%") % ret));
     }
-
-    // select FFMpeg pixel format of OpenCV matrixes
-    d->inputPixFormat = hasColor? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
 
     auto codecId = AV_CODEC_ID_AV1;
     switch (d->codec) {
@@ -291,7 +289,7 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
     if (ret < 0) {
-        finalize(false);
+        finalizeInternal(false);
         av_dict_free(&codecopts);
         throw std::runtime_error(boost::str(boost::format("Failed to open video encoder: %1%") % ret));
     }
@@ -310,7 +308,7 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
                                      nullptr);
 
     if (!d->swsctx) {
-        finalize(false);
+        finalizeInternal(false);
         throw std::runtime_error("Failed to initialize sample scaler.");
     }
 
@@ -323,7 +321,7 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     // write format header, after this we are ready to encode frames
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
-        finalize(false);
+        finalizeInternal(false);
         throw std::runtime_error(boost::str(boost::format("Failed to write format header: %1%") % ret));
     }
     d->framePts = 0;
@@ -337,17 +335,17 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     }
 
     d->initialized = true;
-
-    // start encoding data
-    startEncodeThread();
 }
 
-void VideoWriter::finalize(bool writeTrailer)
+void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
 {
     // stop encoding frames and write the last bits to disk.
     // wait for the encoding thread to join.
     // if no thread was running, do nothing
-    stopEncodeThread();
+    // (unless of course we are in the recording thread and just want to start
+    // a new file, in this case `stopRecThread` will be set to false)
+    if (stopRecThread)
+        stopEncodeThread();
 
     if (d->initialized) {
         if (d->vstrm != nullptr)
@@ -387,6 +385,37 @@ void VideoWriter::finalize(bool writeTrailer)
         av_freep(&d->alignedInput);
 
     d->initialized = false;
+}
+
+void VideoWriter::initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
+{
+    if (d->initialized)
+        throw std::runtime_error("Tried to initialize an already initialized video writer.");
+
+    d->width = width;
+    d->height = height;
+    d->fps = {fps, 1};
+    d->frames_n = 0;
+    d->saveTimestamps = saveTimestamps;
+    d->currentSliceNo = 1;
+    if (fname.substr(fname.find_last_of(".") + 1).length() == 3)
+        d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
+    else
+        d->fnameBase = fname;
+
+    // select FFMpeg pixel format of OpenCV matrixes
+    d->inputPixFormat = hasColor? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
+
+    // initialize encoder
+    initializeInternal();
+
+    // start encoding data
+    startEncodeThread();
+}
+
+void VideoWriter::finalize()
+{
+    finalizeInternal(true, true);
 }
 
 bool VideoWriter::initialized() const
@@ -485,8 +514,23 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     av_packet_unref(&pkt);
 
     // store timestamp (if necessary)
+    const auto tsMsec = timestamp.count();
     if (d->saveTimestamps)
-        d->timestampFile << d->framePts << "; " << timestamp.count() << "\n";
+        d->timestampFile << d->framePts << "; " << tsMsec << "\n";
+
+    if (d->fileSliceIntervalMin != 0) {
+        const auto tsMin = tsMsec / 1000 / 60;
+        if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
+            // we need to start a new file now since the maximum time for this file has elapsed,
+            // so finalize this one without suspending the thread we are currently in
+            finalizeInternal(true, false);
+
+            // increment current slice number and attempt to reinitialize recording.
+            // FIXME: if this fails, we will currently just crash, this should be handled better
+            d->currentSliceNo += 1;
+            initializeInternal();
+        }
+    }
 
     return true;
 }
@@ -562,6 +606,16 @@ bool VideoWriter::lossless() const
 void VideoWriter::setLossless(bool enabled)
 {
     d->lossless = enabled;
+}
+
+uint VideoWriter::fileSliceInterval() const
+{
+    return d->fileSliceIntervalMin;
+}
+
+void VideoWriter::setFileSliceInterval(uint minutes)
+{
+    d->fileSliceIntervalMin = minutes;
 }
 
 void VideoWriter::setContainer(VideoContainer container)

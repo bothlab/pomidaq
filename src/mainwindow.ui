@@ -262,6 +262,24 @@
             <property name="bottomMargin">
              <number>2</number>
             </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="locationLabel">
+              <property name="text">
+               <string>Location</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QToolButton" name="btnOpenSaveDir">
+              <property name="text">
+               <string>...</string>
+              </property>
+              <property name="icon">
+               <iconset theme="folder-open" resource="../data/resources.qrc">
+                <normaloff>:/icons/document-open.png</normaloff>:/icons/document-open.png</iconset>
+              </property>
+             </widget>
+            </item>
             <item row="1" column="0">
              <widget class="QLabel" name="codecLabel">
               <property name="text">
@@ -329,6 +347,16 @@
               </item>
              </widget>
             </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="losslessLabel">
+              <property name="text">
+               <string>Lossless</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QCheckBox" name="losslessCheckBox"/>
+            </item>
             <item row="4" column="0">
              <widget class="QLabel" name="fpsLabel">
               <property name="text">
@@ -346,31 +374,26 @@
               </property>
              </widget>
             </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="losslessLabel">
+            <item row="5" column="0">
+             <widget class="QLabel" name="sliceIntervalLabel">
               <property name="text">
-               <string>Lossless</string>
+               <string>Slice Interval</string>
               </property>
              </widget>
             </item>
-            <item row="3" column="1">
-             <widget class="QCheckBox" name="losslessCheckBox"/>
-            </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="locationLabel">
-              <property name="text">
-               <string>Location</string>
+            <item row="5" column="1">
+             <widget class="QSpinBox" name="sliceIntervalSpinBox">
+              <property name="toolTip">
+               <string>The interval in which a new video file should be started. Set to 0 to never create new files.</string>
               </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QToolButton" name="btnOpenSaveDir">
-              <property name="text">
-               <string>...</string>
+              <property name="suffix">
+               <string>min</string>
               </property>
-              <property name="icon">
-               <iconset theme="folder-open" resource="../data/resources.qrc">
-                <normaloff>:/icons/document-open.png</normaloff>:/icons/document-open.png</iconset>
+              <property name="maximum">
+               <number>120</number>
+              </property>
+              <property name="value">
+               <number>5</number>
               </property>
              </widget>
             </item>
@@ -673,6 +696,9 @@
                </property>
                <item>
                 <widget class="QSpinBox" name="sbDisplayMin">
+                 <property name="toolTip">
+                  <string>Minimum grayscale pixel value</string>
+                 </property>
                  <property name="maximum">
                   <number>255</number>
                  </property>
@@ -687,6 +713,9 @@
                </item>
                <item>
                 <widget class="QSpinBox" name="sbDisplayMax">
+                 <property name="toolTip">
+                  <string>Maximum grayscale pixel value</string>
+                 </property>
                  <property name="maximum">
                   <number>255</number>
                  </property>
@@ -706,7 +735,11 @@
              </widget>
             </item>
             <item row="2" column="1">
-             <widget class="QCheckBox" name="bgSubstCheckBox"/>
+             <widget class="QCheckBox" name="bgSubstCheckBox">
+              <property name="toolTip">
+               <string>Subtract moving average from displayed image</string>
+              </property>
+             </widget>
             </item>
             <item row="3" column="0">
              <widget class="QLabel" name="bgDivLabel">
@@ -716,7 +749,11 @@
              </widget>
             </item>
             <item row="3" column="1">
-             <widget class="QCheckBox" name="bgDivCheckBox"/>
+             <widget class="QCheckBox" name="bgDivCheckBox">
+              <property name="toolTip">
+               <string>Display image divided by moving average</string>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>

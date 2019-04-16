@@ -68,6 +68,8 @@ public:
 
         minFluorDisplay = 0;
         maxFluorDisplay = 255;
+
+        recordingSliceInterval = 0; // don't slice
     }
 
     std::thread *thread;
@@ -110,6 +112,7 @@ public:
     VideoCodec videoCodec;
     VideoContainer videoContainer;
     bool recordLossless;
+    uint recordingSliceInterval;
 
     std::string lastError;
 };
@@ -467,6 +470,16 @@ void MiniScope::setDisplayBgDiffMethod(BackgroundDiffMethod method)
     d->bgDiffMethod = method;
 }
 
+uint MiniScope::recordingSliceInterval() const
+{
+    return d->recordingSliceInterval;
+}
+
+void MiniScope::setRecordingSliceInterval(uint minutes)
+{
+    d->recordingSliceInterval = minutes;
+}
+
 std::string MiniScope::lastError() const
 {
     return d->lastError;
@@ -516,6 +529,7 @@ void MiniScope::captureThread(void* msPtr)
 
     // prepare for recording
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
+    vwriter->setFileSliceInterval(self->d->recordingSliceInterval);
     auto recordFrames = false;
     auto recordStartTime = steady_hr_clock::now();
 
@@ -527,7 +541,7 @@ void MiniScope::captureThread(void* msPtr)
         if (self->d->checkRecTrigger) {
             auto temp = static_cast<int>(self->d->cam.get(cv::CAP_PROP_SATURATION));
 
-            std::cout << "GPIO state: " << self->d->cam.get(cv::CAP_PROP_SATURATION) << std::endl;
+            //! std::cout << "GPIO state: " << self->d->cam.get(cv::CAP_PROP_SATURATION) << std::endl;
             if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
                 if (!self->d->recording) {
                     // start recording
@@ -649,6 +663,7 @@ void MiniScope::captureThread(void* msPtr)
                 // Also reset the video writer for a clean start
                 vwriter->finalize();
                 vwriter.reset(new VideoWriter());
+                vwriter->setFileSliceInterval(self->d->recordingSliceInterval);
                 recordFrames = false;
                 self->emitMessage("Recording finalized.");
             }

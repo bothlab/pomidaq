@@ -368,3 +368,8 @@ void MainWindow::on_bgDivCheckBox_toggled(bool checked)
         m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::NONE);
     }
 }
+
+void MainWindow::on_sliceIntervalSpinBox_valueChanged(int arg1)
+{
+    m_mscope->setRecordingSliceInterval(static_cast<uint>(arg1));
+}
