@@ -577,7 +577,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="groupBox_5">
+        <widget class="QGroupBox" name="groupBoxDisplay">
          <property name="title">
           <string>Display</string>
          </property>

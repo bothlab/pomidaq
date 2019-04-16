@@ -58,6 +58,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->btnStartStop->setFocus();
     ui->containerScopeControls->setEnabled(false);
+    ui->groupBoxDisplay->setEnabled(false);
     ui->btnRecord->setEnabled(false);
 
     // ensure codecs and container UI is aligned with the mscope settings
@@ -148,6 +149,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnStartStop->setText("Stop");
     ui->btnStartStop->setChecked(true);
     ui->containerScopeControls->setEnabled(true);
+    ui->groupBoxDisplay->setEnabled(true);
     ui->btnRecord->setEnabled(true);
     ui->btnStartStop->setEnabled(true);
 
@@ -179,6 +181,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnStartStop->setChecked(false);
 
     ui->containerScopeControls->setEnabled(false);
+    ui->groupBoxDisplay->setEnabled(false);
     ui->btnRecord->setEnabled(false);
     ui->btnStartStop->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
