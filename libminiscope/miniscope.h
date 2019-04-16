@@ -26,6 +26,12 @@
 
 #include "videowriter.h"
 
+#ifdef _WIN32
+#define MS_LIB_EXPORT __declspec(dllexport)
+#else
+#define MS_LIB_EXPORT __attribute__((visibility("default")))
+#endif
+
 enum class BackgroundDiffMethod {
     NONE,
     SUBTRACTION,
@@ -33,7 +39,7 @@ enum class BackgroundDiffMethod {
 };
 
 class MiniScopeData;
-class MiniScope
+class MS_LIB_EXPORT MiniScope
 {
 public:
     MiniScope();

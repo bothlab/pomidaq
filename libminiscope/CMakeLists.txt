@@ -13,7 +13,7 @@ set(LIBMINISCOPE_HEADERS
     miniscope.h
 )
 
-add_library(miniscope
+add_library(miniscope SHARED
     ${LIBMINISCOPE_SRC}
     ${LIBMINISCOPE_HEADERS}
     ${LIBMINISCOPE_PRIV_HEADERS}
@@ -23,6 +23,7 @@ set_target_properties(miniscope PROPERTIES SOVERSION ${LIBSOVERSION})
 
 target_include_directories(miniscope PRIVATE .)
 set_target_properties(miniscope PROPERTIES PUBLIC_HEADER ${LIBMINISCOPE_HEADERS})
+set_target_properties(miniscope PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 target_link_libraries(miniscope
     ${CMAKE_THREAD_LIBS_INIT}

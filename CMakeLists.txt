@@ -37,16 +37,16 @@ if (MAINTAINER)
     endif()
 endif()
 
-# Don't build shared libminiscope on Windows
-set(BUILD_SHARED_LIBS ON)
+# Windows compat stuff
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-    set(BUILD_SHARED_LIBS OFF)
-
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         add_definitions("-Wno-old-style-cast")
     endif()
 endif()
 
+if(MSVC)
+    set(CMAKE_DEBUG_POSTFIX "d")
+endif()
 
 #
 # Dependencies
