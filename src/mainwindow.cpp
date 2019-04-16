@@ -40,7 +40,6 @@ MainWindow::MainWindow(QWidget *parent) :
     // Create status bar
     m_statusBarLabel = new QLabel("OK", this);
     statusBar()->addWidget(m_statusBarLabel, 1);
-    statusBar()->setSizeGripEnabled(false);  // fixed window size
 
     // Video view
     m_scopeView = new VideoViewWidget(this);
@@ -61,12 +60,13 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->groupBoxDisplay->setEnabled(false);
     ui->btnRecord->setEnabled(false);
 
-    // ensure codecs and container UI is aligned with the mscope settings
+    // ensure codecs and container UI is aligned with the MiniScope settings
     ui->codecComboBox->setCurrentIndex(0);
     this->on_codecComboBox_currentIndexChanged(ui->codecComboBox->currentText());
     ui->containerComboBox->setCurrentIndex(0);
     this->on_containerComboBox_currentIndexChanged(ui->containerComboBox->currentText());
     ui->losslessCheckBox->setChecked(true);
+    on_sliceIntervalSpinBox_valueChanged(ui->sliceIntervalSpinBox->value());
 
     // set export directory, default to /tmp
     setDataExportDir(QStandardPaths::writableLocation(QStandardPaths::StandardLocation::TempLocation));
