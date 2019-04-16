@@ -68,6 +68,7 @@ public:
         lossless = false;
     }
 
+    std::string lastError;
     std::thread *thread;
     std::mutex mutex;
     std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
@@ -519,16 +520,21 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         d->timestampFile << d->framePts << "; " << tsMsec << "\n";
 
     if (d->fileSliceIntervalMin != 0) {
-        const auto tsMin = tsMsec / 1000 / 60;
-        if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
-            // we need to start a new file now since the maximum time for this file has elapsed,
-            // so finalize this one without suspending the thread we are currently in
-            finalizeInternal(true, false);
+        const auto tsMin = static_cast<double>(tsMsec) / 1000.0 / 60.0;
+        if (tsMin > (d->fileSliceIntervalMin * d->currentSliceNo)) {
+            try {
+                // we need to start a new file now since the maximum time for this file has elapsed,
+                // so finalize this one without suspending the thread we are currently in
+                finalizeInternal(true, false);
 
-            // increment current slice number and attempt to reinitialize recording.
-            // FIXME: if this fails, we will currently just crash, this should be handled better
-            d->currentSliceNo += 1;
-            initializeInternal();
+                // increment current slice number and attempt to reinitialize recording.
+                d->currentSliceNo += 1;
+                initializeInternal();
+            } catch (const std::exception& e) {
+                // propagate error and stop encoding thread, as we can not really recover from this
+                d->lastError = e.what();
+                d->acceptFrames = false;
+            }
         }
     }
 
@@ -539,6 +545,8 @@ void VideoWriter::startEncodeThread()
 {
     assert(d->initialized);
 
+    // clear last error message
+    d->lastError.clear();
     stopEncodeThread();
     while (!d->frameQueue.empty())
         d->frameQueue.pop();
@@ -561,8 +569,12 @@ void VideoWriter::stopEncodeThread()
 bool VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
-    if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT)
+    if (!d->acceptFrames)
         return false;
+    if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT) {
+        d->lastError = "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.";
+        return false;
+    }
 
     d->frameQueue.push(std::make_pair(frame, time));
     return true;
@@ -616,6 +628,11 @@ uint VideoWriter::fileSliceInterval() const
 void VideoWriter::setFileSliceInterval(uint minutes)
 {
     d->fileSliceIntervalMin = minutes;
+}
+
+std::string VideoWriter::lastError() const
+{
+    return d->lastError;
 }
 
 void VideoWriter::setContainer(VideoContainer container)

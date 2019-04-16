@@ -91,6 +91,8 @@ public:
     uint fileSliceInterval() const;
     void setFileSliceInterval(uint minutes);
 
+    std::string lastError() const;
+
 private:
     class VideoWriterData;
     std::unique_ptr<VideoWriterData> d;

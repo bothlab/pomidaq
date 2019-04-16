@@ -529,7 +529,6 @@ void MiniScope::captureThread(void* msPtr)
 
     // prepare for recording
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
-    vwriter->setFileSliceInterval(self->d->recordingSliceInterval);
     auto recordFrames = false;
     auto recordStartTime = steady_hr_clock::now();
 
@@ -562,7 +561,7 @@ void MiniScope::captureThread(void* msPtr)
 
         try {
             status = self->d->cam.retrieve(frame);
-        } catch (cv::Exception& e) {
+        } catch (const cv::Exception& e) {
             status = false;
             std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
         }
@@ -633,6 +632,7 @@ void MiniScope::captureThread(void* msPtr)
             if (!vwriter->initialized()) {
                 self->emitMessage("Recording enabled.");
                 // we want to record, but are not initialized yet
+                vwriter->setFileSliceInterval(self->d->recordingSliceInterval);
                 vwriter->setCodec(self->d->videoCodec);
                 vwriter->setContainer(self->d->videoContainer);
                 vwriter->setLossless(self->d->recordLossless);
@@ -643,7 +643,7 @@ void MiniScope::captureThread(void* msPtr)
                                         frame.rows,
                                         static_cast<int>(self->d->fps),
                                         frame.channels() == 3);
-                } catch (cv::Exception& e) {
+                } catch (const cv::Exception& e) {
                     self->fail(boost::str(boost::format("Unable to initialize recording: %1%") % e.what()));
                     break;
                 }
@@ -663,7 +663,6 @@ void MiniScope::captureThread(void* msPtr)
                 // Also reset the video writer for a clean start
                 vwriter->finalize();
                 vwriter.reset(new VideoWriter());
-                vwriter->setFileSliceInterval(self->d->recordingSliceInterval);
                 recordFrames = false;
                 self->emitMessage("Recording finalized.");
             }
@@ -691,7 +690,7 @@ void MiniScope::captureThread(void* msPtr)
         self->addFrameToBuffer(displayFrame);
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
-                self->fail("Unable to send frames to encoder. Maybe encoding or storage is too slow.");
+                self->fail(boost::str(boost::format("Unable to send frames to encoder: %1%") % vwriter->lastError()));
         }
 
         // wait a bit if necessary, to keep the right framerate
