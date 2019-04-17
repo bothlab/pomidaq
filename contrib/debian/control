@@ -1,0 +1,26 @@
+Source: pomidaq
+Section: science
+Priority: optional
+Maintainer: Matthias Klumpp <mak@debian.org>
+Build-Depends: debhelper-compat (= 12),
+               cmake,
+               libavcodec-dev,
+               libavformat-dev,
+               libboost-container-dev,
+               libboost-dev,
+               libqt5opengl5-dev,
+               libswscale-dev,
+               qt5-default
+Standards-Version: 4.3.0
+
+Package: pomidaq
+Architecture: any
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+Description: Portable Miniscope Data Acquisition
+ PoMiDAQ is a recording software for UCLA Miniscopes as well
+ as a shared library, so Miniscope recording can be embedded
+ into other programs and pipelines easily.
+ .
+ Recorded data is encoded with the FFV1 codec by default, to allow
+ for smaller video files at the same quality.

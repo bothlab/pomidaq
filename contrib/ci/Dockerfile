@@ -13,6 +13,8 @@ RUN eatmydata apt-get install -yq gcc g++ clang
 # install build dependencies
 RUN eatmydata apt-get install -yq --no-install-recommends \
     build-essential \
+    dpkg-dev \
+    debhelper \
     debspawn \
     cmake \
     qt5-default \
@@ -25,7 +27,7 @@ RUN eatmydata apt-get install -yq --no-install-recommends \
 
 # build a fresh OpenCV version
 RUN mkdir /build
-ADD data/ci/opencv_quickbuild.sh /build/
+ADD contrib/ci/opencv_quickbuild.sh /build/
 RUN cd /build && eatmydata /build/opencv_quickbuild.sh
 RUN rm -rf /build
 

@@ -22,3 +22,12 @@ cmake -DMAINTAINER=ON \
 make -j4
 #make test
 DESTDIR=/tmp/install_root/ make install
+cd ..
+rm -rf build/
+
+#
+# Build Debian package
+#
+mv contrib/debian .
+dpkg-buildpackage
+mv ../*.deb .
