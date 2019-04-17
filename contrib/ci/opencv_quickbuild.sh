@@ -129,7 +129,13 @@ cmake -G Ninja \
     -DBUILD_opencv_python2=OFF \
     ..
 
-NUMCPUS=`grep -c '^processor' /proc/cpuinfo`
-ninja -j$NUMCPUS -l$NUMCPUS
+
+if [ -z "$NINJA_JOB_EXPLICIT_LIMIT" ]
+then
+    ninja
+else
+    NUMCPUS=`grep -c '^processor' /proc/cpuinfo`
+    ninja -j$NUMCPUS -l$NUMCPUS
+fi
 
 ninja install
