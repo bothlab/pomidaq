@@ -515,7 +515,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QDial" name="dial_2">
+              <widget class="QDial" name="dialExcitation">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
                  <horstretch>0</horstretch>
@@ -525,18 +525,27 @@
                <property name="maximum">
                 <number>100</number>
                </property>
+               <property name="singleStep">
+                <number>1</number>
+               </property>
                <property name="notchesVisible">
                 <bool>true</bool>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QSpinBox" name="sbExcitation">
+              <widget class="QDoubleSpinBox" name="sbExcitation">
                <property name="toolTip">
                 <string>Excitation LED brightness</string>
                </property>
+               <property name="buttonSymbols">
+                <enum>QAbstractSpinBox::PlusMinus</enum>
+               </property>
                <property name="maximum">
-                <number>100</number>
+                <double>100.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.200000000000000</double>
                </property>
               </widget>
              </item>
@@ -939,38 +948,6 @@
     <hint type="destinationlabel">
      <x>105</x>
      <y>517</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>dial_2</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>sbExcitation</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>75</x>
-     <y>599</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>248</x>
-     <y>590</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>sbExcitation</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>dial_2</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>590</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>105</x>
-     <y>599</y>
     </hint>
    </hints>
   </connection>

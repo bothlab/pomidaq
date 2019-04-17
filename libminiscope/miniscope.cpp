@@ -78,9 +78,9 @@ public:
     cv::VideoCapture cam;
     int scopeCamId;
 
-    int exposure;
-    int gain;
-    int excitation;
+    double exposure;
+    double gain;
+    double excitation;
     std::atomic_uint fps;
     std::string videoFname;
 
@@ -178,9 +178,9 @@ void MiniScope::setScopeCamId(int id)
     d->scopeCamId = id;
 }
 
-void MiniScope::setExposure(int value)
+void MiniScope::setExposure(double value)
 {
-    if (value == 0)
+    if (floor(value) == 0)
         value = 1;
     if (value > 100)
         value = 100;
@@ -191,12 +191,12 @@ void MiniScope::setExposure(int value)
     d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * 2.55);
 }
 
-int MiniScope::exposure() const
+double MiniScope::exposure() const
 {
     return d->exposure;
 }
 
-void MiniScope::setGain(int value)
+void MiniScope::setGain(double value)
 {
     // NOTE: With V4L as backend, 100 seems to be the max value here
 
@@ -204,18 +204,18 @@ void MiniScope::setGain(int value)
     d->cam.set(cv::CAP_PROP_GAIN, value);
 }
 
-int MiniScope::gain() const
+double MiniScope::gain() const
 {
     return d->gain;
 }
 
-void MiniScope::setExcitation(int value)
+void MiniScope::setExcitation(double value)
 {
     d->excitation = value;
     setLed(value);
 }
 
-int MiniScope::excitation() const
+double MiniScope::excitation() const
 {
     return d->excitation;
 }
@@ -485,14 +485,14 @@ std::string MiniScope::lastError() const
     return d->lastError;
 }
 
-void MiniScope::setLed(int value)
+void MiniScope::setLed(double value)
 {
     // sanitize value
     if (value > 100)
         value = 100;
 
     // NOTE: With V4L, max value seems to be 125 here
-    double ledPower = static_cast<double>(value) * 0.8;
+    double ledPower = value * 0.8;
     if (d->connected) {
         d->cam.set(cv::CAP_PROP_HUE, ledPower);
     }

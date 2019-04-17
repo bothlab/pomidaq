@@ -43,7 +43,8 @@ private slots:
     void on_btnStartStop_clicked();
     void on_btnRecord_toggled(bool checked);
     void on_sbExposure_valueChanged(int arg1);
-    void on_sbExcitation_valueChanged(int value);
+    void on_sbExcitation_valueChanged(double arg1);
+    void on_dialExcitation_valueChanged(int value);
     void on_sbGain_valueChanged(int arg1);
     void on_losslessCheckBox_toggled(bool checked);
     void on_containerComboBox_currentIndexChanged(const QString &arg1);

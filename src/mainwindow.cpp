@@ -80,9 +80,19 @@ MainWindow::~MainWindow()
     delete m_mscope;
 }
 
-void MainWindow::on_sbExcitation_valueChanged(int value)
+void MainWindow::on_sbExcitation_valueChanged(double arg1)
 {
-    m_mscope->setExcitation(value);
+    arg1 = round(arg1 * 100) / 100;
+    m_mscope->setExcitation(arg1);
+
+    double intpart;
+    if (std::modf(arg1, &intpart) == 0.0)
+        ui->dialExcitation->setValue(static_cast<int>(arg1));
+}
+
+void MainWindow::on_dialExcitation_valueChanged(int value)
+{
+    ui->sbExcitation->setValue(value);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

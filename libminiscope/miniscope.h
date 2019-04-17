@@ -47,14 +47,14 @@ public:
 
     void setScopeCamId(int id);
 
-    void setExposure(int value);
-    int exposure() const;
+    void setExposure(double value);
+    double exposure() const;
 
-    void setGain(int value);
-    int gain() const;
+    void setGain(double value);
+    double gain() const;
 
-    void setExcitation(int value);
-    int excitation() const;
+    void setExcitation(double value);
+    double excitation() const;
 
     bool connect();
     void disconnect();
@@ -119,7 +119,7 @@ public:
 private:
     std::unique_ptr<MiniScopeData> d;
 
-    void setLed(int value);
+    void setLed(double value);
     void addFrameToBuffer(const cv::Mat& frame);
     static void captureThread(void *msPtr);
     void startCaptureThread();
