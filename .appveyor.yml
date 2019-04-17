@@ -61,7 +61,7 @@ after_build:
 
       cp $env:APPVEYOR_BUILD_FOLDER\LICENSE $env:DEPLOY_DIR\LICENSE.txt
       cp $env:APPVEYOR_BUILD_FOLDER\README.md $env:DEPLOY_DIR
-      cp $env:APPVEYOR_BUILD_FOLDER\data\bundle-license.md $env:DEPLOY_DIR
+      cp $env:APPVEYOR_BUILD_FOLDER\contrib\bundle-license.md $env:DEPLOY_DIR
 - 7z a pomidaq-%VERSION%-%VER_SUFFIX%.zip "%DEPLOY_DIR%"
 - cd ..
 
