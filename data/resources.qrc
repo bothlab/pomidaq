@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/icons">
         <file>document-open.png</file>
+        <file>pomidaq.svg</file>
     </qresource>
 </RCC>

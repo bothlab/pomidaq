@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PoMiDAQ
+Comment=Record videos from Miniscopes
+Exec=pomidaq
+Icon=pomidaq
+Terminal=false
+Categories=Science;Biology;

@@ -14,8 +14,8 @@
    <string>Portable Miniscope DAQ</string>
   </property>
   <property name="windowIcon">
-   <iconset theme="video-x-generic">
-    <normaloff>.</normaloff>.</iconset>
+   <iconset resource="../data/resources.qrc">
+    <normaloff>:/icons/pomidaq.svg</normaloff>:/icons/pomidaq.svg</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
