@@ -17,6 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -51,9 +52,9 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     // display default values
-    ui->sbExposure->setValue(m_mscope->exposure());
+    ui->sbExposure->setValue(static_cast<int>(m_mscope->exposure()));
     ui->sbExcitation->setValue(m_mscope->excitation());
-    ui->sbGain->setValue(m_mscope->gain());
+    ui->sbGain->setValue(static_cast<int>(m_mscope->gain()));
 
     ui->btnStartStop->setFocus();
     ui->containerScopeControls->setEnabled(false);
@@ -355,6 +356,7 @@ void MainWindow::on_actionAbout_Video_Formats_triggered()
 void MainWindow::on_actionAbout_triggered()
 {
     const auto text = QStringLiteral(
+                "PoMiDAQ Version " PROJECT_VERSION " \n\n"
                 "(c) 2019 Matthias Klumpp\n\n"
                 "PoMiDAQ is free software: you can redistribute it and/or modify "
                 "it under the terms of the GNU Lesser General Public License as published by "
