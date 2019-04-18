@@ -389,6 +389,7 @@ void MainWindow::on_actionAbout_Video_Formats_triggered()
                 );
 
     QMessageBox dialog(this);
+    dialog.setWindowTitle(QStringLiteral("Video format help"));
     dialog.setInformativeText(infoText);
     dialog.setStandardButtons(QMessageBox::Ok);
     dialog.exec();
