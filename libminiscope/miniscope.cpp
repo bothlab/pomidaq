@@ -609,38 +609,6 @@ void MiniScope::captureThread(void* msPtr)
             self->d->droppedFramesCount = 0;
         }
 
-        // "frame" is the frame that we record to disk, while the "displayFrame"
-        // is the one that we may also record as a video file
-        cv::Mat displayFrame;
-        frame.copyTo(displayFrame);
-
-        if (self->d->useColor) {
-            // we want a colored image
-            if (self->d->showRed || self->d->showGreen || self->d->showBlue) {
-                cv::Mat bgrChannels[3];
-                cv::split(frame,bgrChannels);
-
-                if (!self->d->showBlue)
-                    bgrChannels[0] = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
-                if (!self->d->showGreen)
-                    bgrChannels[1] = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
-                if (!self->d->showRed)
-                    bgrChannels[2] = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC1);
-
-                cv::merge(bgrChannels, 3, frame);
-            }
-         } else {
-            // grayscale image
-            cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY); // added to correct green color stream
-
-            double minF, maxF;
-            cv::minMaxLoc(frame, &minF, &maxF);
-            self->d->minFluor = static_cast<int>(minF);
-            self->d->maxFluor = static_cast<int>(maxF);
-
-            frame.convertTo(displayFrame, CV_8U, 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay), -self->d->minFluorDisplay * 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay));
-        }
-
         // prepare video recording if it was enabled while we were running
         if (self->recording()) {
             if (!vwriter->initialized()) {
@@ -682,6 +650,11 @@ void MiniScope::captureThread(void* msPtr)
             }
         }
 
+        // "frame" is the frame that we record to disk, while the "displayFrame"
+        // is the one that we may also record as a video file
+        cv::Mat displayFrame;
+        frame.copyTo(displayFrame);
+
         // calculate various background differences, if selected
         if (accumulatedMat.rows == 0)
             accumulatedMat = cv::Mat::zeros(frame.rows, frame.cols, CV_32FC(frame.channels()));
@@ -697,6 +670,33 @@ void MiniScope::captureThread(void* msPtr)
             cv::Mat tmpBgMat;
             accumulatedMat.convertTo(tmpBgMat, CV_8UC1, 255.0);
             cv::subtract(displayFrame, tmpBgMat, displayFrame);
+        }
+
+        if (self->d->useColor) {
+            // we want a colored image
+            if (self->d->showRed || self->d->showGreen || self->d->showBlue) {
+                cv::Mat bgrChannels[3];
+                cv::split(displayFrame, bgrChannels);
+
+                if (!self->d->showBlue)
+                    bgrChannels[0] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
+                if (!self->d->showGreen)
+                    bgrChannels[1] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
+                if (!self->d->showRed)
+                    bgrChannels[2] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
+
+                cv::merge(bgrChannels, 3, displayFrame);
+            }
+         } else {
+            // grayscale image
+            cv::cvtColor(displayFrame, displayFrame, cv::COLOR_BGR2GRAY);
+
+            double minF, maxF;
+            cv::minMaxLoc(displayFrame, &minF, &maxF);
+            self->d->minFluor = static_cast<int>(minF);
+            self->d->maxFluor = static_cast<int>(maxF);
+
+            displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay), -self->d->minFluorDisplay * 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay));
         }
 
         // add display frame to ringbuffer, and record the raw
