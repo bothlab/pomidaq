@@ -14,6 +14,7 @@ RUN eatmydata apt-get install -yq gcc g++ clang
 RUN eatmydata apt-get install -yq --no-install-recommends \
     build-essential \
     dpkg-dev \
+    devscripts \
     debhelper \
     debspawn \
     cmake \
