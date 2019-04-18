@@ -118,6 +118,9 @@
           </item>
           <item>
            <widget class="QCheckBox" name="cbExtRecTrigger">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>External Recording Trigger</string>
             </property>
