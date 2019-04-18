@@ -1,0 +1,22 @@
+# License Information For Libraries Bundled With PoMiDAQ
+
+This file is intended for the Windows builds of PoMiDAQ, for
+Linux the libraries are usually linked separately.
+
+## PoMiDAQ (libminiscope)
+Licensed under LGPLv3+, see `LICENSE` for details.
+
+## FFmpeg
+LGPL 2.1+, GPL 2+ and other licenses for the respective encoders.
+See <https://www.ffmpeg.org/legal.html> for more information.
+
+## OpenCV
+3-clause BSD License and others, see <https://opencv.org/license/>
+for more information.
+
+## Qt
+LGPL-3+ and others, see <https://doc.qt.io/qt-5/licensing.html> for
+Qt license details.
+
+## Boost
+BSL-1.0, see <https://www.boost.org/users/license.html>
