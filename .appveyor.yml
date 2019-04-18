@@ -85,7 +85,7 @@ after_build:
 
         cp $env:APPVEYOR_BUILD_FOLDER\LICENSE $env:DEPLOY_DIR\LICENSE.txt
         cp $env:APPVEYOR_BUILD_FOLDER\README.md $env:DEPLOY_DIR
-        cp $env:APPVEYOR_BUILD_FOLDER\contrib\LICENSES.3rd-party $env:DEPLOY_DIR
+        cp $env:APPVEYOR_BUILD_FOLDER\contrib\LICENSES.3rd-party $env:DEPLOY_DIR\LICENSES_3rd-party.txt
   - cmd: 7z a pomidaq-%VERSION%-%VER_SUFFIX%.zip "%DEPLOY_DIR%"
   - cmd: cd ..
 
