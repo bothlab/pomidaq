@@ -140,6 +140,7 @@ void MainWindow::on_btnStartStop_clicked()
         QApplication::processEvents();
         m_mscope->disconnect();
         ui->btnStartStop->setEnabled(true);
+        ui->sbCamId->setEnabled(true);
         return;
     }
     m_newMessages.clear();
@@ -164,6 +165,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->groupBoxDisplay->setEnabled(true);
     ui->btnRecord->setEnabled(true);
     ui->btnStartStop->setEnabled(true);
+    ui->sbCamId->setEnabled(false);
 
     while (m_mscope->running()) {
         auto frame = m_mscope->currentFrame();
@@ -197,6 +199,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnRecord->setEnabled(false);
     ui->btnStartStop->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
+    ui->sbCamId->setEnabled(true);
 
     if (!m_mscope->lastError().empty())
         QMessageBox::critical(this,
@@ -225,13 +228,19 @@ void MainWindow::on_btnRecord_toggled(bool checked)
 
     if (checked) {
         auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope").toStdString();
-        if (m_mscope->startRecording(videoFname))
+        if (m_mscope->startRecording(videoFname)) {
             ui->gbRecording->setEnabled(false);
-        else
+            ui->btnStartStop->setEnabled(false);
+            ui->btnRecord->setText("Recording...");
+        } else {
             ui->btnRecord->setChecked(false);
+        }
+
     } else {
         m_mscope->stopRecording();
         ui->gbRecording->setEnabled(true);
+        ui->btnStartStop->setEnabled(true);
+        ui->btnRecord->setText("Record");
     }
 }
 
