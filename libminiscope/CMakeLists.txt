@@ -13,7 +13,7 @@ set(LIBMINISCOPE_HEADERS
     miniscope.h
 )
 
-add_library(miniscope SHARED
+add_library(miniscope
     ${LIBMINISCOPE_SRC}
     ${LIBMINISCOPE_HEADERS}
     ${LIBMINISCOPE_PRIV_HEADERS}

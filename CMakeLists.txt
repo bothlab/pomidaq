@@ -38,7 +38,11 @@ if (MAINTAINER)
 endif()
 
 # Windows compat stuff
+set(BUILD_SHARED_LIBS ON)
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+    # No shared libs for Windows (yet)
+    set(BUILD_SHARED_LIBS OFF)
+
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         add_definitions("-Wno-old-style-cast")
     endif()
