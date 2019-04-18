@@ -42,6 +42,9 @@ MainWindow::MainWindow(QWidget *parent) :
     m_statusBarLabel = new QLabel("OK", this);
     statusBar()->addWidget(m_statusBarLabel, 1);
 
+    // don't display log by default
+    ui->logTextList->setVisible(false);
+
     // Video view
     m_scopeView = new VideoViewWidget(this);
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
@@ -436,4 +439,9 @@ void MainWindow::on_sliceIntervalSpinBox_valueChanged(int arg1)
 void MainWindow::on_accAlphaSpinBox_valueChanged(double arg1)
 {
     m_mscope->setBgAccumulateAlpha(arg1);
+}
+
+void MainWindow::on_actionShowMiniscopeLog_toggled(bool arg1)
+{
+    ui->logTextList->setVisible(arg1);
 }

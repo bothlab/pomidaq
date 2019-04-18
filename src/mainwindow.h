@@ -65,6 +65,8 @@ private slots:
     void on_bgSubstCheckBox_toggled(bool checked);
     void on_accAlphaSpinBox_valueChanged(double arg1);
 
+    void on_actionShowMiniscopeLog_toggled(bool arg1);
+
 protected:
     void closeEvent (QCloseEvent *event) override;
 

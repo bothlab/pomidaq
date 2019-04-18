@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1178</width>
-    <height>1018</height>
+    <width>1157</width>
+    <height>973</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -38,7 +38,7 @@
      <widget class="QWidget" name="widget" native="true">
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <property name="spacing">
-        <number>1</number>
+        <number>0</number>
        </property>
        <property name="leftMargin">
         <number>2</number>
@@ -50,7 +50,7 @@
         <number>0</number>
        </property>
        <property name="bottomMargin">
-        <number>2</number>
+        <number>0</number>
        </property>
        <item>
         <widget class="QGroupBox" name="groupBox">
@@ -65,16 +65,22 @@
            <number>4</number>
           </property>
           <property name="topMargin">
-           <number>2</number>
+           <number>0</number>
           </property>
           <property name="rightMargin">
            <number>6</number>
           </property>
           <property name="bottomMargin">
-           <number>0</number>
+           <number>2</number>
           </property>
           <item>
            <layout class="QFormLayout" name="formLayout">
+            <property name="horizontalSpacing">
+             <number>4</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>2</number>
+            </property>
             <item row="0" column="0">
              <widget class="QLabel" name="lblCamId">
               <property name="text">
@@ -140,7 +146,7 @@
               <number>2</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QLabel" name="label">
@@ -193,7 +199,7 @@
               <number>2</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QLabel" name="label_2">
@@ -240,7 +246,7 @@
               <number>2</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>0</number>
              </property>
              <item>
               <widget class="QLabel" name="label_3">
@@ -287,7 +293,7 @@
            <number>4</number>
           </property>
           <property name="topMargin">
-           <number>2</number>
+           <number>0</number>
           </property>
           <property name="rightMargin">
            <number>6</number>
@@ -665,7 +671,7 @@
            <number>4</number>
           </property>
           <property name="topMargin">
-           <number>2</number>
+           <number>0</number>
           </property>
           <property name="bottomMargin">
            <number>0</number>
@@ -864,6 +870,12 @@
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>48</height>
+          </size>
+         </property>
          <property name="readOnly">
           <bool>true</bool>
          </property>
@@ -879,8 +891,8 @@
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>20</width>
-           <height>40</height>
+           <width>17</width>
+           <height>37</height>
           </size>
          </property>
         </spacer>
@@ -922,7 +934,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1178</width>
+     <width>1157</width>
      <height>30</height>
     </rect>
    </property>
@@ -937,6 +949,7 @@
     <property name="title">
      <string>&amp;Info</string>
     </property>
+    <addaction name="actionShowMiniscopeLog"/>
     <addaction name="actionAbout_Video_Formats"/>
     <addaction name="actionAbout"/>
    </widget>
@@ -978,6 +991,17 @@
    </property>
    <property name="text">
     <string>&amp;About Video Formats</string>
+   </property>
+  </action>
+  <action name="actionShowMiniscopeLog">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset theme="view-list-text"/>
+   </property>
+   <property name="text">
+    <string>Show Miniscope Log</string>
    </property>
   </action>
  </widget>
