@@ -63,6 +63,7 @@ private slots:
 
     void on_bgDivCheckBox_toggled(bool checked);
     void on_bgSubstCheckBox_toggled(bool checked);
+    void on_accAlphaSpinBox_valueChanged(double arg1);
 
 protected:
     void closeEvent (QCloseEvent *event) override;

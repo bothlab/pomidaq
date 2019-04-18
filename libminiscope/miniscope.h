@@ -111,6 +111,9 @@ public:
     BackgroundDiffMethod displayBgDiffMethod() const;
     void setDisplayBgDiffMethod(BackgroundDiffMethod method);
 
+    double bgAccumulateAlpha() const;
+    void setBgAccumulateAlpha(double value);
+
     uint recordingSliceInterval() const;
     void setRecordingSliceInterval(uint minutes);
 

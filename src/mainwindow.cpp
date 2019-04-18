@@ -55,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->sbExposure->setValue(static_cast<int>(m_mscope->exposure()));
     ui->sbExcitation->setValue(m_mscope->excitation());
     ui->sbGain->setValue(static_cast<int>(m_mscope->gain()));
+    ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
 
     ui->btnStartStop->setFocus();
     ui->containerScopeControls->setEnabled(false);
@@ -416,4 +417,9 @@ void MainWindow::on_bgDivCheckBox_toggled(bool checked)
 void MainWindow::on_sliceIntervalSpinBox_valueChanged(int arg1)
 {
     m_mscope->setRecordingSliceInterval(static_cast<uint>(arg1));
+}
+
+void MainWindow::on_accAlphaSpinBox_valueChanged(double arg1)
+{
+    m_mscope->setBgAccumulateAlpha(arg1);
 }

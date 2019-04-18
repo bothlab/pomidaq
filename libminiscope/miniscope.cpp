@@ -70,6 +70,7 @@ public:
         maxFluorDisplay = 255;
 
         recordingSliceInterval = 0; // don't slice
+        bgAccumulateAlpha = 0.01;
     }
 
     std::thread *thread;
@@ -90,6 +91,7 @@ public:
     int maxFluorDisplay;
 
     std::atomic<BackgroundDiffMethod> bgDiffMethod;
+    std::atomic<double> bgAccumulateAlpha;  // NOTE: Double may not actually be atomic
 
     bool connected;
     std::atomic_bool running;
@@ -470,6 +472,18 @@ void MiniScope::setDisplayBgDiffMethod(BackgroundDiffMethod method)
     d->bgDiffMethod = method;
 }
 
+double MiniScope::bgAccumulateAlpha() const
+{
+    return d->bgAccumulateAlpha;
+}
+
+void MiniScope::setBgAccumulateAlpha(double value)
+{
+    if (value > 1)
+        value = 1;
+    d->bgAccumulateAlpha = value;
+}
+
 uint MiniScope::recordingSliceInterval() const
 {
     return d->recordingSliceInterval;
@@ -674,7 +688,7 @@ void MiniScope::captureThread(void* msPtr)
 
         cv::Mat displayF32;
         displayFrame.convertTo(displayF32, CV_32F, 1.0 / 255.0);
-        cv::accumulateWeighted(displayF32, accumulatedMat, 0.01);
+        cv::accumulateWeighted(displayF32, accumulatedMat, self->d->bgAccumulateAlpha);
         if (self->d->bgDiffMethod == BackgroundDiffMethod::DIVISION) {
             cv::Mat tmpMat;
             cv::divide(displayF32, accumulatedMat, tmpMat, 1, CV_32FC(frame.channels()));
