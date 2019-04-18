@@ -1,5 +1,5 @@
-pomidaq (0.1+git1) UNRELEASED; urgency=medium
+pomidaq (0.1) UNRELEASED; urgency=medium
 
-  * Permanent upstream summy release
+  * Permanent upstream dummy release
 
  -- Matthias Klumpp <mak@debian.org>  Wed, 17 Apr 2019 12:02:18 +0200
