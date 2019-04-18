@@ -381,9 +381,11 @@ void MainWindow::on_actionAbout_Video_Formats_triggered()
                 "better compression than FFV1 can offer you and you can read the generated movies.</p>"
                 "<p>MPEG-4 is an older video compression standard. You pretty much never want to use it (except for testing), as it is inferior to the other supported codecs.</p>"
                 );
-    QMessageBox::information(this,
-                             QStringLiteral("Which video codec/container do I choose?"),
-                             infoText);
+
+    QMessageBox dialog(this);
+    dialog.setInformativeText(infoText);
+    dialog.setStandardButtons(QMessageBox::Ok);
+    dialog.exec();
 }
 
 void MainWindow::on_actionAbout_triggered()
