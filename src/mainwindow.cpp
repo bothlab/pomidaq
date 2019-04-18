@@ -347,7 +347,30 @@ void MainWindow::on_actionQuit_triggered()
 
 void MainWindow::on_actionAbout_Video_Formats_triggered()
 {
-    const auto infoText = QStringLiteral("TODO");
+    const auto infoText = QStringLiteral(
+                "<html>"
+                "<h3>Which video codec/container should I use?</h3>"
+                "<p>PoMiDAQ allows the selction of a few different containers and codecs to store recorded videos. "
+                "This brief information may help you decide which format is best suited for your application.</p>"
+                "<h4>Matroska (MKV) Container</h4>"
+                "<p>This is the most flexible container format. It is fully open-source and patent-free and suitable for long-term storage of "
+                "videos. However, some tools such as MATLAB do not natively support it, so if you use MKV you may need to use 3rd-party toolboxes.</p>"
+                "<h4>Audio Video Interleave (AVI) Container</h4>"
+                "<p>AVI is an old and less flexible container format, which lacks a few features such as standardized ways to store timestamps and aspect ratios. "
+                "Due to its age it is very well supported in many tools and may be your first choice if you are aiming for maximum compatibility.</p>"
+                "<h4>FFV1 Codec</h4>"
+                "<p>This lossless codec is designed for archivability of data and relatively good compression while preserving all information that was present in "
+                "the uncompressed image. It is used by many institutions and broadcasting companies and widely supported. Yet, a few tools (such as MATLAB again) may "
+                "not natively support it, so you may need to use 3rd-party tools to read the generated data.</p>"
+                "<h4>No Codec</h4>"
+                "<p>No compression is used to store the images. This will yield very large files, but reading the generated data is relatively easy and supported by many tools.</p>"
+                "<h4>Any Other Selectable Codec</h4>"
+                "<p>The AV1 codec may become very useful in future, as it is high-quality and open-source and patent-free and an industry standard. However, it is currently too slow "
+                "for real-time data acquisition. The same applies to the VP9 codec, unless you record with lower framerates.</p>"
+                "<p>H.265 is a popular codec for video compression. It is widely supported and already has fast encoders, but is patent encumbered. You may decide to use it if you need "
+                "better compression than FFV1 can offer you and you can read the generated movies.</p>"
+                "<p>MPEG-4 is an older video compression standard. You pretty much never want to use it (except for testing), as it is inferior to the other supported codecs.</p>"
+                );
     QMessageBox::information(this,
                              QStringLiteral("Which video codec/container do I choose?"),
                              infoText);
