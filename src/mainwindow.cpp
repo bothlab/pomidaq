@@ -177,6 +177,9 @@ void MainWindow::on_btnStartStop_clicked()
 
             ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
             ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
+
+            const auto recMsecTimestamp = static_cast<int>(m_mscope->lastRecordedFrameTime().count());
+            ui->labelRecordingTime->setText(QTime::fromMSecsSinceStartOfDay(recMsecTimestamp).toString("hh:mm:ss"));
         }
 
         if (!m_newMessages.isEmpty())

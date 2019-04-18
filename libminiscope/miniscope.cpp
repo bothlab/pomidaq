@@ -101,6 +101,7 @@ public:
 
     std::atomic<size_t> droppedFramesCount;
     std::atomic_uint currentFPS;
+    std::atomic<std::chrono::milliseconds> lastRecordedFrameTime;
 
     boost::circular_buffer<cv::Mat> frameRing;
 
@@ -499,6 +500,11 @@ std::string MiniScope::lastError() const
     return d->lastError;
 }
 
+std::chrono::milliseconds MiniScope::lastRecordedFrameTime() const
+{
+    return d->lastRecordedFrameTime;
+}
+
 void MiniScope::setLed(double value)
 {
     // sanitize value
@@ -647,6 +653,7 @@ void MiniScope::captureThread(void* msPtr)
                 vwriter.reset(new VideoWriter());
                 recordFrames = false;
                 self->emitMessage("Recording finalized.");
+                self->d->lastRecordedFrameTime = std::chrono::milliseconds(0);
             }
         }
 
@@ -705,6 +712,7 @@ void MiniScope::captureThread(void* msPtr)
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
                 self->fail(boost::str(boost::format("Unable to send frames to encoder: %1%") % vwriter->lastError()));
+            self->d->lastRecordedFrameTime = frameTimestamp;
         }
 
         // wait a bit if necessary, to keep the right framerate
@@ -719,4 +727,5 @@ void MiniScope::captureThread(void* msPtr)
 
     // finalize recording (if there was any still ongoing)
     vwriter->finalize();
+    self->d->lastRecordedFrameTime = std::chrono::milliseconds(0);
 }

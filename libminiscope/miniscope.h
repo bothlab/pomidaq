@@ -119,6 +119,8 @@ public:
 
     std::string lastError() const;
 
+    std::chrono::milliseconds lastRecordedFrameTime() const;
+
 private:
     std::unique_ptr<MiniScopeData> d;
 
