@@ -4,5 +4,6 @@ Name=PoMiDAQ
 Comment=Record videos from Miniscopes
 Exec=pomidaq
 Icon=pomidaq
+StartupNotify=true
 Terminal=false
 Categories=Science;Biology;
