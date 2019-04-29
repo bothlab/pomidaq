@@ -162,7 +162,7 @@ void MainWindow::on_btnStartStop_clicked()
     // run and display images
     m_mscope->run();
 
-    ui->btnStartStop->setText("Stop");
+    ui->btnStartStop->setText("Disconnect");
     ui->btnStartStop->setChecked(true);
     ui->containerScopeControls->setEnabled(true);
     ui->groupBoxDisplay->setEnabled(true);
