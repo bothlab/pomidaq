@@ -199,6 +199,7 @@ void MainWindow::on_btnStartStop_clicked()
     // reset UI elements
     ui->btnStartStop->setText("Connect");
     ui->btnStartStop->setChecked(false);
+    ui->btnRecord->setText("Record");
 
     ui->containerScopeControls->setEnabled(false);
     ui->groupBoxDisplay->setEnabled(false);
