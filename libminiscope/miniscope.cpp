@@ -34,12 +34,6 @@
 #include "definitions.h"
 #include "videowriter.h"
 
-using steady_hr_clock =
-    std::conditional<std::chrono::high_resolution_clock::is_steady,
-                     std::chrono::high_resolution_clock,
-                     std::chrono::steady_clock
-                    >::type;
-
 #pragma GCC diagnostic ignored "-Wpadded"
 class MiniScopeData
 {
@@ -71,6 +65,8 @@ public:
 
         recordingSliceInterval = 0; // don't slice
         bgAccumulateAlpha = 0.01;
+
+        captureStartTimepoint = steady_hr_clock::time_point::min(); // no offset by default
     }
 
     std::thread *thread;
@@ -84,6 +80,8 @@ public:
     double excitation;
     std::atomic_uint fps;
     std::string videoFname;
+    std::chrono::milliseconds timestampOffset;
+    std::chrono::time_point<steady_hr_clock> captureStartTimepoint;
 
     std::atomic_int minFluor;
     std::atomic_int maxFluor;
@@ -378,9 +376,12 @@ uint MiniScope::fps() const
 
 void MiniScope::setFps(uint fps)
 {
-    std::lock_guard<std::mutex> lock(d->mutex);
     d->fps = fps;
-    d->cam.set(cv::CAP_PROP_FPS, d->fps);
+}
+
+void MiniScope::setCaptureStartTimepoint(std::chrono::time_point<steady_hr_clock> timepoint)
+{
+    d->captureStartTimepoint = timepoint;
 }
 
 bool MiniScope::externalRecordTrigger() const
@@ -502,7 +503,7 @@ std::string MiniScope::lastError() const
     return d->lastError;
 }
 
-std::chrono::milliseconds MiniScope::lastRecordedFrameTime() const
+milliseconds_t MiniScope::lastRecordedFrameTime() const
 {
     return d->lastRecordedFrameTime;
 }
@@ -524,6 +525,23 @@ void MiniScope::addFrameToBuffer(const cv::Mat &frame)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     d->frameRing.push_back(frame);
+}
+
+/**
+ * @brief MiniScope::calculateCaptureStartTime
+ * This is a helper function for cpatureThread()
+ * @param firstFrameTime The timepoint when the initial frame was acquired
+ * @return the capture start time, offset by a user-defined value
+ */
+std::chrono::time_point<steady_hr_clock> MiniScope::calculateCaptureStartTime(std::chrono::time_point<steady_hr_clock> firstFrameTime)
+{
+    // apply offset based on start timepoint set by the (API) user
+    auto offset = std::chrono::milliseconds (0);
+    if (d->captureStartTimepoint != steady_hr_clock::time_point::min())
+        offset = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - d->captureStartTimepoint);
+
+    // set "start" time, either the time when we actually captured the first frame, or an arbitrary offset on the past
+    return firstFrameTime - offset;
 }
 
 void MiniScope::captureThread(void* msPtr)
@@ -581,7 +599,9 @@ void MiniScope::captureThread(void* msPtr)
         const auto driverFrameTimepoint = std::chrono::time_point<steady_hr_clock> (driverFrameTimestamp);
         if (initCaptureStartTime) {
             initCaptureStartTime = false;
-            captureStartTime = driverFrameTimepoint;
+            // calculate the start time, based on the first driver frame timestamp and a potential actual
+            // initial timepoint set by the user
+            captureStartTime = self->calculateCaptureStartTime(driverFrameTimepoint);
         }
         auto frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(driverFrameTimepoint - captureStartTime);
         if (!status) {
@@ -651,8 +671,9 @@ void MiniScope::captureThread(void* msPtr)
                 recordFrames = true;
                 self->emitMessage("Initialized video recording.");
 
-                // first frame happens at 0 time elapsed, so we cheat here and manipulate the frame timestamp
-                captureStartTime = driverFrameTimepoint;
+                // first frame happens at 0 time elapsed, so we cheat here and manipulate the current frame timestamp,
+                // as the current frame is already added to the recording.
+                captureStartTime = self->calculateCaptureStartTime(driverFrameTimepoint);
                 frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(driverFrameTimepoint - captureStartTime);
             }
         } else {

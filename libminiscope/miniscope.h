@@ -32,6 +32,14 @@
 #define MS_LIB_EXPORT __attribute__((visibility("default")))
 #endif
 
+using steady_hr_clock =
+    std::conditional<std::chrono::high_resolution_clock::is_steady,
+                     std::chrono::high_resolution_clock,
+                     std::chrono::steady_clock
+                    >::type;
+
+using milliseconds_t = std::chrono::milliseconds;
+
 enum class BackgroundDiffMethod {
     NONE,
     SUBTRACTION,
@@ -84,6 +92,8 @@ public:
     uint fps() const;
     void setFps(uint fps);
 
+    void setCaptureStartTimepoint(std::chrono::time_point<steady_hr_clock> timepoint);
+
     bool externalRecordTrigger() const;
     void setExternalRecordTrigger(bool enabled);
 
@@ -119,13 +129,14 @@ public:
 
     std::string lastError() const;
 
-    std::chrono::milliseconds lastRecordedFrameTime() const;
+    milliseconds_t lastRecordedFrameTime() const;
 
 private:
     std::unique_ptr<MiniScopeData> d;
 
     void setLed(double value);
     void addFrameToBuffer(const cv::Mat& frame);
+    std::chrono::time_point<steady_hr_clock> calculateCaptureStartTime(std::chrono::time_point<steady_hr_clock> firstFrameTime);
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();
