@@ -378,7 +378,9 @@ uint MiniScope::fps() const
 
 void MiniScope::setFps(uint fps)
 {
+    std::lock_guard<std::mutex> lock(d->mutex);
     d->fps = fps;
+    d->cam.set(cv::CAP_PROP_FPS, d->fps);
 }
 
 bool MiniScope::externalRecordTrigger() const
@@ -548,9 +550,11 @@ void MiniScope::captureThread(void* msPtr)
     cv::Mat accumulatedMat;
 
     // prepare for recording
+    self->d->cam.set(cv::CAP_PROP_FPS, self->d->fps);
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
-    auto recordStartTime = steady_hr_clock::now();
+    auto captureStartTime = steady_hr_clock::now();
+    bool initCaptureStartTime = true;
 
     while (self->d->running) {
         cv::Mat frame;
@@ -573,7 +577,13 @@ void MiniScope::captureThread(void* msPtr)
         }
 
         auto status = self->d->cam.grab();
-        auto frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - recordStartTime);
+        const auto driverFrameTimestamp = std::chrono::milliseconds (static_cast<long> (self->d->cam.get(cv::CAP_PROP_POS_MSEC)));
+        const auto driverFrameTimepoint = std::chrono::time_point<steady_hr_clock> (driverFrameTimestamp);
+        if (initCaptureStartTime) {
+            initCaptureStartTime = false;
+            captureStartTime = driverFrameTimepoint;
+        }
+        auto frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(driverFrameTimepoint - captureStartTime);
         if (!status) {
             self->fail("Failed to grab frame.");
             break;
@@ -640,8 +650,10 @@ void MiniScope::captureThread(void* msPtr)
                 // so we allow recording frames now
                 recordFrames = true;
                 self->emitMessage("Initialized video recording.");
-                recordStartTime = steady_hr_clock::now();
-                frameTimestamp = std::chrono::milliseconds(0); // first frame happens at 0 time elapsed
+
+                // first frame happens at 0 time elapsed, so we cheat here and manipulate the frame timestamp
+                captureStartTime = driverFrameTimepoint;
+                frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(driverFrameTimepoint - captureStartTime);
             }
         } else {
             // we are not recording or stopped recording
