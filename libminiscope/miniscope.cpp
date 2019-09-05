@@ -641,7 +641,7 @@ void MiniScope::captureThread(void* msPtr)
                                         frame.rows,
                                         static_cast<int>(self->d->fps),
                                         frame.channels() == 3);
-                } catch (const cv::Exception& e) {
+                } catch (const std::runtime_error& e) {
                     self->fail(boost::str(boost::format("Unable to initialize recording: %1%") % e.what()));
                     break;
                 }
