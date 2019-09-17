@@ -25,6 +25,11 @@ target_include_directories(miniscope PRIVATE .)
 set_target_properties(miniscope PROPERTIES PUBLIC_HEADER ${LIBMINISCOPE_HEADERS})
 set_target_properties(miniscope PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/miniscope.pc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/miniscope.pc @ONLY
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miniscope.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
 target_link_libraries(miniscope
     ${CMAKE_THREAD_LIBS_INIT}
     ${OpenCV_LIBS}

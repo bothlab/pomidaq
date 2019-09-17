@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: Miniscope
+Description: Miniscope C++ shared library
+Version: @PROJECT_VERSION@
+
+Libs: -L${libdir} -lminiscope -lopencv_core
+Cflags: -I${includedir}
