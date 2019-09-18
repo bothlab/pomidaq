@@ -33,9 +33,13 @@ namespace MScope
  * that we also support.
  */
 enum class VideoContainer {
+    Unknown,
     Matroska,
     AVI
 };
+
+std::string videoContainerToString(VideoContainer container);
+VideoContainer stringToVideoContainer(const std::string& str);
 
 /**
  * @brief The VideoCodec enum
@@ -48,6 +52,7 @@ enum class VideoContainer {
  * which only supports the AVI container.
  */
 enum class VideoCodec {
+    Unknown,
     Raw,
     FFV1,
     AV1,
@@ -55,6 +60,9 @@ enum class VideoCodec {
     H265,
     MPEG4
 };
+
+std::string videoCodecToString(VideoCodec codec);
+VideoCodec stringToVideoCodec(const std::string& str);
 
 } // end of MiniScope namespace
 

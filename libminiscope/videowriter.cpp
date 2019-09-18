@@ -175,6 +175,10 @@ void VideoWriter::initializeInternal()
         if (!boost::algorithm::ends_with(fname, ".avi"))
             fname = fname + ".avi";
         break;
+    default:
+        if (!boost::algorithm::ends_with(fname, ".mkv"))
+            fname = fname + ".mkv";
+        break;
     }
 
     // open output format context
@@ -210,6 +214,9 @@ void VideoWriter::initializeInternal()
         break;
     case VideoCodec::H265:
         codecId = AV_CODEC_ID_H265;
+        break;
+    default:
+        codecId = AV_CODEC_ID_FFV1;
         break;
     }
 
@@ -270,6 +277,7 @@ void VideoWriter::initializeInternal()
             std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
             d->lossless = false;
             break;
+        default: break;
         }
     }
 
