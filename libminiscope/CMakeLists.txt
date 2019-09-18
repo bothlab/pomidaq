@@ -2,6 +2,7 @@
 set(LIBMINISCOPE_SRC
     miniscope.cpp
     videowriter.cpp
+    mediatypes.cpp
 )
 
 set(LIBMINISCOPE_PRIV_HEADERS
@@ -11,6 +12,7 @@ set(LIBMINISCOPE_PRIV_HEADERS
 
 set(LIBMINISCOPE_HEADERS
     miniscope.h
+    mediatypes.h
 )
 
 add_library(miniscope
@@ -21,8 +23,9 @@ add_library(miniscope
 set_target_properties(miniscope PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(miniscope PROPERTIES SOVERSION ${LIBSOVERSION})
 
+set(MINISCOPE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/miniscope)
 target_include_directories(miniscope PRIVATE .)
-set_target_properties(miniscope PROPERTIES PUBLIC_HEADER ${LIBMINISCOPE_HEADERS})
+set_target_properties(miniscope PROPERTIES PUBLIC_HEADER "${LIBMINISCOPE_HEADERS}")
 set_target_properties(miniscope PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/miniscope.pc.in
@@ -47,6 +50,6 @@ include_directories(SYSTEM
 install(TARGETS miniscope
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PUBLIC_HEADER DESTINATION ${MINISCOPE_INSTALL_INCLUDEDIR}
     COMPONENT library
 )

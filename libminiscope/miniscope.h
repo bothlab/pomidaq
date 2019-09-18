@@ -24,13 +24,16 @@
 #include <functional>
 #include <opencv2/core.hpp>
 
-#include "videowriter.h"
+#include "mediatypes.h"
 
 #ifdef _WIN32
 #define MS_LIB_EXPORT __declspec(dllexport)
 #else
 #define MS_LIB_EXPORT __attribute__((visibility("default")))
 #endif
+
+namespace MScope
+{
 
 using steady_hr_clock =
     std::conditional<std::chrono::high_resolution_clock::is_steady,
@@ -143,5 +146,7 @@ private:
     void emitMessage(const std::string& msg);
     void fail(const std::string& msg);
 };
+
+} // end of MiniScope namespace
 
 #endif // MINISCOPE_H

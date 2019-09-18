@@ -23,37 +23,9 @@
 #include <memory>
 #include <chrono>
 #include <opencv2/core.hpp>
+#include "mediatypes.h"
 
-/**
- * @brief The VideoContainer enum
- *
- * Video container formats that we support in VideoWriter.
- * Each container must be compatible with every codec type
- * that we also support.
- */
-enum class VideoContainer {
-    Matroska,
-    AVI
-};
-
-/**
- * @brief The VideoCodec enum
- *
- * Video codecs that we support in VideoWriter.
- * Each codec must be compatible with every container type
- * that we also support, to avoid unnecessary user confusion and
- * API errors.
- * Currently, the only permanent exception to this rule is the "Raw" encoder,
- * which only supports the AVI container.
- */
-enum class VideoCodec {
-    Raw,
-    FFV1,
-    AV1,
-    VP9,
-    H265,
-    MPEG4
-};
+using namespace MScope;
 
 /**
  * @brief The VideoWriter class

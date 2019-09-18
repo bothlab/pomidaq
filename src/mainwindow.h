@@ -23,9 +23,11 @@
 #include <QMainWindow>
 #include <QQueue>
 
-class MiniScope;
 class VideoViewWidget;
 class QLabel;
+namespace MScope {
+class MiniScope;
+}
 
 namespace Ui {
 class MainWindow;
@@ -74,7 +76,7 @@ private:
     Ui::MainWindow *ui;
     QLabel *m_statusBarLabel;
 
-    MiniScope *m_mscope;
+    MScope::MiniScope *m_mscope;
     VideoViewWidget *m_scopeView;
     bool m_running;
 

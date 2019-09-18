@@ -1,6 +1,6 @@
 prefix=@CMAKE_INSTALL_PREFIX@
 libdir=@CMAKE_INSTALL_FULL_LIBDIR@
-includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+includedir=${prefix}/@MINISCOPE_INSTALL_INCLUDEDIR@
 
 Name: Miniscope
 Description: Miniscope C++ shared library

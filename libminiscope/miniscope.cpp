@@ -34,6 +34,10 @@
 #include "definitions.h"
 #include "videowriter.h"
 
+using namespace MScope;
+namespace MScope
+{
+
 #pragma GCC diagnostic ignored "-Wpadded"
 class MiniScopeData
 {
@@ -118,6 +122,8 @@ public:
     std::string lastError;
 };
 #pragma GCC diagnostic pop
+
+} // end of namespace MScope
 
 
 MiniScope::MiniScope()

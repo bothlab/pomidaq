@@ -32,6 +32,8 @@
 #include <QMessageBox>
 #include "videoviewwidget.h"
 
+using namespace MScope;
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
