@@ -69,7 +69,7 @@ build_script:
       ./contrib/ci/cibuild.sh
 
   # Windows
-  - cmd: cmake --build build
+  - cmd: cmake --build build -DGUI=ON -DPYTHON=OFF
 
 after_build:
   # Windows
