@@ -43,7 +43,7 @@ target_link_libraries(miniscope
 
 include_directories(SYSTEM
     ${OpenCV_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIRS}
 )
 

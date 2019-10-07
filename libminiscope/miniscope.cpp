@@ -140,6 +140,8 @@ MiniScope::~MiniScope()
     finishCaptureThread();
     setExcitation(0);
     disconnect();
+
+    delete d;
 }
 
 void MiniScope::startCaptureThread()

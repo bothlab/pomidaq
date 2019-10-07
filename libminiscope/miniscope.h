@@ -53,7 +53,7 @@ class MiniScopeData;
 class MS_LIB_EXPORT MiniScope
 {
 public:
-    MiniScope();
+    explicit MiniScope();
     ~MiniScope();
 
     void setScopeCamId(int id);
@@ -135,7 +135,7 @@ public:
     milliseconds_t lastRecordedFrameTime() const;
 
 private:
-    std::unique_ptr<MiniScopeData> d;
+    MiniScopeData *d;
 
     void setLed(double value);
     void addFrameToBuffer(const cv::Mat& frame);

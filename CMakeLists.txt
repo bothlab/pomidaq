@@ -17,6 +17,8 @@ set(LIBSOVERSION 0)
 # Options
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
+option(GUI        "Build Python module" ON)
+option(PYTHON     "Build Python module" ON)
 
 
 #
@@ -76,6 +78,11 @@ include_directories(${CMAKE_BINARY_DIR})
 #
 # Subdirectories
 #
-add_subdirectory(src)
 add_subdirectory(libminiscope)
 add_subdirectory(data)
+if (GUI)
+  add_subdirectory(src)
+endif()
+if (PYTHON)
+  add_subdirectory(py)
+endif()
