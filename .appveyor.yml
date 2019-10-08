@@ -61,6 +61,8 @@ before_build:
       -DFFmpegPath="%FFMPEG_DIR%/ffmpeg-4.1.1-win64-dev/include"
       -DBoost_COMPILER="-vc141"
       -DBOOST_ROOT="%BOOST_DIR%" -DBOOST_LIBRARYDIR="%BOOST_DIR%\lib64-msvc-14.1"
+      -DGUI=ON
+      -DPYTHON=OFF
   - cmd: cd ..
 
 build_script:
@@ -69,7 +71,7 @@ build_script:
       ./contrib/ci/cibuild.sh
 
   # Windows
-  - cmd: cmake --build build -DGUI=ON -DPYTHON=OFF
+  - cmd: cmake --build build
 
 after_build:
   # Windows
