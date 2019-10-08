@@ -20,7 +20,7 @@ has been attempted.
 
 ## Developers
 
-[![Build status](https://ci.appveyor.com/api/projects/status/y3fgik6i2wgnkju1/branch/master?svg=true)](https://ci.appveyor.com/project/ximion/pomidaq/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/qol41r02heuyifsw/branch/master?svg=true)](https://ci.appveyor.com/project/ximion/pomidaq/branch/master)
 
 ### Dependencies
 
