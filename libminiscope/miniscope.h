@@ -44,9 +44,9 @@ using steady_hr_clock =
 using milliseconds_t = std::chrono::milliseconds;
 
 enum class BackgroundDiffMethod {
-    NONE,
-    SUBTRACTION,
-    DIVISION
+    None,
+    Subtraction,
+    Division
 };
 
 class MiniScopeData;
@@ -89,7 +89,7 @@ public:
     bool showBlueChannel() const;
 
     cv::Mat currentFrame();
-    uint currentFPS() const;
+    uint currentFps() const;
     size_t droppedFramesCount() const;
 
     uint fps() const;

@@ -104,7 +104,7 @@ void MainWindow::on_dialExcitation_valueChanged(int value)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    Q_UNUSED(event);
+    Q_UNUSED(event)
     m_mscope->disconnect();
 }
 
@@ -177,7 +177,7 @@ void MainWindow::on_btnStartStop_clicked()
         if (!frame.empty()) {
             m_scopeView->showImage(frame);
 
-            ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFPS()));
+            ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFps()));
             ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
 
             ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
@@ -419,9 +419,9 @@ void MainWindow::on_bgSubstCheckBox_toggled(bool checked)
 {
     if (checked) {
         ui->bgDivCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::SUBTRACTION);
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::Subtraction);
     } else {
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::NONE);
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::None);
     }
 }
 
@@ -429,9 +429,9 @@ void MainWindow::on_bgDivCheckBox_toggled(bool checked)
 {
     if (checked) {
         ui->bgSubstCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::DIVISION);
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::Division);
     } else {
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::NONE);
+        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::None);
     }
 }
 

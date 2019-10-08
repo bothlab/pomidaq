@@ -62,7 +62,7 @@ public:
         showGreen = true;
         showBlue = true;
 
-        bgDiffMethod = BackgroundDiffMethod::NONE;
+        bgDiffMethod = BackgroundDiffMethod::None;
 
         minFluorDisplay = 0;
         maxFluorDisplay = 255;
@@ -368,7 +368,7 @@ cv::Mat MiniScope::currentFrame()
     return frame;
 }
 
-uint MiniScope::currentFPS() const
+uint MiniScope::currentFps() const
 {
     return d->currentFPS;
 }
@@ -711,11 +711,11 @@ void MiniScope::captureThread(void* msPtr)
         cv::Mat displayF32;
         displayFrame.convertTo(displayF32, CV_32F, 1.0 / 255.0);
         cv::accumulateWeighted(displayF32, accumulatedMat, self->d->bgAccumulateAlpha);
-        if (self->d->bgDiffMethod == BackgroundDiffMethod::DIVISION) {
+        if (self->d->bgDiffMethod == BackgroundDiffMethod::Division) {
             cv::Mat tmpMat;
             cv::divide(displayF32, accumulatedMat, tmpMat, 1, CV_32FC(frame.channels()));
             tmpMat.convertTo(displayFrame, displayFrame.type(), 250.0);
-        } else if (self->d->bgDiffMethod == BackgroundDiffMethod::SUBTRACTION) {
+        } else if (self->d->bgDiffMethod == BackgroundDiffMethod::Subtraction) {
             cv::Mat tmpBgMat;
             accumulatedMat.convertTo(tmpBgMat, CV_8UC1, 255.0);
             cv::subtract(displayFrame, tmpBgMat, displayFrame);
