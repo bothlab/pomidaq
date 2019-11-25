@@ -1,7 +1,7 @@
 PoMiDAQ
 =========
 
-![PoMiDAQ Screenshot](contrib/screenshots/v0.1_recording_small.png "PoMiDAQ on Linux")
+![PoMiDAQ Screenshot](contrib/screenshots/v0.1_recording_sample.png "PoMiDAQ on Linux")
 
 PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/index.php/Main_Page).
 Unlike the [preexisting](https://github.com/daharoni/Miniscope_DAQ_Software) Miniscope software, this program
@@ -17,6 +17,13 @@ currently only been tested on Linux (and may stay Linux-only) and is still consi
 Some features the original Miniscope DAQ software has, like the behavior recording, are intentionally left out.
 This software is developed on Linux, but has also been successfully tested on Windows. As of now, no macOS build
 has been attempted.
+
+## Users
+
+The CI system provides up-to-date builds for PoMiDAQ for the **Windows** (64-bit) and **Debian** 9+ (amd64) platforms.
+You can fetch builds from there or download prebuilt binaries from the [Github releases](https://github.com/bothlab/pomidaq/releases).
+Don't hesitate to file issues if you notice anything unusual - since this software is very new, there is
+still a good chance to encounter strange behavior that was not previously tested for.
 
 ## Developers
 
@@ -35,10 +42,3 @@ Before attempting to build PoMiDAQ, ensure all dependencies (and their developme
 You should then be able to build the software after configuring the build with cmake for your platform.
 
 Pull-requests are very welcome! (Code should be valid C++14, use 4 spaces for indentation)
-
-## Users
-
-The CI system provides up-to-date builds for PoMiDAQ for the Windows (64-bit) and Debian 9+ (amd64) platforms.
-You can fetch builds from there or download prebuilt binaries from the Github releases.
-Don't hesitate to file issues if you notice anything unusual - since this software is very new, there is
-still a good chance to encounter strange behavior that was not previously tested for.
