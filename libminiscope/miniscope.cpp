@@ -58,6 +58,8 @@ public:
         videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
 
+        printMessagesStdout = false;
+
         showRed = true;
         showGreen = true;
         showBlue = true;
@@ -108,6 +110,7 @@ public:
     boost::circular_buffer<cv::Mat> frameRing;
 
     std::function<void (std::string)> onMessageCallback;
+    bool printMessagesStdout;
 
     bool useColor;
     bool showRed;
@@ -163,10 +166,10 @@ void MiniScope::finishCaptureThread()
 
 void MiniScope::emitMessage(const std::string &msg)
 {
-    if (!d->onMessageCallback) {
+    if (d->printMessagesStdout)
         std::cout << msg << std::endl;
+    if (!d->onMessageCallback)
         return;
-    }
 
     d->mutex.lock();
     d->onMessageCallback(msg);
@@ -322,6 +325,11 @@ bool MiniScope::recording() const
 void MiniScope::setOnMessage(std::function<void(const std::string&)> callback)
 {
     d->onMessageCallback = callback;
+}
+
+void MiniScope::setPrintMessagesStdout(bool enabled)
+{
+    d->printMessagesStdout = enabled;
 }
 
 bool MiniScope::useColor() const

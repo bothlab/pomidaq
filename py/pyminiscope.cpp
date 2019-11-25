@@ -87,6 +87,7 @@ BOOST_PYTHON_MODULE(miniscope)
         // TODO: This needs special plumbing, so we don't make this function available for now and have
         // all messages printed to stdut when called from a Python script
         .def("set_on_message", &MiniScope::setOnMessage, "Set message handling function")
+        .def("set_print_messages_stdout", &MiniScope::setPrintMessagesStdout, "Set to True to repeat each emitted message on stdout.")
 
         .def("set_visible_channels", &MiniScope::setVisibleChannels, "Set which channels (red, green, blue) should be visible")
         .add_property("show_red_channels", &MiniScope::showRedChannel)

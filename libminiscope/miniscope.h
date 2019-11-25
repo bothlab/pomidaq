@@ -79,6 +79,7 @@ public:
     bool recording() const;
 
     void setOnMessage(std::function<void(const std::string&)> callback);
+    void setPrintMessagesStdout(bool enabled);
 
     bool useColor() const;
     void setUseColor(bool color);
