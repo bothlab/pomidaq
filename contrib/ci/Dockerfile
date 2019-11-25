@@ -1,18 +1,18 @@
 #
 # Docker file for PoMiDAQ CI
 #
-FROM debian:buster
+FROM debian:bullseye
 
 # prepare
 RUN apt-get update -qq
 RUN apt-get install -yq eatmydata
 
 # install build essentials
-RUN eatmydata apt-get install -yq gcc g++ clang
+RUN eatmydata apt-get install -yq build-essential gcc g++
 
 # install build dependencies
 RUN eatmydata apt-get install -yq --no-install-recommends \
-    build-essential \
+    git-core \
     dpkg-dev \
     devscripts \
     debhelper \
@@ -22,15 +22,13 @@ RUN eatmydata apt-get install -yq --no-install-recommends \
     libqt5opengl5-dev \
     libboost-dev \
     libboost-container-dev \
+    libopencv-dev \
     libavcodec-dev \
     libavformat-dev \
-    libswscale-dev
-
-# build a fresh OpenCV version
-RUN mkdir /build
-ADD contrib/ci/opencv_quickbuild.sh /build/
-RUN cd /build && eatmydata /build/opencv_quickbuild.sh
-RUN rm -rf /build
+    libswscale-dev \
+    libboost-python-dev \
+    python3-dev \
+    python3-numpy
 
 # finish
 RUN mkdir /build
