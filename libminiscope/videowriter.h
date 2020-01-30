@@ -73,7 +73,7 @@ private:
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
     static void encodeThread(void* vwPtr);
     bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
-    bool prepareFrame(const cv::Mat &image);
+    bool prepareFrame(const cv::Mat &inImage);
     bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
     void startEncodeThread();
     void stopEncodeThread();

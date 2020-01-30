@@ -28,6 +28,7 @@
 #include <fstream>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -433,8 +434,14 @@ bool VideoWriter::initialized() const
     return d->initialized;
 }
 
-bool VideoWriter::prepareFrame(const cv::Mat &image)
+bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
+    auto image = inImage;
+
+    // convert to gray in case the frame has colors attached
+    if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (image.channels() != 1))
+        cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
+
     const auto channels = image.channels();
 
     auto step = image.step[0];
