@@ -628,6 +628,7 @@ void MiniScope::captureThread(void* msPtr)
 
         try {
             status = self->d->cam.retrieve(frame);
+            cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY);
         } catch (const cv::Exception& e) {
             status = false;
             std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
@@ -730,6 +731,8 @@ void MiniScope::captureThread(void* msPtr)
         }
 
         if (self->d->useColor) {
+            cv::cvtColor(displayFrame, displayFrame, cv::COLOR_GRAY2BGR);
+
             // we want a colored image
             if (self->d->showRed || self->d->showGreen || self->d->showBlue) {
                 cv::Mat bgrChannels[3];
@@ -746,8 +749,6 @@ void MiniScope::captureThread(void* msPtr)
             }
          } else {
             // grayscale image
-            cv::cvtColor(displayFrame, displayFrame, cv::COLOR_BGR2GRAY);
-
             double minF, maxF;
             cv::minMaxLoc(displayFrame, &minF, &maxF);
             self->d->minFluor = static_cast<int>(minF);

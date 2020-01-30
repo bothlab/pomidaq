@@ -293,6 +293,15 @@ void VideoWriter::initializeInternal()
         // Keeping a good balance between recording space/performance/integrity is difficult sometimes.
     }
 
+    // Adjust pixel color formats for selected video codecs
+    switch (d->codec) {
+    case VideoCodec::FFV1:
+        if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
+            d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
+        break;
+    default: break;
+    }
+
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
     if (ret < 0) {
