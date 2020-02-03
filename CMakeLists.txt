@@ -67,6 +67,11 @@ find_package(OpenCV 4.1 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    find_package(KF5ConfigWidgets)
+    set(KF5_ConfigWidgets KF5::ConfigWidgets)
+endif()
+
 
 #
 # Config

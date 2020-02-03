@@ -20,6 +20,7 @@ RUN eatmydata apt-get install -yq --no-install-recommends \
     cmake \
     qt5-default \
     libqt5opengl5-dev \
+    libkf5configwidgets-dev \
     libboost-dev \
     libboost-container-dev \
     libopencv-dev \

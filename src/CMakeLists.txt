@@ -32,6 +32,7 @@ add_executable(pomidaq
 target_link_libraries(pomidaq
     ${CMAKE_DL_LIBS}
     Qt5::Widgets
+    ${KF5_ConfigWidgets}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     miniscope
