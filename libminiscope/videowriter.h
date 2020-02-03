@@ -45,6 +45,9 @@ public:
     void finalize();
     bool initialized() const;
 
+    std::chrono::milliseconds captureStartTimestamp() const;
+    void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);
+
     bool pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time);
 
     VideoCodec codec() const;

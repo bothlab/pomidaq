@@ -79,7 +79,7 @@ public:
     bool recording() const;
 
     void setOnMessage(std::function<void(const std::string&)> callback);
-    void setPrintMessagesStdout(bool enabled);
+    void setPrintMessagesToStdout(bool enabled);
 
     bool useColor() const;
     void setUseColor(bool color);
@@ -97,6 +97,9 @@ public:
     void setFps(uint fps);
 
     void setCaptureStartTimepoint(std::chrono::time_point<steady_hr_clock> timepoint);
+    bool useUnixTimestamps() const;
+    void setUseUnixTimestamps(bool useUnixTime);
+    milliseconds_t unixCaptureStartTime() const;
 
     bool externalRecordTrigger() const;
     void setExternalRecordTrigger(bool enabled);

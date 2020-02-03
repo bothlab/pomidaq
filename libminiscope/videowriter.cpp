@@ -57,6 +57,7 @@ public:
         codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
         fileSliceIntervalMin = 0;  // never slice our recording by default
+        captureStartTimestamp = std::chrono::milliseconds(0); //by default we assume the first frame was recorded at timepoint 0
 
         frame = nullptr;
         inputFrame = nullptr;
@@ -89,6 +90,7 @@ public:
 
     bool saveTimestamps;
     std::ofstream timestampFile;
+    std::chrono::milliseconds captureStartTimestamp;
 
     AVFrame *frame;
     AVFrame *inputFrame;
@@ -443,6 +445,16 @@ bool VideoWriter::initialized() const
     return d->initialized;
 }
 
+std::chrono::milliseconds VideoWriter::captureStartTimestamp() const
+{
+    return d->captureStartTimestamp;
+}
+
+void VideoWriter::setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp)
+{
+    d->captureStartTimestamp = startTimestamp;
+}
+
 bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
     auto image = inImage;
@@ -545,8 +557,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         d->timestampFile << d->framePts << "; " << tsMsec << "\n";
 
     if (d->fileSliceIntervalMin != 0) {
-        const auto tsMin = static_cast<double>(tsMsec) / 1000.0 / 60.0;
-        if (tsMin > (d->fileSliceIntervalMin * d->currentSliceNo)) {
+        const auto tsMin = static_cast<double>(tsMsec - d->captureStartTimestamp.count()) / 1000.0 / 60.0;
+        if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
             try {
                 // we need to start a new file now since the maximum time for this file has elapsed,
                 // so finalize this one without suspending the thread we are currently in
