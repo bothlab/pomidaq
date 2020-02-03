@@ -30,9 +30,67 @@
 #include <QFileDialog>
 #include <QDateTime>
 #include <QMessageBox>
+#include <QSettings>
+#include <QInputDialog>
 #include "videoviewwidget.h"
 
+#ifdef Q_OS_LINUX
+#include <KSharedConfig>
+#include <KColorScheme>
+#endif
+
 using namespace MScope;
+
+#ifdef Q_OS_LINUX
+static void changeColorScheme(const QString &filename, bool darkColors = false)
+{
+    QFile file(filename);
+    if (!file.exists()) {
+        qWarning().noquote() << "Could not find color scheme file" << filename << "Colors will not be changed.";
+        return;
+    }
+
+    auto config = KSharedConfig::openConfig(filename);
+
+    QPalette palette = qApp->palette();
+    QPalette::ColorGroup states[3] = { QPalette::Active, QPalette::Inactive, QPalette::Disabled };
+    KColorScheme schemeTooltip(QPalette::Active, KColorScheme::Tooltip, config);
+
+    for (int i = 0; i < 3 ; ++i) {
+        QPalette::ColorGroup state = states[i];
+        KColorScheme schemeView(state,      KColorScheme::View,      config);
+        KColorScheme schemeWindow(state,    KColorScheme::Window,    config);
+        KColorScheme schemeButton(state,    KColorScheme::Button,    config);
+        KColorScheme schemeSelection(state, KColorScheme::Selection, config);
+
+        palette.setBrush(state, QPalette::WindowText,      schemeWindow.foreground());
+        palette.setBrush(state, QPalette::Window,          schemeWindow.background());
+        palette.setBrush(state, QPalette::Base,            schemeView.background());
+        palette.setBrush(state, QPalette::Text,            schemeView.foreground());
+        palette.setBrush(state, QPalette::Button,          schemeButton.background());
+        palette.setBrush(state, QPalette::ButtonText,      schemeButton.foreground());
+        palette.setBrush(state, QPalette::Highlight,       schemeSelection.background());
+        palette.setBrush(state, QPalette::HighlightedText, schemeSelection.foreground());
+        palette.setBrush(state, QPalette::ToolTipBase,     schemeTooltip.background());
+        palette.setBrush(state, QPalette::ToolTipText,     schemeTooltip.foreground());
+
+        palette.setColor(state, QPalette::Light,           schemeWindow.shade(KColorScheme::LightShade));
+        palette.setColor(state, QPalette::Midlight,        schemeWindow.shade(KColorScheme::MidlightShade));
+        palette.setColor(state, QPalette::Mid,             schemeWindow.shade(KColorScheme::MidShade));
+        palette.setColor(state, QPalette::Dark,            schemeWindow.shade(KColorScheme::DarkShade));
+        palette.setColor(state, QPalette::Shadow,          schemeWindow.shade(KColorScheme::ShadowShade));
+
+        palette.setBrush(state, QPalette::AlternateBase,   schemeView.background(KColorScheme::AlternateBackground));
+        palette.setBrush(state, QPalette::Link,            schemeView.foreground(KColorScheme::LinkText));
+        palette.setBrush(state, QPalette::LinkVisited,     schemeView.foreground(KColorScheme::VisitedText));
+    }
+
+    qApp->setProperty("KDE_COLOR_SCHEME_PATH", filename);
+    qApp->setPalette(palette);
+
+    QIcon::setThemeName(darkColors ? QStringLiteral("breeze-dark") : QStringLiteral("breeze"));
+}
+#endif
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -55,6 +113,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_mscope->setOnMessage([&](const std::string &msg) {
         m_newMessages.enqueue(QString::fromStdString(msg));
     });
+    m_mscope->setPrintMessagesToStdout(true);
 
     // display default values
     ui->sbExposure->setValue(static_cast<int>(m_mscope->exposure()));
@@ -79,10 +138,25 @@ MainWindow::MainWindow(QWidget *parent) :
     setDataExportDir(QStandardPaths::writableLocation(QStandardPaths::StandardLocation::TempLocation));
     if (dataDir.isEmpty())
         setDataExportDir("/tmp");
+
+    QSettings settings(qApp->organizationName(), qApp->applicationName());
+    ui->actionUseDarkTheme->setVisible(false);
+#ifdef Q_OS_LINUX
+    ui->actionUseDarkTheme->setVisible(true);
+    ui->actionUseDarkTheme->setChecked(settings.value("ui/useDarkStyle", true).toBool());
+#endif
+    ui->fpsSpinBox->setMaximum(settings.value("recording/framerateMax", 30).toInt());
+    setUseUnixTimestamps(settings.value("recording/useUnixTimestamps", false).toBool());
+    ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 5).toInt());
 }
 
 MainWindow::~MainWindow()
 {
+    QSettings settings(qApp->organizationName(), qApp->applicationName());
+    settings.setValue("recording/framerate", ui->fpsSpinBox->value());
+    settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
+    settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
+
     delete ui;
     delete m_mscope;
 }
@@ -133,6 +207,15 @@ void MainWindow::setDataExportDir(const QString &dir)
     dataDir = dir;
 }
 
+void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)
+{
+    m_useUnixTimestamps = useUnixTimestamp;
+    if (m_useUnixTimestamps)
+        ui->labelTimestampStyle->setText(QStringLiteral("unix-epoch"));
+    else
+        ui->labelTimestampStyle->setText(QStringLiteral("start-at-zero"));
+}
+
 void MainWindow::on_sbExposure_valueChanged(int arg1)
 {
     m_mscope->setExposure(arg1);
@@ -161,6 +244,10 @@ void MainWindow::on_btnStartStop_clicked()
         return;
     }
 
+    // set whether we use continuous zero-based timestamps,
+    // or UNIX timestamps instead
+    m_mscope->setUseUnixTimestamps(m_useUnixTimestamps);
+
     // run and display images
     m_mscope->run();
 
@@ -171,6 +258,8 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnRecord->setEnabled(true);
     ui->btnStartStop->setEnabled(true);
     ui->sbCamId->setEnabled(false);
+    ui->actionSetFramerateLimit->setEnabled(false);
+    ui->actionSetTimestampStyle->setEnabled(false);
 
     while (m_mscope->running()) {
         auto frame = m_mscope->currentFrame();
@@ -183,8 +272,14 @@ void MainWindow::on_btnStartStop_clicked()
             ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
             ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
 
-            const auto recMsecTimestamp = static_cast<int>(m_mscope->lastRecordedFrameTime().count());
-            ui->labelRecordingTime->setText(QTime::fromMSecsSinceStartOfDay(recMsecTimestamp).toString("hh:mm:ss"));
+            auto recMsecTimestamp = static_cast<int>(m_mscope->lastRecordedFrameTime().count());
+            if (recMsecTimestamp > 0) {
+                if (m_useUnixTimestamps) {
+                    recMsecTimestamp = recMsecTimestamp - m_mscope->unixCaptureStartTime().count();
+                }
+
+                ui->labelRecordingTime->setText(QTime::fromMSecsSinceStartOfDay(recMsecTimestamp).toString("hh:mm:ss"));
+            }
         }
 
         if (!m_newMessages.isEmpty())
@@ -209,6 +304,8 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnStartStop->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
     ui->sbCamId->setEnabled(true);
+    ui->actionSetFramerateLimit->setEnabled(true);
+    ui->actionSetTimestampStyle->setEnabled(true);
 
     if (!m_mscope->lastError().empty())
         QMessageBox::critical(this,
@@ -346,10 +443,10 @@ void MainWindow::on_fpsSpinBox_valueChanged(int arg1)
 
 void MainWindow::on_btnOpenSaveDir_clicked()
 {
-    on_actionSet_Data_Location_triggered();
+    on_actionSetDataLocation_triggered();
 }
 
-void MainWindow::on_actionSet_Data_Location_triggered()
+void MainWindow::on_actionSetDataLocation_triggered()
 {
     auto dir = QFileDialog::getExistingDirectory(this,
                                                  "Select Directory",
@@ -364,7 +461,7 @@ void MainWindow::on_actionQuit_triggered()
     this->close();
 }
 
-void MainWindow::on_actionAbout_Video_Formats_triggered()
+void MainWindow::on_actionAboutVideoFormats_triggered()
 {
     const auto infoText = QStringLiteral(
                 "<html>"
@@ -448,4 +545,51 @@ void MainWindow::on_accAlphaSpinBox_valueChanged(double arg1)
 void MainWindow::on_actionShowMiniscopeLog_toggled(bool arg1)
 {
     ui->logTextList->setVisible(arg1);
+}
+
+void MainWindow::on_actionUseDarkTheme_toggled(bool arg1)
+{
+#ifdef Q_OS_LINUX
+    if (arg1)
+        changeColorScheme(QStringLiteral("/usr/share/color-schemes/BreezeDark.colors"), true);
+    else
+        changeColorScheme(QStringLiteral("/usr/share/color-schemes/Breeze.colors"), false);
+
+    QSettings settings(qApp->organizationName(), qApp->applicationName());
+    settings.setValue("ui/useDarkStyle", arg1);
+#endif
+}
+
+void MainWindow::on_actionSetFramerateLimit_triggered()
+{
+    bool ok;
+    int maxFps = QInputDialog::getInt(this,
+                                      QStringLiteral("Set upper framerate limit"),
+                                      QStringLiteral("Max. Framerate:"),
+                                      ui->fpsSpinBox->maximum(), 30, 1000, 1,
+                                      &ok);
+    if (ok) {
+        ui->fpsSpinBox->setMaximum(maxFps);
+        QSettings settings(qApp->organizationName(), qApp->applicationName());
+        settings.setValue("recording/framerateMax", maxFps);
+    }
+}
+
+void MainWindow::on_actionSetTimestampStyle_triggered()
+{
+    QStringList items;
+    items << QStringLiteral("Start at Zero") << QStringLiteral("Use UNIX timestamps");
+
+    bool ok;
+    auto item = QInputDialog::getItem(this,
+                                      QStringLiteral("Set a timestamp style"),
+                                      QStringLiteral("Style:"),
+                                      items, m_useUnixTimestamps? 1 : 0, false,
+                                      &ok);
+    if (ok && !item.isEmpty()) {
+        if (item.startsWith(QStringLiteral("Start at Zero"), Qt::CaseInsensitive))
+            setUseUnixTimestamps(false);
+        else
+            setUseUnixTimestamps(true);
+    }
 }

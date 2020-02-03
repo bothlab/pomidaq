@@ -58,9 +58,9 @@ private slots:
     void on_sliceIntervalSpinBox_valueChanged(int arg1);
 
     void on_actionAbout_triggered();
-    void on_actionAbout_Video_Formats_triggered();
+    void on_actionAboutVideoFormats_triggered();
     void on_actionQuit_triggered();
-    void on_actionSet_Data_Location_triggered();
+    void on_actionSetDataLocation_triggered();
     void on_btnOpenSaveDir_clicked();
 
     void on_bgDivCheckBox_toggled(bool checked);
@@ -68,6 +68,10 @@ private slots:
     void on_accAlphaSpinBox_valueChanged(double arg1);
 
     void on_actionShowMiniscopeLog_toggled(bool arg1);
+
+    void on_actionUseDarkTheme_toggled(bool arg1);
+    void on_actionSetFramerateLimit_triggered();
+    void on_actionSetTimestampStyle_triggered();
 
 protected:
     void closeEvent (QCloseEvent *event) override;
@@ -78,6 +82,7 @@ private:
 
     MScope::MiniScope *m_mscope;
     VideoViewWidget *m_scopeView;
+    bool m_useUnixTimestamps;
     bool m_running;
 
     int m_messageCount;
@@ -88,6 +93,7 @@ private:
     void addLogMessage(const QString &msg);
     void setStatusText(const QString& msg);
     void setDataExportDir(const QString& dir);
+    void setUseUnixTimestamps(bool useUnixTimestamp);
 };
 
 #endif // MAINWINDOW_H

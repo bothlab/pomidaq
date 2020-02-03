@@ -280,6 +280,61 @@
             </layout>
            </widget>
           </item>
+          <item>
+           <widget class="QWidget" name="widget_5" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_11">
+             <property name="spacing">
+              <number>2</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>2</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="label_4">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="font">
+                <font>
+                 <weight>75</weight>
+                 <bold>true</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Timestamps:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelTimestampStyle">
+               <property name="font">
+                <font>
+                 <italic>true</italic>
+                </font>
+               </property>
+               <property name="midLineWidth">
+                <number>2</number>
+               </property>
+               <property name="text">
+                <string>start-at-zero</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -954,7 +1009,7 @@
     <property name="title">
      <string>&amp;DAQ</string>
     </property>
-    <addaction name="actionSet_Data_Location"/>
+    <addaction name="actionSetDataLocation"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuInfo">
@@ -962,10 +1017,19 @@
      <string>&amp;Info</string>
     </property>
     <addaction name="actionShowMiniscopeLog"/>
-    <addaction name="actionAbout_Video_Formats"/>
+    <addaction name="actionAboutVideoFormats"/>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="actionUseDarkTheme"/>
+    <addaction name="actionSetFramerateLimit"/>
+    <addaction name="actionSetTimestampStyle"/>
+   </widget>
    <addaction name="menuApp"/>
+   <addaction name="menuSettings"/>
    <addaction name="menuInfo"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -978,7 +1042,7 @@
     <string>&amp;Quit</string>
    </property>
   </action>
-  <action name="actionSet_Data_Location">
+  <action name="actionSetDataLocation">
    <property name="icon">
     <iconset theme="folder-open">
      <normaloff>.</normaloff>.</iconset>
@@ -996,7 +1060,7 @@
     <string>A&amp;bout</string>
    </property>
   </action>
-  <action name="actionAbout_Video_Formats">
+  <action name="actionAboutVideoFormats">
    <property name="icon">
     <iconset theme="video-webm">
      <normaloff>.</normaloff>.</iconset>
@@ -1010,10 +1074,35 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset theme="view-list-text"/>
+    <iconset theme="view-list-text">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Show Miniscope Log</string>
+   </property>
+  </action>
+  <action name="actionUseDarkTheme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use dark theme</string>
+   </property>
+  </action>
+  <action name="actionSetFramerateLimit">
+   <property name="text">
+    <string>Set framerate limit</string>
+   </property>
+   <property name="toolTip">
+    <string>Set max framerate limit</string>
+   </property>
+  </action>
+  <action name="actionSetTimestampStyle">
+   <property name="text">
+    <string>Set timestamp style</string>
+   </property>
+   <property name="toolTip">
+    <string>Set timestamp style</string>
    </property>
   </action>
  </widget>
@@ -1034,7 +1123,7 @@
     </hint>
     <hint type="destinationlabel">
      <x>248</x>
-     <y>508</y>
+     <y>550</y>
     </hint>
    </hints>
   </connection>
@@ -1046,7 +1135,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>248</x>
-     <y>508</y>
+     <y>550</y>
     </hint>
     <hint type="destinationlabel">
      <x>105</x>
@@ -1066,7 +1155,7 @@
     </hint>
     <hint type="destinationlabel">
      <x>248</x>
-     <y>672</y>
+     <y>714</y>
     </hint>
    </hints>
   </connection>
@@ -1078,7 +1167,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>248</x>
-     <y>672</y>
+     <y>714</y>
     </hint>
     <hint type="destinationlabel">
      <x>105</x>
