@@ -1,7 +1,7 @@
 #
 # Docker file for PoMiDAQ CI
 #
-FROM debian:bullseye
+FROM ubuntu:focal
 
 # prepare
 RUN apt-get update -qq
