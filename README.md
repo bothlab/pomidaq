@@ -36,6 +36,7 @@ still a good chance to encounter strange behavior that was not previously tested
  * Boost (>= 1.66)
  * FFmpeg (>= 4.1)
  * OpenCV (>= 4.1)
+ * KF5ConfigWidgets (on Linux)
  * Boost-Python (optional)
 
 Before attempting to build PoMiDAQ, ensure all dependencies (and their development files) are installed on your system.
