@@ -1,7 +1,7 @@
 PoMiDAQ
 =========
 
-![PoMiDAQ Screenshot](contrib/screenshots/v0.1_recording_sample.png "PoMiDAQ on Linux")
+[![PoMiDAQ Screenshot](contrib/screenshots/v0.2.0_recording_sample.png "PoMiDAQ on Linux")](https://github.com/bothlab/pomidaq/tree/master/contrib/screenshots)
 
 PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/index.php/Main_Page).
 Unlike the [preexisting](https://github.com/daharoni/Miniscope_DAQ_Software) Miniscope software, this program
