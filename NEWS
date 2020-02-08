@@ -1,3 +1,19 @@
+Version 0.2.0
+~~~~~~~~~~~~~~
+Released: 2020-02-04
+
+Features:
+ * Allow setting an external capture start timepoint in libminiscope API
+ * Add simple Python module on Linux
+ * Actually record in grayscale, and store data as GRAY8 in FFV1
+ * Set dark theme by default on some Linux desktops
+ * Permit using UNIX timestamps (in msec) for data
+ * Add options to change dark style, framerate ceiling and timestamp type
+
+Bugfixes:
+ * Rename stop button to disconnect, to make more clear what it does
+ * Use camera driver timestamps instead of client timestamps
+
 Version 0.1.0
 ~~~~~~~~~~~~~~
 Released: 2019-04-18
