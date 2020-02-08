@@ -10,8 +10,8 @@ set(POMIDAQ_SRC
     main.cpp
     mainwindow.h
     mainwindow.cpp
-    videoviewwidget.h
-    videoviewwidget.cpp
+    imageviewwidget.h
+    imageviewwidget.cpp
 )
 
 set(POMIDAQ_UI

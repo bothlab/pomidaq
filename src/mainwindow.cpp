@@ -32,7 +32,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QInputDialog>
-#include "videoviewwidget.h"
+#include "imageviewwidget.h"
 
 #ifdef Q_OS_LINUX
 #include <KSharedConfig>
@@ -106,7 +106,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->logTextList->setVisible(false);
 
     // Video view
-    m_scopeView = new VideoViewWidget(this);
+    m_scopeView = new ImageViewWidget(this);
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
     m_mscope = new MiniScope();

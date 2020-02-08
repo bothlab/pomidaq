@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,32 +17,54 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "videoviewwidget.h"
+#include "imageviewwidget.h"
 
-#include <QOpenGLFunctions>
 #include <opencv2/opencv.hpp>
 #include <QDebug>
 
-VideoViewWidget::VideoViewWidget(QWidget *parent)
-    : QOpenGLWidget(parent)
+
+#pragma GCC diagnostic ignored "-Wpadded"
+class ImageViewWidget::Private
 {
-    m_bgColor = QColor::fromRgb(150, 150, 150);
+public:
+    Private() {}
+    ~Private() {}
+
+    QColor bgColor;
+    cv::Mat origImage;
+
+    int renderWidth;
+    int renderHeight;
+    int renderPosX;
+    int renderPosY;
+};
+#pragma GCC diagnostic pop
+
+ImageViewWidget::ImageViewWidget(QWidget *parent)
+    : QOpenGLWidget(parent),
+      d(new ImageViewWidget::Private)
+{
+    d->bgColor = QColor::fromRgb(150, 150, 150);
     setWindowTitle("Video");
 
     setMinimumSize(QSize(320, 256));
 }
 
-void VideoViewWidget::initializeGL()
+ImageViewWidget::~ImageViewWidget()
 {
-    QOpenGLWidget::initializeGL();
+}
 
-    float r = ((float)m_bgColor.darker().red()) / 255.0f;
-    float g = ((float)m_bgColor.darker().green()) / 255.0f;
-    float b = ((float)m_bgColor.darker().blue()) / 255.0f;
+void ImageViewWidget::initializeGL()
+{
+    initializeOpenGLFunctions();
+
+    float r = ((float)d->bgColor.darker().red()) / 255.0f;
+    float g = ((float)d->bgColor.darker().green()) / 255.0f;
+    float b = ((float)d->bgColor.darker().blue()) / 255.0f;
     glClearColor(r, g, b, 1.0f);
 }
 
-static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter)
+GLuint ImageViewWidget::matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter)
 {
     // Generate a number for our textureID's unique handle
     GLuint textureID;
@@ -53,10 +75,10 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
 
     // Catch silly-mistake texture interpolation method for magnification
     if (magFilter == GL_LINEAR_MIPMAP_LINEAR  ||
-            magFilter == GL_LINEAR_MIPMAP_NEAREST ||
-            magFilter == GL_NEAREST_MIPMAP_LINEAR ||
-            magFilter == GL_NEAREST_MIPMAP_NEAREST) {
-        qWarning() << "You can't use MIPMAPs for magnification - setting filter to GL_LINEAR";
+        magFilter == GL_LINEAR_MIPMAP_NEAREST ||
+        magFilter == GL_NEAREST_MIPMAP_LINEAR ||
+        magFilter == GL_NEAREST_MIPMAP_NEAREST) {
+        qWarning().noquote() << "Cannot use MIPMAPs for magnification, resetting filter to GL_LINEAR";
         magFilter = GL_LINEAR;
     }
 
@@ -71,7 +93,7 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
     // Set incoming texture format to:
     // GL_BGR       for CV_CAP_OPENNI_BGR_IMAGE,
     // GL_LUMINANCE for CV_CAP_OPENNI_DISPARITY_MAP,
-    // Work out other mappings as required ( there's a list in comments in main() )
+    // NOTE: Work out other mappings as required
     GLenum inputColourFormat = GL_BGR;
     if (mat.channels() == 1) {
         inputColourFormat = GL_LUMINANCE;
@@ -88,20 +110,18 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
                  GL_UNSIGNED_BYTE,  // Image data type
                  mat.ptr());        // The actual image data itself
 
-    // If we're using mipmaps then generate them. Note: This requires OpenGL 3.0 or higher
+    // If we're using mipmaps then generate them.
     if (minFilter == GL_LINEAR_MIPMAP_LINEAR  ||
             minFilter == GL_LINEAR_MIPMAP_NEAREST ||
             minFilter == GL_NEAREST_MIPMAP_LINEAR ||
             minFilter == GL_NEAREST_MIPMAP_NEAREST) {
-#ifdef OPENGL_3
         glGenerateMipmap(GL_TEXTURE_2D);
-#endif
     }
 
     return textureID;
 }
 
-void VideoViewWidget::resizeGL(int width, int height)
+void ImageViewWidget::resizeGL(int width, int height)
 {
     glViewport(0, 0, (GLint)width, (GLint)height);
 
@@ -112,24 +132,18 @@ void VideoViewWidget::resizeGL(int width, int height)
     glMatrixMode(GL_MODELVIEW);
 
     recalculatePosition();
-    updateScene();
+    update();
 }
 
-void VideoViewWidget::updateScene()
-{
-    //if (this->isVisible())
-        update();
-}
-
-void VideoViewWidget::paintGL()
+void ImageViewWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     renderImage();
 }
 
-void VideoViewWidget::renderImage()
+void ImageViewWidget::renderImage()
 {
-    if (m_origImage.empty())
+    if (d->origImage.empty())
         return;
 
     glMatrixMode(GL_PROJECTION);
@@ -139,18 +153,18 @@ void VideoViewWidget::renderImage()
     glLoadIdentity();
 
     glEnable(GL_TEXTURE_2D);
-    auto tex = matToTexture(m_origImage, GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_BORDER);
+    auto tex = matToTexture(d->origImage, GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_BORDER);
 
     glBindTexture(GL_TEXTURE_2D, tex);
     glBegin(GL_QUADS);
         glTexCoord2i(0, 1);
-        glVertex2i(m_renderPosX, m_renderHeight - m_renderPosY);
+        glVertex2i(d->renderPosX, d->renderHeight - d->renderPosY);
         glTexCoord2i(0, 0);
-        glVertex2i(m_renderPosX, -m_renderPosY);
+        glVertex2i(d->renderPosX, -d->renderPosY);
         glTexCoord2i(1, 0);
-        glVertex2i(m_renderWidth + m_renderPosX, -m_renderPosY);
+        glVertex2i(d->renderWidth + d->renderPosX, -d->renderPosY);
         glTexCoord2i(1,1);
-        glVertex2i(m_renderWidth + m_renderPosX, m_renderHeight - m_renderPosY);
+        glVertex2i(d->renderWidth + d->renderPosX, d->renderHeight - d->renderPosY);
     glEnd();
 
     glDeleteTextures(1, &tex);
@@ -159,39 +173,39 @@ void VideoViewWidget::renderImage()
     glFlush();
 }
 
-void VideoViewWidget::recalculatePosition()
+void ImageViewWidget::recalculatePosition()
 {
-    auto imgRatio = (float)m_origImage.cols / (float)m_origImage.rows;
+    auto imgRatio = (float)d->origImage.cols / (float)d->origImage.rows;
 
-    m_renderWidth = this->size().width();
-    m_renderHeight = floor(m_renderWidth / imgRatio);
+    d->renderWidth = this->size().width();
+    d->renderHeight = floor(d->renderWidth / imgRatio);
 
-    if (m_renderHeight > this->size().height()) {
-        m_renderHeight = this->size().height();
-        m_renderWidth = floor(m_renderHeight * imgRatio);
+    if (d->renderHeight > this->size().height()) {
+        d->renderHeight = this->size().height();
+        d->renderWidth = floor(d->renderHeight * imgRatio);
     }
 
-    m_renderPosX = floor((this->size().width() - m_renderWidth) / 2.0);
-    m_renderPosY = -floor((this->size().height() - m_renderHeight) / 2.0);
+    d->renderPosX = floor((this->size().width() - d->renderWidth) / 2.0);
+    d->renderPosY = -floor((this->size().height() - d->renderHeight) / 2.0);
 }
 
-bool VideoViewWidget::showImage(const cv::Mat& image)
+bool ImageViewWidget::showImage(const cv::Mat& image)
 {
     auto channels = image.channels();
     if (channels == 1)
-        cvtColor(image, m_origImage, cv::COLOR_GRAY2BGR);
+        cvtColor(image, d->origImage, cv::COLOR_GRAY2BGR);
     else if (channels == 4)
-        cvtColor(image, m_origImage, cv::COLOR_BGRA2BGR);
+        cvtColor(image, d->origImage, cv::COLOR_BGRA2BGR);
     else
-        image.copyTo(m_origImage);
+        image.copyTo(d->origImage);
 
     recalculatePosition();
-    updateScene();
+    update();
 
     return true;
 }
 
-void VideoViewWidget::setMinimumSize(const QSize& size)
+void ImageViewWidget::setMinimumSize(const QSize& size)
 {
     setMinimumWidth(size.width());
     setMinimumHeight(size.height());

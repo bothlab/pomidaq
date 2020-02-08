@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,18 +17,18 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VIDEOVIEWWIDGET_H
-#define VIDEOVIEWWIDGET_H
+#pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions>
+#include <QOpenGLFunctions_3_2_Core>
 #include <opencv2/core/core.hpp>
 
-class VideoViewWidget: public QOpenGLWidget
+class ImageViewWidget: public QOpenGLWidget, protected QOpenGLFunctions_3_2_Core
 {
     Q_OBJECT
 public:
-    explicit VideoViewWidget(QWidget *parent = nullptr);
+    explicit ImageViewWidget(QWidget *parent = nullptr);
+    ~ImageViewWidget();
 
 public slots:
     bool showImage(const cv::Mat& image);
@@ -40,19 +40,13 @@ protected:
     void paintGL() override;
     void resizeGL(int width, int height) override;
 
-    void updateScene();
     void renderImage();
 
 private:
+    class Private;
+    Q_DISABLE_COPY(ImageViewWidget)
+    QScopedPointer<Private> d;
+
     void recalculatePosition();
-
-    QColor m_bgColor;
-    cv::Mat m_origImage;
-
-    int m_renderWidth;
-    int m_renderHeight;
-    int m_renderPosX;
-    int m_renderPosY;
+    GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter);
 };
-
-#endif // VIDEOVIEWWIDGET_H
