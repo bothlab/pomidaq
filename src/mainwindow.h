@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,8 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
 #include <QQueue>
@@ -95,5 +94,3 @@ private:
     void setDataExportDir(const QString& dir);
     void setUseUnixTimestamps(bool useUnixTimestamp);
 };
-
-#endif // MAINWINDOW_H

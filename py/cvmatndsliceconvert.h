@@ -17,13 +17,10 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CVMATNDSLICECONVERT_H
-#define CVMATNDSLICECONVERT_H
+#pragma once
 
 #include <Python.h>
 #include <opencv2/core/core.hpp>
 
 PyObject *initNDArray();
 PyObject* cvMatToNDArray(const cv::Mat& m);
-
-#endif // CVMATNDSLICECONVERT_H
