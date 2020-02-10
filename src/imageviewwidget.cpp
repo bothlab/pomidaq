@@ -20,6 +20,7 @@
 #include "imageviewwidget.h"
 
 #include <opencv2/opencv.hpp>
+#include <QCoreApplication>
 #include <QDebug>
 
 
@@ -56,7 +57,10 @@ ImageViewWidget::~ImageViewWidget()
 
 void ImageViewWidget::initializeGL()
 {
-    initializeOpenGLFunctions();
+    if (!initializeOpenGLFunctions()) {
+        qCritical() << "Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application.";
+        QCoreApplication::exit(6);
+    }
 
     float r = ((float)d->bgColor.darker().red()) / 255.0f;
     float g = ((float)d->bgColor.darker().green()) / 255.0f;
