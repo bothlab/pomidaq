@@ -41,6 +41,21 @@
 
 using namespace MScope;
 
+static bool darkColorSchemeAvailable()
+{
+#ifdef Q_OS_LINUX
+    const auto fname = QStringLiteral("/usr/share/color-schemes/BreezeDark.colors");
+    QFile file(fname);
+    if (!file.exists()) {
+        qDebug().noquote() << "Could not find dark color scheme file";
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif
+}
+
 #ifdef Q_OS_LINUX
 static void changeColorScheme(const QString &filename, bool darkColors = false)
 {
@@ -89,6 +104,14 @@ static void changeColorScheme(const QString &filename, bool darkColors = false)
     qApp->setPalette(palette);
 
     QIcon::setThemeName(darkColors ? QStringLiteral("breeze-dark") : QStringLiteral("breeze"));
+}
+
+static void changeColorsDarkmode(bool enabled)
+{
+    if (enabled)
+        changeColorScheme(QStringLiteral("/usr/share/color-schemes/BreezeDark.colors"), true);
+    else
+        changeColorScheme(QStringLiteral("/usr/share/color-schemes/Breeze.colors"), false);
 }
 #endif
 
@@ -141,10 +164,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     ui->actionUseDarkTheme->setVisible(false);
-#ifdef Q_OS_LINUX
-    ui->actionUseDarkTheme->setVisible(true);
-    ui->actionUseDarkTheme->setChecked(settings.value("ui/useDarkStyle", true).toBool());
-#endif
+    if (darkColorSchemeAvailable()) {
+        ui->actionUseDarkTheme->setVisible(true);
+        ui->actionUseDarkTheme->setChecked(settings.value("ui/useDarkStyle", true).toBool());
+    }
     ui->fpsSpinBox->setMaximum(settings.value("recording/framerateMax", 30).toInt());
     setUseUnixTimestamps(settings.value("recording/useUnixTimestamps", false).toBool());
     ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 5).toInt());
@@ -550,10 +573,7 @@ void MainWindow::on_actionShowMiniscopeLog_toggled(bool arg1)
 void MainWindow::on_actionUseDarkTheme_toggled(bool arg1)
 {
 #ifdef Q_OS_LINUX
-    if (arg1)
-        changeColorScheme(QStringLiteral("/usr/share/color-schemes/BreezeDark.colors"), true);
-    else
-        changeColorScheme(QStringLiteral("/usr/share/color-schemes/Breeze.colors"), false);
+    changeColorsDarkmode(arg1);
 
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("ui/useDarkStyle", arg1);
