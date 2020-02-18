@@ -76,8 +76,9 @@ public:
         useUnixTime = false; // no timestamps in UNIX time by default
         unixCaptureStartTime = milliseconds_t(0);
 
-        onFrameCallback = nullptr;
-        onDisplayFrameCallback = nullptr;
+        frameCallback.first = nullptr;
+        displayFrameCallback.first = nullptr;
+        messageCallback.first = nullptr;
     }
 
     std::thread *thread;
@@ -115,10 +116,10 @@ public:
     std::atomic<std::chrono::milliseconds> lastRecordedFrameTime;
 
     boost::circular_buffer<cv::Mat> frameRing;
-    std::function<void (const cv::Mat&, const milliseconds_t &time)> onFrameCallback;
-    std::function<void (const cv::Mat&, const milliseconds_t &time)> onDisplayFrameCallback;
+    std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> frameCallback;
+    std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> displayFrameCallback;
 
-    std::function<void (std::string)> onMessageCallback;
+    std::pair<std::function<void (const std::string&, void*)>, void*> messageCallback;
     bool printMessagesToStdout;
 
     bool useColor;
@@ -177,11 +178,11 @@ void MiniScope::emitMessage(const std::string &msg)
 {
     if (d->printMessagesToStdout)
         std::cout << msg << std::endl;
-    if (!d->onMessageCallback)
+    if (!d->messageCallback.first)
         return;
 
     d->mutex.lock();
-    d->onMessageCallback(msg);
+    d->messageCallback.first(msg, d->messageCallback.second);
     d->mutex.unlock();
 }
 
@@ -331,9 +332,9 @@ bool MiniScope::recording() const
     return d->running && d->recording;
 }
 
-void MiniScope::setOnMessage(std::function<void(const std::string&)> callback)
+void MiniScope::setOnMessage(std::function<void(const std::string &, void *)> callback, void *udata)
 {
-    d->onMessageCallback = callback;
+    d->messageCallback = std::make_pair(callback, udata);
 }
 
 void MiniScope::setPrintMessagesToStdout(bool enabled)
@@ -373,14 +374,14 @@ bool MiniScope::showBlueChannel() const
     return d->showBlue;
 }
 
-void MiniScope::setOnFrame(std::function<void (const cv::Mat &, const milliseconds_t &)> callback)
+void MiniScope::setOnFrame(std::function<void (const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata)
 {
-    d->onFrameCallback = callback;
+    d->frameCallback = std::make_pair(callback, udata);
 }
 
-void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const milliseconds_t &)> callback)
+void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata)
 {
-    d->onDisplayFrameCallback = callback;
+    d->displayFrameCallback = std::make_pair(callback, udata);
 }
 
 cv::Mat MiniScope::currentDisplayFrame()
@@ -579,8 +580,8 @@ void MiniScope::addFrameToBuffer(const cv::Mat &frame, const milliseconds_t &tim
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     // call potential callback on this possibly edited "to be displayed" frame
-    if (d->onDisplayFrameCallback)
-        d->onDisplayFrameCallback(frame, timestamp);
+    if (d->displayFrameCallback.first)
+        d->displayFrameCallback.first(frame, timestamp, d->displayFrameCallback.second);
 
     d->frameRing.push_back(frame);
 }
@@ -762,8 +763,8 @@ void MiniScope::captureThread(void* msPtr)
         }
 
         // call potential callback on the raw acquired frame
-        if (self->d->onFrameCallback)
-            self->d->onFrameCallback(frame, frameTimestamp);
+        if (self->d->frameCallback.first)
+            self->d->frameCallback.first(frame, frameTimestamp, self->d->frameCallback.second);
 
         // "frame" is the frame that we record to disk, while the "displayFrame"
         // is the one that we may also record as a video file

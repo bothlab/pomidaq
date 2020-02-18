@@ -78,7 +78,7 @@ public:
     bool running() const;
     bool recording() const;
 
-    void setOnMessage(std::function<void(const std::string&)> callback);
+    void setOnMessage(std::function<void(const std::string&, void*)> callback, void *udata = nullptr);
     void setPrintMessagesToStdout(bool enabled);
 
     bool useColor() const;
@@ -95,7 +95,7 @@ public:
      * This callback is executed for each raw frame acquired from the Miniscope, and is equivalent
      * to what would be recorded to a video file.
      */
-    void setOnFrame(std::function<void(const cv::Mat&, const milliseconds_t &time)> callback);
+    void setOnFrame(std::function<void(const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata = nullptr);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired on the edited frame.
@@ -103,7 +103,7 @@ public:
      * This callback is executed for each possibly modified "display frame" that an application like
      * PoMiDAQ would show to the user.
      */
-    void setOnDisplayFrame(std::function<void(const cv::Mat&, const milliseconds_t &time)> callback);
+    void setOnDisplayFrame(std::function<void(const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata = nullptr);
 
     cv::Mat currentDisplayFrame();
     uint currentFps() const;
