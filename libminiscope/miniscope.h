@@ -89,7 +89,23 @@ public:
     bool showGreenChannel() const;
     bool showBlueChannel() const;
 
-    cv::Mat currentFrame();
+    /**
+     * @brief Called *in the DAQ thread* when a frame was acquired on the original acquired frame.
+     *
+     * This callback is executed for each raw frame acquired from the Miniscope, and is equivalent
+     * to what would be recorded to a video file.
+     */
+    void setOnFrame(std::function<void(const cv::Mat&, const milliseconds_t &time)> callback);
+
+    /**
+     * @brief Called *in the DAQ thread* when a frame was acquired on the edited frame.
+     *
+     * This callback is executed for each possibly modified "display frame" that an application like
+     * PoMiDAQ would show to the user.
+     */
+    void setOnDisplayFrame(std::function<void(const cv::Mat&, const milliseconds_t &time)> callback);
+
+    cv::Mat currentDisplayFrame();
     uint currentFps() const;
     size_t droppedFramesCount() const;
 
@@ -142,7 +158,7 @@ private:
     MiniScopeData *d;
 
     void setLed(double value);
-    void addFrameToBuffer(const cv::Mat& frame);
+    void addFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
     std::chrono::time_point<steady_hr_clock> calculateCaptureStartTime(std::chrono::time_point<steady_hr_clock> firstFrameTime);
     static void captureThread(void *msPtr);
     void startCaptureThread();

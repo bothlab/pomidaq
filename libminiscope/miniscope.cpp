@@ -75,6 +75,9 @@ public:
         captureStartTimepoint = steady_hr_clock::time_point::min(); // no offset by default
         useUnixTime = false; // no timestamps in UNIX time by default
         unixCaptureStartTime = milliseconds_t(0);
+
+        onFrameCallback = nullptr;
+        onDisplayFrameCallback = nullptr;
     }
 
     std::thread *thread;
@@ -112,6 +115,8 @@ public:
     std::atomic<std::chrono::milliseconds> lastRecordedFrameTime;
 
     boost::circular_buffer<cv::Mat> frameRing;
+    std::function<void (const cv::Mat&, const milliseconds_t &time)> onFrameCallback;
+    std::function<void (const cv::Mat&, const milliseconds_t &time)> onDisplayFrameCallback;
 
     std::function<void (std::string)> onMessageCallback;
     bool printMessagesToStdout;
@@ -368,7 +373,17 @@ bool MiniScope::showBlueChannel() const
     return d->showBlue;
 }
 
-cv::Mat MiniScope::currentFrame()
+void MiniScope::setOnFrame(std::function<void (const cv::Mat &, const milliseconds_t &)> callback)
+{
+    d->onFrameCallback = callback;
+}
+
+void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const milliseconds_t &)> callback)
+{
+    d->onDisplayFrameCallback = callback;
+}
+
+cv::Mat MiniScope::currentDisplayFrame()
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     cv::Mat frame;
@@ -560,9 +575,13 @@ void MiniScope::setLed(double value)
     }
 }
 
-void MiniScope::addFrameToBuffer(const cv::Mat &frame)
+void MiniScope::addFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
+    // call potential callback on this possibly edited "to be displayed" frame
+    if (d->onDisplayFrameCallback)
+        d->onDisplayFrameCallback(frame, timestamp);
+
     d->frameRing.push_back(frame);
 }
 
@@ -673,7 +692,7 @@ void MiniScope::captureThread(void* msPtr)
 
             self->d->droppedFramesCount++;
             self->emitMessage("Dropped frame.");
-            self->addFrameToBuffer(droppedFrameImage);
+            self->addFrameToBuffer(droppedFrameImage, frameTimestamp);
             if (self->d->droppedFramesCount > 0) {
                 self->emitMessage("Reconnecting Miniscope...");
                 self->d->cam.release();
@@ -742,6 +761,10 @@ void MiniScope::captureThread(void* msPtr)
             }
         }
 
+        // call potential callback on the raw acquired frame
+        if (self->d->onFrameCallback)
+            self->d->onFrameCallback(frame, frameTimestamp);
+
         // "frame" is the frame that we record to disk, while the "displayFrame"
         // is the one that we may also record as a video file
         cv::Mat displayFrame;
@@ -793,7 +816,7 @@ void MiniScope::captureThread(void* msPtr)
 
         // add display frame to ringbuffer, and record the raw
         // frame to disk if we want to record it.
-        self->addFrameToBuffer(displayFrame);
+        self->addFrameToBuffer(displayFrame, frameTimestamp);
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
                 self->fail(boost::str(boost::format("Unable to send frames to encoder: %1%") % vwriter->lastError()));

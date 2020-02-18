@@ -103,7 +103,7 @@ BOOST_PYTHON_MODULE(miniscope)
 
         .add_property("use_color", &MiniScope::useColor, &MiniScope::setUseColor)
 
-        .add_property("current_frame", &MiniScope::currentFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
+        .add_property("current_disp_frame", &MiniScope::currentDisplayFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
         .add_property("current_fps", &MiniScope::currentFps)
         .add_property("dropped_frames_count", &MiniScope::droppedFramesCount)
         .add_property("last_recorded_frame_time", &MiniScope::lastRecordedFrameTime) // TODO: we need to add a converter for the return type

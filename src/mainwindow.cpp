@@ -285,7 +285,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->actionSetTimestampStyle->setEnabled(false);
 
     while (m_mscope->running()) {
-        auto frame = m_mscope->currentFrame();
+        auto frame = m_mscope->currentDisplayFrame();
         if (!frame.empty()) {
             m_scopeView->showImage(frame);
 

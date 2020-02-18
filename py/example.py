@@ -37,7 +37,7 @@ if not scope.start_recording(''):
 try:
     print('Recording... Terminate with CTL+C')
     while scope.running:
-        frame = scope.current_frame
+        frame = scope.current_disp_frame
         if frame is not None:
             cv2.imshow('Miniscope Display', frame)
             cv2.waitKey(50)
