@@ -673,7 +673,19 @@ void MiniScope::captureThread(void* msPtr)
         const auto driverFrameTimestamp = std::chrono::milliseconds (static_cast<long> (self->d->cam.get(cv::CAP_PROP_POS_MSEC)));
         const auto driverFrameTimepoint = std::chrono::time_point<steady_hr_clock> (driverFrameTimestamp);
         if (initCaptureStartTime) {
+            // perform timestamp sanity check - occasionally we get bad timestamps, and we must not
+            // initialize our timer with those.
+            if (driverFrameTimestamp.count() <= 0) {
+                self->emitMessage("Frame with timestamp of zero ignored for timer initialization.");
+
+                self->d->droppedFramesCount++;
+                if (self->d->droppedFramesCount > 20)
+                    self->fail("Too many dropped frames. Giving up.");
+                continue;
+            }
+            self->d->droppedFramesCount = 0;
             initCaptureStartTime = false;
+
             // calculate the start time, based on the first driver frame timestamp and a potential actual
             // initial timepoint set by the user
             captureStartTime = self->calculateCaptureStartTime(driverFrameTimepoint);
