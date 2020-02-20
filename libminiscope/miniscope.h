@@ -57,6 +57,7 @@ public:
     ~MiniScope();
 
     void setScopeCamId(int id);
+    int scopeCamId() const;
 
     void setExposure(double value);
     double exposure() const;

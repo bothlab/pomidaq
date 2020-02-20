@@ -200,6 +200,11 @@ void MiniScope::setScopeCamId(int id)
     d->scopeCamId = id;
 }
 
+int MiniScope::scopeCamId() const
+{
+    return d->scopeCamId;
+}
+
 void MiniScope::setExposure(double value)
 {
     if (floor(value) == 0)
