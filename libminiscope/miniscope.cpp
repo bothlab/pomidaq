@@ -34,7 +34,6 @@
 #include "definitions.h"
 #include "videowriter.h"
 
-using namespace MScope;
 namespace MScope
 {
 
@@ -72,7 +71,7 @@ public:
         recordingSliceInterval = 0; // don't slice
         bgAccumulateAlpha = 0.01;
 
-        captureStartTimepoint = steady_hr_clock::time_point::min(); // no offset by default
+        timestampOffset = std::chrono::nanoseconds(0); // no offset by default
         useUnixTime = false; // no timestamps in UNIX time by default
         unixCaptureStartTime = milliseconds_t(0);
 
@@ -92,8 +91,7 @@ public:
     double excitation;
     std::atomic_uint fps;
     std::string videoFname;
-    std::chrono::milliseconds timestampOffset;
-    std::chrono::time_point<steady_hr_clock> captureStartTimepoint;
+    std::chrono::nanoseconds timestampOffset;
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
 
@@ -421,9 +419,9 @@ void MiniScope::setFps(uint fps)
     d->fps = fps;
 }
 
-void MiniScope::setCaptureStartTimepoint(std::chrono::time_point<steady_hr_clock> timepoint)
+void MiniScope::setCaptureTimeOffset(const std::chrono::nanoseconds &offset)
 {
-    d->captureStartTimepoint = timepoint;
+    d->timestampOffset = offset;
     d->useUnixTime = false; // we have a custom start time, no UNIX epoch will be used
     d->unixCaptureStartTime = milliseconds_t(0);
 }
@@ -436,7 +434,7 @@ bool MiniScope::useUnixTimestamps() const
 void MiniScope::setUseUnixTimestamps(bool useUnixTime)
 {
     d->useUnixTime = useUnixTime;
-    d->captureStartTimepoint = steady_hr_clock::time_point::min();
+    d->timestampOffset = std::chrono::nanoseconds(0);
 }
 
 milliseconds_t MiniScope::unixCaptureStartTime() const
@@ -611,8 +609,8 @@ std::chrono::time_point<steady_hr_clock> MiniScope::calculateCaptureStartTime(st
         d->unixCaptureStartTime = offset;
     } else {
         // we may use a custom timepoint as start time, set offset in that case
-        if (d->captureStartTimepoint != steady_hr_clock::time_point::min())
-            offset = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - d->captureStartTimepoint);
+        if (d->timestampOffset.count() != 0)
+            offset = std::chrono::duration_cast<milliseconds_t>(d->timestampOffset) * -1;
     }
 
     // set "start" time, either the time when we actually captured the first frame, or an arbitrary offset shifted to the past

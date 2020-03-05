@@ -113,7 +113,7 @@ public:
     uint fps() const;
     void setFps(uint fps);
 
-    void setCaptureStartTimepoint(std::chrono::time_point<steady_hr_clock> timepoint);
+    void setCaptureTimeOffset(const std::chrono::nanoseconds &offset);
     bool useUnixTimestamps() const;
     void setUseUnixTimestamps(bool useUnixTime);
     milliseconds_t unixCaptureStartTime() const;
