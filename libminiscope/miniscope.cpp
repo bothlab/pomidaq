@@ -723,7 +723,7 @@ void MiniScope::captureThread(void* msPtr)
 
         // check if we are too slow, resend settings in case we are
         // NOTE: This behaviour was copied from the original Miniscope DAQ software
-        if ((self->d->droppedFramesCount > 0) || (self->d->currentFPS < self->d->fps / 2.0)) {
+        if (self->d->droppedFramesCount > 0) {
             self->emitMessage("Sending settings again.");
             self->setExposure(self->d->exposure);
             self->setGain(self->d->gain);
