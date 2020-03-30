@@ -35,12 +35,6 @@
 namespace MScope
 {
 
-using steady_hr_clock =
-    std::conditional<std::chrono::high_resolution_clock::is_steady,
-                     std::chrono::high_resolution_clock,
-                     std::chrono::steady_clock
-                    >::type;
-
 using milliseconds_t = std::chrono::milliseconds;
 
 enum class BackgroundDiffMethod {
@@ -113,7 +107,7 @@ public:
     uint fps() const;
     void setFps(uint fps);
 
-    void setCaptureTimeOffset(const std::chrono::nanoseconds &offset);
+    void setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock> &startTime);
     bool useUnixTimestamps() const;
     void setUseUnixTimestamps(bool useUnixTime);
     milliseconds_t unixCaptureStartTime() const;
@@ -160,7 +154,6 @@ private:
 
     void setLed(double value);
     void addFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
-    std::chrono::time_point<steady_hr_clock> calculateCaptureStartTime(std::chrono::time_point<steady_hr_clock> firstFrameTime);
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();

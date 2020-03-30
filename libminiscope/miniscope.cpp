@@ -71,7 +71,7 @@ public:
         recordingSliceInterval = 0; // don't slice
         bgAccumulateAlpha = 0.01;
 
-        timestampOffset = std::chrono::nanoseconds(0); // no offset by default
+        startTimepoint = std::chrono::time_point<std::chrono::steady_clock>::min();
         useUnixTime = false; // no timestamps in UNIX time by default
         unixCaptureStartTime = milliseconds_t(0);
 
@@ -91,9 +91,9 @@ public:
     double excitation;
     std::atomic_uint fps;
     std::string videoFname;
-    std::chrono::nanoseconds timestampOffset;
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
+    std::chrono::time_point<std::chrono::steady_clock> startTimepoint;
 
     std::atomic_int minFluor;
     std::atomic_int maxFluor;
@@ -419,9 +419,9 @@ void MiniScope::setFps(uint fps)
     d->fps = fps;
 }
 
-void MiniScope::setCaptureTimeOffset(const std::chrono::nanoseconds &offset)
+void MiniScope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
 {
-    d->timestampOffset = offset;
+    d->startTimepoint = startTime;
     d->useUnixTime = false; // we have a custom start time, no UNIX epoch will be used
     d->unixCaptureStartTime = milliseconds_t(0);
 }
@@ -434,7 +434,7 @@ bool MiniScope::useUnixTimestamps() const
 void MiniScope::setUseUnixTimestamps(bool useUnixTime)
 {
     d->useUnixTime = useUnixTime;
-    d->timestampOffset = std::chrono::nanoseconds(0);
+    d->startTimepoint = std::chrono::time_point<std::chrono::steady_clock>::min();
 }
 
 milliseconds_t MiniScope::unixCaptureStartTime() const
@@ -589,34 +589,6 @@ void MiniScope::addFrameToBuffer(const cv::Mat &frame, const milliseconds_t &tim
     d->frameRing.push_back(frame);
 }
 
-/**
- * @brief MiniScope::calculateCaptureStartTime
- * This is a helper function for cpatureThread()
- * @param firstFrameTime The timepoint when the initial frame was acquired
- * @return the capture start time, offset by a user-defined value
- */
-std::chrono::time_point<steady_hr_clock> MiniScope::calculateCaptureStartTime(std::chrono::time_point<steady_hr_clock> firstFrameTime)
-{
-    // apply offset based on start timepoint set by the (API) user
-    auto offset = std::chrono::milliseconds (0);
-
-    if (d->useUnixTime) {
-        // we use the UNIX epoch as base for our timestamp, set the offset accordingly
-
-        // FIXME: When running on Windows, we get the Windows system time instead, which makes the returned files non-portable
-        // between operating systems. Not ideal, so we should universally comvert this to UNIX time here.
-        offset = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
-        d->unixCaptureStartTime = offset;
-    } else {
-        // we may use a custom timepoint as start time, set offset in that case
-        if (d->timestampOffset.count() != 0)
-            offset = std::chrono::duration_cast<milliseconds_t>(d->timestampOffset) * -1;
-    }
-
-    // set "start" time, either the time when we actually captured the first frame, or an arbitrary offset shifted to the past
-    return firstFrameTime - offset;
-}
-
 void MiniScope::captureThread(void* msPtr)
 {
     MiniScope *self = static_cast<MiniScope*> (msPtr);
@@ -644,12 +616,27 @@ void MiniScope::captureThread(void* msPtr)
     self->d->cam.set(cv::CAP_PROP_FPS, self->d->fps);
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
-    auto captureStartTime = steady_hr_clock::now();
+
+    // use custom timepoint as start time, in case we have one set - use current time otherwise
+    auto threadStartTime = std::chrono::steady_clock::now();
+    if (self->d->startTimepoint > std::chrono::time_point<std::chrono::steady_clock>::min())
+        threadStartTime = self->d->startTimepoint;
+    auto driverStartTimestamp = milliseconds_t(0);
+
+    // use UNIX timestamp as start time, in case that's the desired setting
+    const auto captureStartUnixTime = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
+    if (self->d->useUnixTime) {
+        // FIXME: When running on Windows, we get the Windows system time instead, which makes the returned files non-portable
+        // between operating systems. Not ideal, so we should actually universally convert this to UNIX time here.
+        threadStartTime = std::chrono::steady_clock::now() + captureStartUnixTime;
+    }
+
+    // align our start time, initially
     bool initCaptureStartTime = true;
 
     while (self->d->running) {
         cv::Mat frame;
-        const auto cycleStartTime = steady_hr_clock::now();
+        const auto cycleStartTime = std::chrono::steady_clock::now();
 
         // check if we might want to trigger a recording start via external input
         if (self->d->checkRecTrigger) {
@@ -667,9 +654,13 @@ void MiniScope::captureThread(void* msPtr)
             }
         }
 
+        // acquire a timestamp when we received the frame on our clock, as well as retrieving the driver/device
+        // timestamp in milliseconds
+        const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime);
         auto status = self->d->cam.grab();
+        auto masterRecvTimestamp = std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime)) / 2.0);
         const auto driverFrameTimestamp = std::chrono::milliseconds (static_cast<long> (self->d->cam.get(cv::CAP_PROP_POS_MSEC)));
-        const auto driverFrameTimepoint = std::chrono::time_point<steady_hr_clock> (driverFrameTimestamp);
+
         if (initCaptureStartTime) {
             // perform timestamp sanity check - occasionally we get bad timestamps, and we must not
             // initialize our timer with those.
@@ -684,11 +675,15 @@ void MiniScope::captureThread(void* msPtr)
             self->d->droppedFramesCount = 0;
             initCaptureStartTime = false;
 
-            // calculate the start time, based on the first driver frame timestamp and a potential actual
-            // initial timepoint set by the user
-            captureStartTime = self->calculateCaptureStartTime(driverFrameTimepoint);
+            if (self->d->useUnixTime) {
+                // apply a UNIX-time offset to make all subsequent timestamps be UNIX timestamps
+                driverStartTimestamp = driverFrameTimestamp - captureStartUnixTime - milliseconds_t(static_cast<long>(1000.0 / self->d->fps));
+            } else {
+                driverStartTimestamp = driverFrameTimestamp - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / self->d->fps)));
+            }
         }
-        auto frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(driverFrameTimepoint - captureStartTime);
+
+        auto frameTimestamp = driverFrameTimestamp - driverStartTimestamp;
         if (!status) {
             self->fail("Failed to grab frame.");
             break;
@@ -758,9 +753,14 @@ void MiniScope::captureThread(void* msPtr)
                 self->emitMessage("Initialized video recording.");
 
                 // first frame happens at 0 time elapsed, so we cheat here and manipulate the current frame timestamp,
-                // as the current frame is already added to the recording.
-                captureStartTime = self->calculateCaptureStartTime(driverFrameTimepoint);
-                frameTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(driverFrameTimepoint - captureStartTime);
+                // as the current frame will already be added to the recording.
+                if (self->d->useUnixTime) {
+                    const auto currentUnixTS = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
+                    driverStartTimestamp = driverFrameTimestamp - currentUnixTS;
+                } else {
+                    driverStartTimestamp = driverFrameTimestamp;
+                }
+                frameTimestamp = driverFrameTimestamp - driverStartTimestamp;
                 vwriter->setCaptureStartTimestamp(frameTimestamp);
             }
         } else {
@@ -840,12 +840,12 @@ void MiniScope::captureThread(void* msPtr)
         }
 
         // wait a bit if necessary, to keep the right framerate
-        const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - cycleStartTime);
+        const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
         const auto extraWaitTime = std::chrono::milliseconds((1000 / self->d->fps) - cycleTime.count());
         if (extraWaitTime.count() > 0)
             std::this_thread::sleep_for(extraWaitTime);
 
-        const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - cycleStartTime);
+        const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
         self->d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 
