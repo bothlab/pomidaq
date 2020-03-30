@@ -8,10 +8,11 @@ RUN apt-get update -qq
 RUN apt-get install -yq eatmydata
 
 # install build essentials
-RUN eatmydata apt-get install -yq build-essential gcc g++
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq \
+    build-essential gcc g++
 
 # install build dependencies
-RUN eatmydata apt-get install -yq --no-install-recommends \
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-recommends \
     git-core \
     dpkg-dev \
     devscripts \
