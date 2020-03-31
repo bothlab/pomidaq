@@ -78,6 +78,7 @@ public:
         frameCallback.first = nullptr;
         displayFrameCallback.first = nullptr;
         messageCallback.first = nullptr;
+        frameTimestampCallback.first = nullptr;
     }
 
     std::thread *thread;
@@ -94,6 +95,7 @@ public:
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
     std::chrono::time_point<std::chrono::steady_clock> startTimepoint;
+    std::atomic_bool captureStartTimeInitialized;
 
     std::atomic_int minFluor;
     std::atomic_int maxFluor;
@@ -111,11 +113,12 @@ public:
 
     std::atomic<size_t> droppedFramesCount;
     std::atomic_uint currentFPS;
-    std::atomic<std::chrono::milliseconds> lastRecordedFrameTime;
+    std::atomic<milliseconds_t> lastRecordedFrameTime;
 
     boost::circular_buffer<cv::Mat> frameRing;
     std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> frameCallback;
     std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> displayFrameCallback;
+    std::pair<std::function<void (milliseconds_t &, const milliseconds_t &, void*)>, void*> frameTimestampCallback;
 
     std::pair<std::function<void (const std::string&, void*)>, void*> messageCallback;
     bool printMessagesToStdout;
@@ -335,6 +338,11 @@ bool MiniScope::recording() const
     return d->running && d->recording;
 }
 
+bool MiniScope::captureStartTimeInitialized() const
+{
+    return d->captureStartTimeInitialized;
+}
+
 void MiniScope::setOnMessage(std::function<void(const std::string &, void *)> callback, void *udata)
 {
     d->messageCallback = std::make_pair(callback, udata);
@@ -387,6 +395,11 @@ void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const mil
     d->displayFrameCallback = std::make_pair(callback, udata);
 }
 
+void MiniScope::setOnFrameTimestamp(std::function<void (milliseconds_t &, const milliseconds_t &, void *)> callback, void *udata)
+{
+    d->frameTimestampCallback = std::make_pair(callback, udata);
+}
+
 cv::Mat MiniScope::currentDisplayFrame()
 {
     std::lock_guard<std::mutex> lock(d->mutex);
@@ -421,9 +434,13 @@ void MiniScope::setFps(uint fps)
 
 void MiniScope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
 {
+    // changing the start timestamp is protected
+    const std::lock_guard<std::mutex> lock(d->mutex);
+
     d->startTimepoint = startTime;
     d->useUnixTime = false; // we have a custom start time, no UNIX epoch will be used
     d->unixCaptureStartTime = milliseconds_t(0);
+    d->captureStartTimeInitialized = false; // reinitialize frame time with new start time, in case we are already running
 }
 
 bool MiniScope::useUnixTimestamps() const
@@ -433,8 +450,12 @@ bool MiniScope::useUnixTimestamps() const
 
 void MiniScope::setUseUnixTimestamps(bool useUnixTime)
 {
+    // changing the start timestamp is protected
+    const std::lock_guard<std::mutex> lock(d->mutex);
+
     d->useUnixTime = useUnixTime;
     d->startTimepoint = std::chrono::time_point<std::chrono::steady_clock>::min();
+    d->captureStartTimeInitialized = false; // reinitialize frame time with new start time, in case we are already running
 }
 
 milliseconds_t MiniScope::unixCaptureStartTime() const
@@ -579,20 +600,31 @@ void MiniScope::setLed(double value)
     }
 }
 
-void MiniScope::addFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
+void MiniScope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     // call potential callback on this possibly edited "to be displayed" frame
-    if (d->displayFrameCallback.first)
-        d->displayFrameCallback.first(frame, timestamp, d->displayFrameCallback.second);
+    const auto displayFrameCB = d->displayFrameCallback.first;
+    if (displayFrameCB != nullptr)
+        displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
 
     d->frameRing.push_back(frame);
 }
 
 void MiniScope::captureThread(void* msPtr)
 {
-    MiniScope *self = static_cast<MiniScope*> (msPtr);
+    const auto self = static_cast<MiniScope*> (msPtr);
+    const auto d = self->d;
 
+    // unpack timestamp callback pair
+    const auto frameTimestampCB = d->frameTimestampCallback.first;
+    auto frameTimestampCB_udata = d->frameTimestampCallback.second;
+
+    // unpack raw frame callback pair
+    const auto frameCB = d->frameCallback.first;
+    auto frameCB_udata = d->frameCallback.second;
+
+    // make a dummy "dropped frame" matrix to display when we drop frames
     cv::Mat droppedFrameImage(cv::Size(752, 480), CV_8UC3);
     droppedFrameImage.setTo(cv::Scalar(255, 0, 0));
     cv::putText(droppedFrameImage,
@@ -602,95 +634,119 @@ void MiniScope::captureThread(void* msPtr)
                 1.5,
                 cv::Scalar(255,255,255));
 
-    self->d->droppedFramesCount = 0;
-    self->d->currentFPS = static_cast<uint>(self->d->fps);
+    d->droppedFramesCount = 0;
+    d->currentFPS = static_cast<uint>(d->fps);
 
     // reset errors
-    self->d->failed = false;
-    self->d->lastError.clear();
+    d->failed = false;
+    d->lastError.clear();
 
     // prepare accumulator image for running average (for dF/F)
     cv::Mat accumulatedMat;
 
     // prepare for recording
-    self->d->cam.set(cv::CAP_PROP_FPS, self->d->fps);
+    d->cam.set(cv::CAP_PROP_FPS, d->fps);
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
 
     // use custom timepoint as start time, in case we have one set - use current time otherwise
     auto threadStartTime = std::chrono::steady_clock::now();
-    if (self->d->startTimepoint > std::chrono::time_point<std::chrono::steady_clock>::min())
-        threadStartTime = self->d->startTimepoint;
     auto driverStartTimestamp = milliseconds_t(0);
 
     // use UNIX timestamp as start time, in case that's the desired setting
     const auto captureStartUnixTime = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
-    if (self->d->useUnixTime) {
+    if (d->useUnixTime) {
         // FIXME: When running on Windows, we get the Windows system time instead, which makes the returned files non-portable
         // between operating systems. Not ideal, so we should actually universally convert this to UNIX time here.
         threadStartTime = std::chrono::steady_clock::now() + captureStartUnixTime;
     }
 
     // align our start time, initially
-    bool initCaptureStartTime = true;
+    d->captureStartTimeInitialized = false;
 
-    while (self->d->running) {
+    while (d->running) {
         cv::Mat frame;
         const auto cycleStartTime = std::chrono::steady_clock::now();
 
         // check if we might want to trigger a recording start via external input
-        if (self->d->checkRecTrigger) {
-            auto temp = static_cast<int>(self->d->cam.get(cv::CAP_PROP_SATURATION));
+        if (d->checkRecTrigger) {
+            auto temp = static_cast<int>(d->cam.get(cv::CAP_PROP_SATURATION));
 
-            //! std::cout << "GPIO state: " << self->d->cam.get(cv::CAP_PROP_SATURATION) << std::endl;
+            //! std::cout << "GPIO state: " << d->cam.get(cv::CAP_PROP_SATURATION) << std::endl;
             if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
-                if (!self->d->recording) {
+                if (!d->recording) {
                     // start recording
-                    self->d->recording = true;
+                    d->recording = true;
                 }
             } else {
                 // stop recording (if one was running)
-                self->d->recording = false;
+                d->recording = false;
             }
+        }
+
+        // protect against race-condition when the `captureStartTimeInitialized` var is changed
+        // while we are grabbing a frame, or in any other intermediate state before we have
+        // initialized the timestamps
+        const auto reinitStartTime = !d->captureStartTimeInitialized;
+
+        // we set the start time here, as the start time may be changed while the thread is already running
+        if (reinitStartTime) {
+            // this is a critical section, we do not want the capture start time to be changed from outside this
+            // thread while working with it
+            const std::lock_guard<std::mutex> lock(d->mutex);
+            if (d->startTimepoint > std::chrono::time_point<std::chrono::steady_clock>::min())
+                threadStartTime = d->startTimepoint;
+            d->captureStartTimeInitialized = true;
         }
 
         // acquire a timestamp when we received the frame on our clock, as well as retrieving the driver/device
         // timestamp in milliseconds
         const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime);
-        auto status = self->d->cam.grab();
+        auto status = d->cam.grab();
         auto masterRecvTimestamp = std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime)) / 2.0);
-        const auto driverFrameTimestamp = std::chrono::milliseconds (static_cast<long> (self->d->cam.get(cv::CAP_PROP_POS_MSEC)));
+        const auto driverFrameTimestamp = std::chrono::milliseconds (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 
-        if (initCaptureStartTime) {
+        if (reinitStartTime) {
             // perform timestamp sanity check - occasionally we get bad timestamps, and we must not
             // initialize our timer with those.
             if (driverFrameTimestamp.count() <= 0) {
                 self->emitMessage("Frame with timestamp of zero ignored for timer initialization.");
 
-                self->d->droppedFramesCount++;
-                if (self->d->droppedFramesCount > 20)
+                d->droppedFramesCount++;
+                if (d->droppedFramesCount > 20)
                     self->fail("Too many dropped frames. Giving up.");
+
+                d->captureStartTimeInitialized = false;
                 continue;
             }
-            self->d->droppedFramesCount = 0;
-            initCaptureStartTime = false;
+            d->droppedFramesCount = 0;
 
-            if (self->d->useUnixTime) {
+            if (d->useUnixTime) {
                 // apply a UNIX-time offset to make all subsequent timestamps be UNIX timestamps
-                driverStartTimestamp = driverFrameTimestamp - captureStartUnixTime - milliseconds_t(static_cast<long>(1000.0 / self->d->fps));
+                driverStartTimestamp = driverFrameTimestamp - captureStartUnixTime - milliseconds_t(static_cast<long>(1000.0 / d->fps));
+                threadStartTime = threadStartTime + (masterRecvTimestamp - captureStartUnixTime - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
+                masterRecvTimestamp = masterRecvTimestamp + captureStartUnixTime;
             } else {
-                driverStartTimestamp = driverFrameTimestamp - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / self->d->fps)));
+                driverStartTimestamp = driverFrameTimestamp - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
             }
         }
 
-        auto frameTimestamp = driverFrameTimestamp - driverStartTimestamp;
+        const auto frameDeviceTimestamp = driverFrameTimestamp - driverStartTimestamp;
+        milliseconds_t frameTimestamp;
+        if (frameTimestampCB != nullptr) {
+            frameTimestamp = masterRecvTimestamp;
+            frameTimestampCB(frameTimestamp, frameDeviceTimestamp, frameTimestampCB_udata);
+        } else {
+            frameTimestamp = frameDeviceTimestamp;
+        }
+
         if (!status) {
             self->fail("Failed to grab frame.");
             break;
         }
 
         try {
-            status = self->d->cam.retrieve(frame);
+            status = d->cam.retrieve(frame);
             cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY);
         } catch (const cv::Exception& e) {
             status = false;
@@ -699,31 +755,31 @@ void MiniScope::captureThread(void* msPtr)
 
         if (!status) {
             // terminate recording
-            self->d->recording = false;
+            d->recording = false;
 
-            self->d->droppedFramesCount++;
+            d->droppedFramesCount++;
             self->emitMessage("Dropped frame.");
-            self->addFrameToBuffer(droppedFrameImage, frameTimestamp);
-            if (self->d->droppedFramesCount > 0) {
+            self->addDisplayFrameToBuffer(droppedFrameImage, frameTimestamp);
+            if (d->droppedFramesCount > 0) {
                 self->emitMessage("Reconnecting Miniscope...");
-                self->d->cam.release();
-                self->d->cam.open(self->d->scopeCamId);
+                d->cam.release();
+                d->cam.open(d->scopeCamId);
                 self->emitMessage("Miniscope reconnected.");
             }
 
-            if (self->d->droppedFramesCount > 80)
+            if (d->droppedFramesCount > 80)
                 self->fail("Too many dropped frames. Giving up.");
             continue;
         }
 
         // check if we are too slow, resend settings in case we are
         // NOTE: This behaviour was copied from the original Miniscope DAQ software
-        if (self->d->droppedFramesCount > 0) {
+        if (d->droppedFramesCount > 0) {
             self->emitMessage("Sending settings again.");
-            self->setExposure(self->d->exposure);
-            self->setGain(self->d->gain);
-            self->setExcitation(self->d->excitation);
-            self->d->droppedFramesCount = 0;
+            self->setExposure(d->exposure);
+            self->setGain(d->gain);
+            self->setExcitation(d->excitation);
+            d->droppedFramesCount = 0;
         }
 
         // prepare video recording if it was enabled while we were running
@@ -731,16 +787,16 @@ void MiniScope::captureThread(void* msPtr)
             if (!vwriter->initialized()) {
                 self->emitMessage("Recording enabled.");
                 // we want to record, but are not initialized yet
-                vwriter->setFileSliceInterval(self->d->recordingSliceInterval);
-                vwriter->setCodec(self->d->videoCodec);
-                vwriter->setContainer(self->d->videoContainer);
-                vwriter->setLossless(self->d->recordLossless);
+                vwriter->setFileSliceInterval(d->recordingSliceInterval);
+                vwriter->setCodec(d->videoCodec);
+                vwriter->setContainer(d->videoContainer);
+                vwriter->setLossless(d->recordLossless);
 
                 try {
-                    vwriter->initialize(self->d->videoFname,
+                    vwriter->initialize(d->videoFname,
                                         frame.cols,
                                         frame.rows,
-                                        static_cast<int>(self->d->fps),
+                                        static_cast<int>(d->fps),
                                         frame.channels() == 3);
                 } catch (const std::runtime_error& e) {
                     self->fail(boost::str(boost::format("Unable to initialize recording: %1%") % e.what()));
@@ -754,7 +810,7 @@ void MiniScope::captureThread(void* msPtr)
 
                 // first frame happens at 0 time elapsed, so we cheat here and manipulate the current frame timestamp,
                 // as the current frame will already be added to the recording.
-                if (self->d->useUnixTime) {
+                if (d->useUnixTime) {
                     const auto currentUnixTS = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
                     driverStartTimestamp = driverFrameTimestamp - currentUnixTS;
                 } else {
@@ -773,13 +829,13 @@ void MiniScope::captureThread(void* msPtr)
                 vwriter.reset(new VideoWriter());
                 recordFrames = false;
                 self->emitMessage("Recording finalized.");
-                self->d->lastRecordedFrameTime = std::chrono::milliseconds(0);
+                d->lastRecordedFrameTime = std::chrono::milliseconds(0);
             }
         }
 
         // call potential callback on the raw acquired frame
-        if (self->d->frameCallback.first)
-            self->d->frameCallback.first(frame, frameTimestamp, self->d->frameCallback.second);
+        if (frameCB != nullptr)
+            frameCB(frame, frameTimestamp, frameCB_udata);
 
         // "frame" is the frame that we record to disk, while the "displayFrame"
         // is the one that we may also record as a video file
@@ -792,30 +848,30 @@ void MiniScope::captureThread(void* msPtr)
 
         cv::Mat displayF32;
         displayFrame.convertTo(displayF32, CV_32F, 1.0 / 255.0);
-        cv::accumulateWeighted(displayF32, accumulatedMat, self->d->bgAccumulateAlpha);
-        if (self->d->bgDiffMethod == BackgroundDiffMethod::Division) {
+        cv::accumulateWeighted(displayF32, accumulatedMat, d->bgAccumulateAlpha);
+        if (d->bgDiffMethod == BackgroundDiffMethod::Division) {
             cv::Mat tmpMat;
             cv::divide(displayF32, accumulatedMat, tmpMat, 1, CV_32FC(frame.channels()));
             tmpMat.convertTo(displayFrame, displayFrame.type(), 250.0);
-        } else if (self->d->bgDiffMethod == BackgroundDiffMethod::Subtraction) {
+        } else if (d->bgDiffMethod == BackgroundDiffMethod::Subtraction) {
             cv::Mat tmpBgMat;
             accumulatedMat.convertTo(tmpBgMat, CV_8UC1, 255.0);
             cv::subtract(displayFrame, tmpBgMat, displayFrame);
         }
 
-        if (self->d->useColor) {
+        if (d->useColor) {
             cv::cvtColor(displayFrame, displayFrame, cv::COLOR_GRAY2BGR);
 
             // we want a colored image
-            if (self->d->showRed || self->d->showGreen || self->d->showBlue) {
+            if (d->showRed || d->showGreen || d->showBlue) {
                 cv::Mat bgrChannels[3];
                 cv::split(displayFrame, bgrChannels);
 
-                if (!self->d->showBlue)
+                if (!d->showBlue)
                     bgrChannels[0] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
-                if (!self->d->showGreen)
+                if (!d->showGreen)
                     bgrChannels[1] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
-                if (!self->d->showRed)
+                if (!d->showRed)
                     bgrChannels[2] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
 
                 cv::merge(bgrChannels, 3, displayFrame);
@@ -824,32 +880,32 @@ void MiniScope::captureThread(void* msPtr)
             // grayscale image
             double minF, maxF;
             cv::minMaxLoc(displayFrame, &minF, &maxF);
-            self->d->minFluor = static_cast<int>(minF);
-            self->d->maxFluor = static_cast<int>(maxF);
+            d->minFluor = static_cast<int>(minF);
+            d->maxFluor = static_cast<int>(maxF);
 
-            displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay), -self->d->minFluorDisplay * 255.0 / (self->d->maxFluorDisplay - self->d->minFluorDisplay));
+            displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (d->maxFluorDisplay - d->minFluorDisplay), -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
         }
 
         // add display frame to ringbuffer, and record the raw
         // frame to disk if we want to record it.
-        self->addFrameToBuffer(displayFrame, frameTimestamp);
+        self->addDisplayFrameToBuffer(displayFrame, frameTimestamp);
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
                 self->fail(boost::str(boost::format("Unable to send frames to encoder: %1%") % vwriter->lastError()));
-            self->d->lastRecordedFrameTime = frameTimestamp;
+            d->lastRecordedFrameTime = frameTimestamp;
         }
 
         // wait a bit if necessary, to keep the right framerate
         const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
-        const auto extraWaitTime = std::chrono::milliseconds((1000 / self->d->fps) - cycleTime.count());
+        const auto extraWaitTime = std::chrono::milliseconds((1000 / d->fps) - cycleTime.count());
         if (extraWaitTime.count() > 0)
             std::this_thread::sleep_for(extraWaitTime);
 
         const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
-        self->d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
+        d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 
     // finalize recording (if there was any still ongoing)
     vwriter->finalize();
-    self->d->lastRecordedFrameTime = std::chrono::milliseconds(0);
+    d->lastRecordedFrameTime = std::chrono::milliseconds(0);
 }
