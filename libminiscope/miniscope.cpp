@@ -259,7 +259,15 @@ bool MiniScope::connect()
         }
     }
 
-    d->cam.open(d->scopeCamId);
+    // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
+    // has issues with some properties of the Miniscope camera and will refuse to
+    // grab any proper frame.
+    // On other OSes simply rely on the API autodetection in OpenCV
+    auto apiPreference = cv::CAP_ANY;
+#ifdef __linux__
+    apiPreference = cv::CAP_V4L2;
+#endif
+    d->cam.open(d->scopeCamId | apiPreference);
 
     d->cam.set(cv::CAP_PROP_SATURATION, SET_CMOS_SETTINGS); // Initiallizes CMOS sensor (FPS, gain and exposure enabled...)
 
