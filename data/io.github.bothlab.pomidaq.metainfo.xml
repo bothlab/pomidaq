@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2020 Matthias Klumpp, FSFAP licensed -->
+
+<component type="desktop-application">
+  <id>io.github.bothlab.pomidaq</id>
+
+  <name>PoMiDAQ</name>
+  <summary>View and record videos from UCLA Miniscopes</summary>
+
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>LGPL-3.0+</project_license>
+
+  <description>
+    <p>
+      PoMiDAQ is a recording software for UCLA Miniscopes for neuroscientific research.
+      It is designed to work with the latest OpenCV libraries and provides a shared library,
+      so Miniscope recording features can easily be embedded into other programs and pipelines.
+    </p>
+    <p>
+      Recorded data is encoded with the FFV1 codec by default, to allow for smaller, lossless video files that are safe to archive.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">pomidaq.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/bothlab/pomidaq/master/contrib/screenshots/v0.2.0_recording.png</image>
+    </screenshot>
+  </screenshots>
+</component>
