@@ -81,7 +81,9 @@ public:
     }
 
     std::thread *thread;
-    std::mutex mutex;
+    std::mutex frameRingMutex;
+    std::mutex timeMutex;
+    std::mutex msgMutex;
 
     cv::VideoCapture cam;
     int scopeCamId;
@@ -182,9 +184,9 @@ void MiniScope::emitMessage(const std::string &msg)
     if (!d->messageCallback.first)
         return;
 
-    d->mutex.lock();
+    // we don't want to call this callback twice simultaneously
+    std::lock_guard<std::mutex> lock(d->msgMutex);
     d->messageCallback.first(msg, d->messageCallback.second);
-    d->mutex.unlock();
 }
 
 void MiniScope::fail(const std::string &msg)
@@ -432,7 +434,7 @@ void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const mil
 
 cv::Mat MiniScope::currentDisplayFrame()
 {
-    std::lock_guard<std::mutex> lock(d->mutex);
+    std::lock_guard<std::mutex> lock(d->frameRingMutex);
     cv::Mat frame;
     if (d->frameRing.size() == 0)
         return frame;
@@ -465,7 +467,7 @@ void MiniScope::setFps(uint fps)
 void MiniScope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
 {
     // changing the start timestamp is protected
-    const std::lock_guard<std::mutex> lock(d->mutex);
+    const std::lock_guard<std::mutex> lock(d->timeMutex);
 
     d->startTimepoint = startTime;
     d->useUnixTime = false; // we have a custom start time, no UNIX epoch will be used
@@ -481,7 +483,7 @@ bool MiniScope::useUnixTimestamps() const
 void MiniScope::setUseUnixTimestamps(bool useUnixTime)
 {
     // changing the start timestamp is protected
-    const std::lock_guard<std::mutex> lock(d->mutex);
+    const std::lock_guard<std::mutex> lock(d->timeMutex);
 
     d->useUnixTime = useUnixTime;
     d->startTimepoint = std::chrono::time_point<std::chrono::steady_clock>::min();
@@ -638,7 +640,7 @@ void MiniScope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
         displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
 
     // the frame rinbuffer is protected
-    std::lock_guard<std::mutex> lock(d->mutex);
+    std::lock_guard<std::mutex> lock(d->frameRingMutex);
     d->frameRing.push_back(frame);
 }
 
@@ -720,7 +722,7 @@ void MiniScope::captureThread(void* msPtr)
         if (reinitStartTime) {
             // this is a critical section, we do not want the capture start time to be changed from outside this
             // thread while working with it
-            const std::lock_guard<std::mutex> lock(d->mutex);
+            const std::lock_guard<std::mutex> lock(d->timeMutex);
             if (d->startTimepoint > std::chrono::time_point<std::chrono::steady_clock>::min())
                 threadStartTime = d->startTimepoint;
             d->captureStartTimeInitialized = true;
@@ -739,9 +741,19 @@ void MiniScope::captureThread(void* msPtr)
             if (driverFrameTimestamp.count() <= 0) {
                 self->emitMessage("Frame with timestamp of zero ignored for timer initialization.");
 
+                // We fail quickly here in case we actually failed to grab a falid frame (status == false),
+                // which may indicate issues in the DAQ board itself or connectivity problems.
+                // Otherwise we fail after 20 dropped frames.
                 d->droppedFramesCount++;
-                if (d->droppedFramesCount > 20)
-                    self->fail("Too many dropped frames. Giving up.");
+                if (d->droppedFramesCount >= 4) {
+                    if (!status) {
+                        self->fail("Unable to grab valid frames for initialization. (You may try to physically reconnect the DAQ board to resolve this issue)");
+                        break;
+                    } else if (d->droppedFramesCount >= 20) {
+                        self->fail("Unable to get valid timestamps for initialization.");
+                        break;
+                    }
+                }
 
                 d->captureStartTimeInitialized = false;
                 continue;
@@ -793,12 +805,17 @@ void MiniScope::captureThread(void* msPtr)
                 // NOTE: This behaviour was copied from the original Miniscope DAQ software
                 self->emitMessage("Reconnecting Miniscope...");
                 d->cam.release();
-                d->cam.open(d->scopeCamId);
-                self->emitMessage("Sending settings again.");
-                self->setExposure(d->exposure);
-                self->setGain(d->gain);
-                self->setExcitation(d->excitation);
-                self->emitMessage("Miniscope reconnected.");
+                d->connected = false;
+                if (self->openCamera()) {
+                    self->emitMessage("Sending settings again.");
+                    self->setExposure(d->exposure);
+                    self->setGain(d->gain);
+                    self->setExcitation(d->excitation);
+                    self->emitMessage("Miniscope reconnected.");
+                } else {
+                    self->fail("Unable to reopen camera connection.");
+                    break;
+                }
             }
             d->droppedFramesCount++;
 

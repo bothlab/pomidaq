@@ -261,7 +261,8 @@ void MainWindow::on_btnStartStop_clicked()
     if (!m_mscope->connect()) {
         QMessageBox::critical(this,
                               "Error",
-                              QString("Unable to connect to camera '%1'.").arg(ui->sbCamId->value()));
+                              QString("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")
+                                .arg(ui->sbCamId->value()));
         setStatusText("Connection error.");
         ui->btnStartStop->setEnabled(true);
         return;
