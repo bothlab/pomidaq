@@ -1,3 +1,25 @@
+Version 0.3.0
+~~~~~~~~~~~~~~
+Released: 2020-04-04
+
+Features:
+ * Use the improved OpenGL image view widget from MazeAmaze/Syntalos
+ * lib: Add callbacks to retrieve the current raw and displayed frames
+ * Use C++17 as baseline
+ * Add AppStream MetaInfo file
+ * Simplify & improve time keeping code
+ * lib: Permit API users to intercept & modify timestamps
+
+Bugfixes:
+ * Lower required OpenGL version, and fail if we can't initialize GL
+ * Never even try to use dark mode on systems where it doesn't exist
+ * Perform sanity check on timestamps before initializing timer with them
+ * Do not expose clock details in API
+ * Don't resend settings when framerate is low, this only causes the problem to get worse
+ * Prefer V4L as camera API on Linux
+ * Prefer DirectShow as camera API on Windows
+ * Improve locking code and handle dropped init frames better
+
 Version 0.2.0
 ~~~~~~~~~~~~~~
 Released: 2020-02-04
