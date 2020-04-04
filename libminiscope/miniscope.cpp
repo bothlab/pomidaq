@@ -78,7 +78,6 @@ public:
         frameCallback.first = nullptr;
         displayFrameCallback.first = nullptr;
         messageCallback.first = nullptr;
-        frameTimestampCallback.first = nullptr;
     }
 
     std::thread *thread;
@@ -116,9 +115,10 @@ public:
     std::atomic<milliseconds_t> lastRecordedFrameTime;
 
     boost::circular_buffer<cv::Mat> frameRing;
-    std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> frameCallback;
+    std::pair<std::function<void (const cv::Mat &, milliseconds_t &,
+                                  const milliseconds_t &, const milliseconds_t &,
+                                  void *)>, void*> frameCallback;
     std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> displayFrameCallback;
-    std::pair<std::function<void (milliseconds_t &, const milliseconds_t &, void*)>, void*> frameTimestampCallback;
 
     std::pair<std::function<void (const std::string&, void*)>, void*> messageCallback;
     bool printMessagesToStdout;
@@ -393,7 +393,7 @@ bool MiniScope::showBlueChannel() const
     return d->showBlue;
 }
 
-void MiniScope::setOnFrame(std::function<void (const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata)
+void MiniScope::setOnFrame(std::function<void (const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)> callback, void *udata)
 {
     d->frameCallback = std::make_pair(callback, udata);
 }
@@ -401,11 +401,6 @@ void MiniScope::setOnFrame(std::function<void (const cv::Mat &, const millisecon
 void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata)
 {
     d->displayFrameCallback = std::make_pair(callback, udata);
-}
-
-void MiniScope::setOnFrameTimestamp(std::function<void (milliseconds_t &, const milliseconds_t &, void *)> callback, void *udata)
-{
-    d->frameTimestampCallback = std::make_pair(callback, udata);
 }
 
 cv::Mat MiniScope::currentDisplayFrame()
@@ -610,12 +605,13 @@ void MiniScope::setLed(double value)
 
 void MiniScope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
-    std::lock_guard<std::mutex> lock(d->mutex);
     // call potential callback on this possibly edited "to be displayed" frame
     const auto displayFrameCB = d->displayFrameCallback.first;
     if (displayFrameCB != nullptr)
         displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
 
+    // the frame rinbuffer is protected
+    std::lock_guard<std::mutex> lock(d->mutex);
     d->frameRing.push_back(frame);
 }
 
@@ -623,10 +619,6 @@ void MiniScope::captureThread(void* msPtr)
 {
     const auto self = static_cast<MiniScope*> (msPtr);
     const auto d = self->d;
-
-    // unpack timestamp callback pair
-    const auto frameTimestampCB = d->frameTimestampCallback.first;
-    auto frameTimestampCB_udata = d->frameTimestampCallback.second;
 
     // unpack raw frame callback pair
     const auto frameCB = d->frameCallback.first;
@@ -738,15 +730,7 @@ void MiniScope::captureThread(void* msPtr)
                 driverStartTimestamp = driverFrameTimestamp - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
             }
         }
-
         const auto frameDeviceTimestamp = driverFrameTimestamp - driverStartTimestamp;
-        milliseconds_t frameTimestamp;
-        if (frameTimestampCB != nullptr) {
-            frameTimestamp = masterRecvTimestamp;
-            frameTimestampCB(frameTimestamp, frameDeviceTimestamp, frameTimestampCB_udata);
-        } else {
-            frameTimestamp = frameDeviceTimestamp;
-        }
 
         if (!status) {
             self->fail("Failed to grab frame.");
@@ -760,34 +744,40 @@ void MiniScope::captureThread(void* msPtr)
             status = false;
             std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
         }
+        if (!status)
+            frame = cv::Mat();
+
+        // call frame callback, so the callee can also adjust the frame
+        // timestamp (if it wants to) before we save any data to disk or
+        // process it further.
+        auto frameTimestamp = frameDeviceTimestamp;
+        if (frameCB != nullptr)
+            frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, frameCB_udata);
 
         if (!status) {
             // terminate recording
             d->recording = false;
 
-            d->droppedFramesCount++;
             self->emitMessage("Dropped frame.");
             self->addDisplayFrameToBuffer(droppedFrameImage, frameTimestamp);
             if (d->droppedFramesCount > 0) {
+                // reconnect in case we run into multiple failures when trying
+                // to acquire a timestamp
+                // NOTE: This behaviour was copied from the original Miniscope DAQ software
                 self->emitMessage("Reconnecting Miniscope...");
                 d->cam.release();
                 d->cam.open(d->scopeCamId);
+                self->emitMessage("Sending settings again.");
+                self->setExposure(d->exposure);
+                self->setGain(d->gain);
+                self->setExcitation(d->excitation);
                 self->emitMessage("Miniscope reconnected.");
             }
+            d->droppedFramesCount++;
 
             if (d->droppedFramesCount > 80)
                 self->fail("Too many dropped frames. Giving up.");
             continue;
-        }
-
-        // check if we are too slow, resend settings in case we are
-        // NOTE: This behaviour was copied from the original Miniscope DAQ software
-        if (d->droppedFramesCount > 0) {
-            self->emitMessage("Sending settings again.");
-            self->setExposure(d->exposure);
-            self->setGain(d->gain);
-            self->setExcitation(d->excitation);
-            d->droppedFramesCount = 0;
         }
 
         // prepare video recording if it was enabled while we were running
@@ -840,10 +830,6 @@ void MiniScope::captureThread(void* msPtr)
                 d->lastRecordedFrameTime = std::chrono::milliseconds(0);
             }
         }
-
-        // call potential callback on the raw acquired frame
-        if (frameCB != nullptr)
-            frameCB(frame, frameTimestamp, frameCB_udata);
 
         // "frame" is the frame that we record to disk, while the "displayFrame"
         // is the one that we may also record as a video file
