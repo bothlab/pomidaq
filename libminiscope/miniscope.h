@@ -164,6 +164,7 @@ public:
 private:
     MiniScopeData *d;
 
+    bool openCamera();
     void setLed(double value);
     void addDisplayFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
     static void captureThread(void *msPtr);

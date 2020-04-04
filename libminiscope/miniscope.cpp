@@ -248,6 +248,37 @@ double MiniScope::excitation() const
     return d->excitation;
 }
 
+bool MiniScope::openCamera()
+{
+    if (d->connected)
+        std::cerr << "Trying to open an already opened camera connection. This is likely not intended." << std::endl;
+
+    // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
+    // has issues with some properties of the Miniscope camera and will refuse to
+    // grab any proper frame.
+    // On Windows on the other hand, the DirectShow backend seems to be the best option.
+    // If any of them fail, just try the API autodetection in OpenCV.
+    auto apiPreference = cv::CAP_ANY;
+#ifdef __linux__
+    apiPreference = cv::CAP_V4L2;
+#elif defined(_WIN64) || defined(_WIN32)
+    apiPreference = cv::CAP_DSHOW;
+#endif
+    auto ret = d->cam.open(d->scopeCamId, apiPreference);
+    if (!ret) {
+        // we failed opening the camera - try again using OpenCV's backend autodetection
+        emitMessage("Unable to use preferred camera backend, falling back to autodetection.");
+        ret = d->cam.open(d->scopeCamId);
+    }
+
+    // if a connection attempt succeeded, we can now consider the camera
+    // to be connected
+    if (ret)
+        d->connected = true;
+
+    return ret;
+}
+
 bool MiniScope::connect()
 {
     if (d->connected) {
@@ -259,22 +290,18 @@ bool MiniScope::connect()
         }
     }
 
-    // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
-    // has issues with some properties of the Miniscope camera and will refuse to
-    // grab any proper frame.
-    // On other OSes simply rely on the API autodetection in OpenCV
-    auto apiPreference = cv::CAP_ANY;
-#ifdef __linux__
-    apiPreference = cv::CAP_V4L2;
-#endif
-    d->cam.open(d->scopeCamId | apiPreference);
+    if (!openCamera()) {
+        fail("Unable to connect to Miniscope camera. Is the DAQ board connected?");
+        return false;
+    }
 
-    d->cam.set(cv::CAP_PROP_SATURATION, SET_CMOS_SETTINGS); // Initiallizes CMOS sensor (FPS, gain and exposure enabled...)
+    // initializes CMOS sensor (FPS, gain and exposure enabled...)
+    d->cam.set(cv::CAP_PROP_SATURATION, SET_CMOS_SETTINGS);
 
     // set default values
-    setExposure(100);
-    setGain(32);
-    setExcitation(1);
+    setExposure(d->exposure);
+    setGain(d->gain);
+    setExcitation(d->excitation);
 
     d->failed = false;
     d->connected = true;
