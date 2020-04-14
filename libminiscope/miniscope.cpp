@@ -626,7 +626,7 @@ void MiniScope::setLed(double value)
         value = 100;
 
     // NOTE: With V4L, max value seems to be 125 here
-    double ledPower = value * 0.8;
+    double ledPower = value * 1.25;
     if (d->connected) {
         d->cam.set(cv::CAP_PROP_HUE, ledPower);
     }
