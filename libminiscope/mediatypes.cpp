@@ -21,7 +21,7 @@
 
 using namespace MScope;
 
-VideoCodec MScope::stringToVideoCodec(const std::string &str)
+VideoCodec stringToVideoCodec(const std::string &str)
 {
     if (str == "Raw")
         return VideoCodec::Raw;
@@ -33,8 +33,10 @@ VideoCodec MScope::stringToVideoCodec(const std::string &str)
         return VideoCodec::AV1;
     if (str == "VP9")
         return VideoCodec::VP9;
-    if (str == "H.265")
-        return VideoCodec::H265;
+    if (str == "HEVC")
+        return VideoCodec::HEVC;
+    if (str == "H.264")
+        return VideoCodec::H264;
     if (str == "MPEG-4")
         return VideoCodec::MPEG4;
 
@@ -52,8 +54,10 @@ std::string videoCodecToString(VideoCodec codec)
         return "AV1";
     case VideoCodec::VP9:
         return "VP9";
-    case VideoCodec::H265:
-        return "H.265";
+    case VideoCodec::H264:
+        return "H.264";
+    case VideoCodec::HEVC:
+        return "HEVC";
     case VideoCodec::MPEG4:
         return "MPEG-4";
     default:
