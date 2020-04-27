@@ -20,7 +20,7 @@ set(LIBSOVERSION 0)
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
 option(GUI        "Build Python module" ON)
-option(PYTHON     "Build Python module" ON)
+option(PYTHON     "Build Python module" OFF)
 
 
 #
