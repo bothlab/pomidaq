@@ -69,6 +69,8 @@ public:
     bool connect();
     void disconnect();
 
+    QStringList availableMiniscopeTypes() const;
+
     bool run();
     void stop();
     bool startRecording(const QString &fname = "");

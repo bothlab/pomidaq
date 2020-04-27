@@ -24,6 +24,9 @@
 #include <mutex>
 #include <atomic>
 #include <QQueue>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -311,6 +314,18 @@ void Miniscope::disconnect()
     if (d->connected)
         emitMessage(QStringLiteral("Disconnected camera %1").arg(d->scopeCamId));
     d->connected = false;
+}
+
+QStringList Miniscope::availableMiniscopeTypes() const
+{
+    QFile msTypesRc(QStringLiteral(":/config/miniscopes.json"));
+    if (!msTypesRc.open(QIODevice::ReadOnly))
+        return QStringList();
+    const auto jDoc = QJsonDocument::fromJson(msTypesRc.readAll());
+
+    auto deviceTypes = jDoc.object().keys();
+    std::sort(deviceTypes.begin(), deviceTypes.end());
+    return deviceTypes;
 }
 
 bool Miniscope::run()

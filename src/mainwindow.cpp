@@ -132,7 +132,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_scopeView = new ImageViewWidget(this);
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
-    m_mscope = new Miniscope();
+    m_mscope = new Miniscope(this);
     connect(m_mscope, &Miniscope::statusMessage, [&](const QString &msg) {
         m_newMessages.enqueue(msg);
     });
@@ -171,6 +171,9 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->fpsSpinBox->setMaximum(settings.value("recording/framerateMax", 30).toInt());
     setUseUnixTimestamps(settings.value("recording/useUnixTimestamps", false).toBool());
     ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 5).toInt());
+
+    // set device list
+    ui->deviceTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
 }
 
 MainWindow::~MainWindow()
@@ -181,7 +184,6 @@ MainWindow::~MainWindow()
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
 
     delete ui;
-    delete m_mscope;
 }
 
 void MainWindow::on_sbExcitation_valueChanged(double arg1)
@@ -252,6 +254,7 @@ void MainWindow::on_btnStartStop_clicked()
         m_mscope->disconnect();
         ui->btnStartStop->setEnabled(true);
         ui->sbCamId->setEnabled(true);
+        ui->deviceTypeComboBox->setEnabled(true);
         return;
     }
     m_newMessages.clear();
@@ -282,6 +285,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnRecord->setEnabled(true);
     ui->btnStartStop->setEnabled(true);
     ui->sbCamId->setEnabled(false);
+    ui->deviceTypeComboBox->setEnabled(false);
     ui->actionSetFramerateLimit->setEnabled(false);
     ui->actionSetTimestampStyle->setEnabled(false);
 
@@ -328,6 +332,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnStartStop->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
     ui->sbCamId->setEnabled(true);
+    ui->deviceTypeComboBox->setEnabled(false);
     ui->actionSetFramerateLimit->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
@@ -357,7 +362,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     if (checked) {
         const auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
         if (m_mscope->startRecording(videoFname)) {
-            ui->gbRecording->setEnabled(false);
+            ui->pageRecord->setEnabled(false);
             ui->btnStartStop->setEnabled(false);
             ui->btnRecord->setText("Recording...");
         } else {
@@ -366,7 +371,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
 
     } else {
         m_mscope->stopRecording();
-        ui->gbRecording->setEnabled(true);
+        ui->pageRecord->setEnabled(true);
         ui->btnStartStop->setEnabled(true);
         ui->btnRecord->setText("Record");
     }

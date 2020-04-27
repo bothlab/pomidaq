@@ -15,10 +15,13 @@ set(LIBMINISCOPE_HEADERS
     mediatypes.h
 )
 
+qt5_add_resources(LIBMINISCOPE_RES_SRC resources.qrc)
+
 add_library(miniscope
     ${LIBMINISCOPE_SRC}
     ${LIBMINISCOPE_HEADERS}
     ${LIBMINISCOPE_PRIV_HEADERS}
+    ${LIBMINISCOPE_RES_SRC}
 )
 set_target_properties(miniscope PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(miniscope PROPERTIES SOVERSION ${LIBSOVERSION})
