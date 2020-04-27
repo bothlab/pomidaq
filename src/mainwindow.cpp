@@ -132,7 +132,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_scopeView = new ImageViewWidget(this);
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
-    m_mscope = new MiniScope();
+    m_mscope = new Miniscope();
     m_mscope->setOnMessage([&](const QString &msg, void*) {
         m_newMessages.enqueue(msg);
     });

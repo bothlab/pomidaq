@@ -37,10 +37,10 @@ namespace MScope
 {
 
 #pragma GCC diagnostic ignored "-Wpadded"
-class MiniScopeData
+class Miniscope::Private
 {
 public:
-    MiniScopeData()
+    Private()
         : thread(nullptr),
           scopeCamId(0),
           connected(false),
@@ -139,8 +139,8 @@ public:
 } // end of namespace MScope
 
 
-MiniScope::MiniScope()
-    : d(new MiniScopeData())
+Miniscope::Miniscope()
+    : d(new Miniscope::Private())
 {
     d->exposure = 100;
     d->gain = 32;
@@ -148,23 +148,21 @@ MiniScope::MiniScope()
     d->fps = 20;
 }
 
-MiniScope::~MiniScope()
+Miniscope::~Miniscope()
 {
     finishCaptureThread();
     setExcitation(0);
     disconnect();
-
-    delete d;
 }
 
-void MiniScope::startCaptureThread()
+void Miniscope::startCaptureThread()
 {
     finishCaptureThread();
     d->running = true;
     d->thread = new std::thread(captureThread, this);
 }
 
-void MiniScope::finishCaptureThread()
+void Miniscope::finishCaptureThread()
 {
     if (d->thread != nullptr) {
         d->running = false;
@@ -174,7 +172,7 @@ void MiniScope::finishCaptureThread()
     }
 }
 
-void MiniScope::emitMessage(const QString &msg)
+void Miniscope::emitMessage(const QString &msg)
 {
     if (d->printMessagesToStdout)
         std::cout << msg.toStdString() << std::endl;
@@ -186,7 +184,7 @@ void MiniScope::emitMessage(const QString &msg)
     d->messageCallback.first(msg, d->messageCallback.second);
 }
 
-void MiniScope::fail(const QString &msg)
+void Miniscope::fail(const QString &msg)
 {
     d->recording = false;
     d->running = false;
@@ -195,17 +193,17 @@ void MiniScope::fail(const QString &msg)
     emitMessage(msg);
 }
 
-void MiniScope::setScopeCamId(int id)
+void Miniscope::setScopeCamId(int id)
 {
     d->scopeCamId = id;
 }
 
-int MiniScope::scopeCamId() const
+int Miniscope::scopeCamId() const
 {
     return d->scopeCamId;
 }
 
-void MiniScope::setExposure(double value)
+void Miniscope::setExposure(double value)
 {
     if (floor(value) == 0)
         value = 1;
@@ -218,12 +216,12 @@ void MiniScope::setExposure(double value)
     d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * 2.55);
 }
 
-double MiniScope::exposure() const
+double Miniscope::exposure() const
 {
     return d->exposure;
 }
 
-void MiniScope::setGain(double value)
+void Miniscope::setGain(double value)
 {
     // NOTE: With V4L as backend, 100 seems to be the max value here
 
@@ -231,23 +229,23 @@ void MiniScope::setGain(double value)
     d->cam.set(cv::CAP_PROP_GAIN, value);
 }
 
-double MiniScope::gain() const
+double Miniscope::gain() const
 {
     return d->gain;
 }
 
-void MiniScope::setExcitation(double value)
+void Miniscope::setExcitation(double value)
 {
     d->excitation = value;
     setLed(value);
 }
 
-double MiniScope::excitation() const
+double Miniscope::excitation() const
 {
     return d->excitation;
 }
 
-bool MiniScope::openCamera()
+bool Miniscope::openCamera()
 {
     if (d->connected)
         std::cerr << "Trying to open an already opened camera connection. This is likely not intended." << std::endl;
@@ -278,7 +276,7 @@ bool MiniScope::openCamera()
     return ret;
 }
 
-bool MiniScope::connect()
+bool Miniscope::connect()
 {
     if (d->connected) {
         if (d->failed) {
@@ -309,7 +307,7 @@ bool MiniScope::connect()
     return true;
 }
 
-void MiniScope::disconnect()
+void Miniscope::disconnect()
 {
     stop();
     d->cam.release();
@@ -318,7 +316,7 @@ void MiniScope::disconnect()
     d->connected = false;
 }
 
-bool MiniScope::run()
+bool Miniscope::run()
 {
     if (!d->connected)
         return false;
@@ -334,14 +332,14 @@ bool MiniScope::run()
     return true;
 }
 
-void MiniScope::stop()
+void Miniscope::stop()
 {
     d->running = false;
     d->recording = false;
     finishCaptureThread();
 }
 
-bool MiniScope::startRecording(const QString &fname)
+bool Miniscope::startRecording(const QString &fname)
 {
     if (!d->connected)
         return false;
@@ -357,79 +355,79 @@ bool MiniScope::startRecording(const QString &fname)
     return true;
 }
 
-void MiniScope::stopRecording()
+void Miniscope::stopRecording()
 {
     d->recording = false;
 }
 
-bool MiniScope::running() const
+bool Miniscope::running() const
 {
     return d->running;
 }
 
-bool MiniScope::recording() const
+bool Miniscope::recording() const
 {
     return d->running && d->recording;
 }
 
-bool MiniScope::captureStartTimeInitialized() const
+bool Miniscope::captureStartTimeInitialized() const
 {
     return d->captureStartTimeInitialized;
 }
 
-void MiniScope::setOnMessage(MessageCallback callback, void *udata)
+void Miniscope::setOnMessage(MessageCallback callback, void *udata)
 {
     d->messageCallback = std::make_pair(callback, udata);
 }
 
-void MiniScope::setPrintMessagesToStdout(bool enabled)
+void Miniscope::setPrintMessagesToStdout(bool enabled)
 {
     d->printMessagesToStdout = enabled;
 }
 
-bool MiniScope::useColor() const
+bool Miniscope::useColor() const
 {
     return d->useColor;
 }
 
-void MiniScope::setUseColor(bool color)
+void Miniscope::setUseColor(bool color)
 {
     d->useColor = color;
 }
 
-void MiniScope::setVisibleChannels(bool red, bool green, bool blue)
+void Miniscope::setVisibleChannels(bool red, bool green, bool blue)
 {
     d->showRed = red;
     d->showGreen = green;
     d->showBlue = blue;
 }
 
-bool MiniScope::showRedChannel() const
+bool Miniscope::showRedChannel() const
 {
     return d->showRed;
 }
 
-bool MiniScope::showGreenChannel() const
+bool Miniscope::showGreenChannel() const
 {
     return d->showGreen;
 }
 
-bool MiniScope::showBlueChannel() const
+bool Miniscope::showBlueChannel() const
 {
     return d->showBlue;
 }
 
-void MiniScope::setOnFrame(MScope::RawFrameCallback callback, void *udata)
+void Miniscope::setOnFrame(MScope::RawFrameCallback callback, void *udata)
 {
     d->frameCallback = std::make_pair(callback, udata);
 }
 
-void MiniScope::setOnDisplayFrame(DisplayFrameCallback callback, void *udata)
+void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback, void *udata)
 {
     d->displayFrameCallback = std::make_pair(callback, udata);
 }
 
-cv::Mat MiniScope::currentDisplayFrame()
+cv::Mat Miniscope::currentDisplayFrame()
 {
     std::lock_guard<std::mutex> lock(d->frameRingMutex);
     cv::Mat frame;
@@ -439,27 +437,27 @@ cv::Mat MiniScope::currentDisplayFrame()
     return d->displayQueue.dequeue();
 }
 
-uint MiniScope::currentFps() const
+uint Miniscope::currentFps() const
 {
     return d->currentFPS;
 }
 
-size_t MiniScope::droppedFramesCount() const
+size_t Miniscope::droppedFramesCount() const
 {
     return d->droppedFramesCount;
 }
 
-uint MiniScope::fps() const
+uint Miniscope::fps() const
 {
     return d->fps;
 }
 
-void MiniScope::setFps(uint fps)
+void Miniscope::setFps(uint fps)
 {
     d->fps = fps;
 }
 
-void MiniScope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
+void Miniscope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
 {
     // changing the start timestamp is protected
     const std::lock_guard<std::mutex> lock(d->timeMutex);
@@ -470,12 +468,12 @@ void MiniScope::setCaptureStartTime(const std::chrono::time_point<std::chrono::s
     d->captureStartTimeInitialized = false; // reinitialize frame time with new start time, in case we are already running
 }
 
-bool MiniScope::useUnixTimestamps() const
+bool Miniscope::useUnixTimestamps() const
 {
     return d->useUnixTime;
 }
 
-void MiniScope::setUseUnixTimestamps(bool useUnixTime)
+void Miniscope::setUseUnixTimestamps(bool useUnixTime)
 {
     // changing the start timestamp is protected
     const std::lock_guard<std::mutex> lock(d->timeMutex);
@@ -485,136 +483,136 @@ void MiniScope::setUseUnixTimestamps(bool useUnixTime)
     d->captureStartTimeInitialized = false; // reinitialize frame time with new start time, in case we are already running
 }
 
-milliseconds_t MiniScope::unixCaptureStartTime() const
+milliseconds_t Miniscope::unixCaptureStartTime() const
 {
     return d->unixCaptureStartTime;
 }
 
-bool MiniScope::externalRecordTrigger() const
+bool Miniscope::externalRecordTrigger() const
 {
     return d->checkRecTrigger;
 }
 
-void MiniScope::setExternalRecordTrigger(bool enabled)
+void Miniscope::setExternalRecordTrigger(bool enabled)
 {
     d->checkRecTrigger = enabled;
 }
 
-QString MiniScope::videoFilename() const
+QString Miniscope::videoFilename() const
 {
     return d->videoFname;
 }
 
-void MiniScope::setVideoFilename(const QString& fname)
+void Miniscope::setVideoFilename(const QString& fname)
 {
     // TODO: Maybe mutex this, to prevent API users from doing the wrong thing
     // and checking the value directly after the recording was started?
     d->videoFname = fname;
 }
 
-VideoCodec MiniScope::videoCodec() const
+VideoCodec Miniscope::videoCodec() const
 {
     return d->videoCodec;
 }
 
-void MiniScope::setVideoCodec(VideoCodec codec)
+void Miniscope::setVideoCodec(VideoCodec codec)
 {
     d->videoCodec = codec;
 }
 
-VideoContainer MiniScope::videoContainer() const
+VideoContainer Miniscope::videoContainer() const
 {
     return d->videoContainer;
 }
 
-void MiniScope::setVideoContainer(VideoContainer container)
+void Miniscope::setVideoContainer(VideoContainer container)
 {
     d->videoContainer = container;
 }
 
-bool MiniScope::recordLossless() const
+bool Miniscope::recordLossless() const
 {
     return d->recordLossless;
 }
 
-void MiniScope::setRecordLossless(bool lossless)
+void Miniscope::setRecordLossless(bool lossless)
 {
     d->recordLossless = lossless;
 }
 
-int MiniScope::minFluorDisplay() const
+int Miniscope::minFluorDisplay() const
 {
     return d->minFluorDisplay;
 }
 
-void MiniScope::setMinFluorDisplay(int value)
+void Miniscope::setMinFluorDisplay(int value)
 {
     d->minFluorDisplay = value;
 }
 
-int MiniScope::maxFluorDisplay() const
+int Miniscope::maxFluorDisplay() const
 {
     return d->maxFluorDisplay;
 }
 
-void MiniScope::setMaxFluorDisplay(int value)
+void Miniscope::setMaxFluorDisplay(int value)
 {
     d->maxFluorDisplay = value;
 }
 
-int MiniScope::minFluor() const
+int Miniscope::minFluor() const
 {
     return d->minFluor;
 }
 
-int MiniScope::maxFluor() const
+int Miniscope::maxFluor() const
 {
     return d->maxFluor;
 }
 
-BackgroundDiffMethod MiniScope::displayBgDiffMethod() const
+BackgroundDiffMethod Miniscope::displayBgDiffMethod() const
 {
     return d->bgDiffMethod;
 }
 
-void MiniScope::setDisplayBgDiffMethod(BackgroundDiffMethod method)
+void Miniscope::setDisplayBgDiffMethod(BackgroundDiffMethod method)
 {
     d->bgDiffMethod = method;
 }
 
-double MiniScope::bgAccumulateAlpha() const
+double Miniscope::bgAccumulateAlpha() const
 {
     return d->bgAccumulateAlpha;
 }
 
-void MiniScope::setBgAccumulateAlpha(double value)
+void Miniscope::setBgAccumulateAlpha(double value)
 {
     if (value > 1)
         value = 1;
     d->bgAccumulateAlpha = value;
 }
 
-uint MiniScope::recordingSliceInterval() const
+uint Miniscope::recordingSliceInterval() const
 {
     return d->recordingSliceInterval;
 }
 
-void MiniScope::setRecordingSliceInterval(uint minutes)
+void Miniscope::setRecordingSliceInterval(uint minutes)
 {
     d->recordingSliceInterval = minutes;
 }
 
-QString MiniScope::lastError() const
+QString Miniscope::lastError() const
 {
     return d->lastError;
 }
 
-milliseconds_t MiniScope::lastRecordedFrameTime() const
+milliseconds_t Miniscope::lastRecordedFrameTime() const
 {
     return d->lastRecordedFrameTime;
 }
 
-void MiniScope::setLed(double value)
+void Miniscope::setLed(double value)
 {
     // sanitize value
     if (value > 100)
@@ -627,7 +625,7 @@ void MiniScope::setLed(double value)
     }
 }
 
-void MiniScope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
+void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     // call potential callback on this possibly edited "to be displayed" frame
     const auto displayFrameCB = d->displayFrameCallback.first;
@@ -642,10 +640,10 @@ void MiniScope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
         d->displayQueue.enqueue(frame);
 }
 
-void MiniScope::captureThread(void* msPtr)
+void Miniscope::captureThread(void* msPtr)
 {
-    const auto self = static_cast<MiniScope*> (msPtr);
-    const auto d = self->d;
+    const auto self = static_cast<Miniscope*> (msPtr);
+    const auto d = self->d.get();
 
     // unpack raw frame callback pair
     const auto frameCB = d->frameCallback.first;

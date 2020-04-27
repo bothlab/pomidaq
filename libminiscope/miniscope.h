@@ -48,12 +48,11 @@ enum class BackgroundDiffMethod {
     Division
 };
 
-class MiniScopeData;
-class MS_LIB_EXPORT MiniScope
+class MS_LIB_EXPORT Miniscope
 {
 public:
-    explicit MiniScope();
-    ~MiniScope();
+    explicit Miniscope();
+    ~Miniscope();
 
     void setScopeCamId(int id);
     int scopeCamId() const;
@@ -167,7 +166,9 @@ public:
     milliseconds_t lastRecordedFrameTime() const;
 
 private:
-    MiniScopeData *d;
+    class Private;
+    Q_DISABLE_COPY(Miniscope)
+    QScopedPointer<Private> d;
 
     bool openCamera();
     void setLed(double value);

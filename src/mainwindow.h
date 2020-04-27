@@ -25,7 +25,7 @@
 class ImageViewWidget;
 class QLabel;
 namespace MScope {
-class MiniScope;
+class Miniscope;
 }
 
 namespace Ui {
@@ -79,7 +79,7 @@ private:
     Ui::MainWindow *ui;
     QLabel *m_statusBarLabel;
 
-    MScope::MiniScope *m_mscope;
+    MScope::Miniscope *m_mscope;
     ImageViewWidget *m_scopeView;
     bool m_useUnixTimestamps;
     bool m_running;
