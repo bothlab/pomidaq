@@ -37,13 +37,11 @@ target_link_libraries(miniscope
     ${CMAKE_THREAD_LIBS_INIT}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
-    ${Boost_LIBRARIES}
     ${FFMPEG_LIBRARIES}
 )
 
 include_directories(SYSTEM
     ${OpenCV_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIRS}
 )
 

@@ -62,7 +62,6 @@ endif()
 #
 include(GNUInstallDirs)
 find_package(Threads)
-find_package(Boost 1.60 REQUIRED COMPONENTS container)
 find_package(Qt5Widgets REQUIRED)
 
 find_package(OpenCV 4.1 REQUIRED)

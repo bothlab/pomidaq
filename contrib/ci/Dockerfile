@@ -22,13 +22,10 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     qt5-default \
     libqt5opengl5-dev \
     libkf5configwidgets-dev \
-    libboost-dev \
-    libboost-container-dev \
     libopencv-dev \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
-    libboost-python-dev \
     python3-dev \
     python3-numpy
 
