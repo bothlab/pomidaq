@@ -396,8 +396,8 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
     } else if (arg1 == "VP9") {
         m_mscope->setVideoCodec(VideoCodec::VP9);
 
-    } else if (arg1 == "H.265") {
-        m_mscope->setVideoCodec(VideoCodec::H265);
+    } else if (arg1 == "HEVC") {
+        m_mscope->setVideoCodec(VideoCodec::HEVC);
 
         // H.256 only works with MKV and MP4 containers, select MKV by default
         ui->containerComboBox->setCurrentIndex(0);

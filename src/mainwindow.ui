@@ -413,22 +413,7 @@
               </item>
               <item>
                <property name="text">
-                <string>AV1</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
                 <string>VP9</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>H.265</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>MPEG-4</string>
                </property>
               </item>
               <item>
@@ -1002,7 +987,7 @@
      <x>0</x>
      <y>0</y>
      <width>1157</width>
-     <height>30</height>
+     <height>29</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuApp">
