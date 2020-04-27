@@ -23,8 +23,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
-#include <boost/circular_buffer.hpp>
-#include <boost/format.hpp>
+#include <QQueue>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -53,7 +52,7 @@ public:
           useColor(false)
     {
         fps = 30;
-        frameRing = boost::circular_buffer<cv::Mat>(32);
+        displayQueue.clear();
         videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
 
@@ -92,7 +91,7 @@ public:
     double gain;
     double excitation;
     std::atomic_uint fps;
-    std::string videoFname;
+    QString videoFname;
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
     std::chrono::time_point<std::chrono::steady_clock> startTimepoint;
@@ -116,13 +115,11 @@ public:
     std::atomic_uint currentFPS;
     std::atomic<milliseconds_t> lastRecordedFrameTime;
 
-    boost::circular_buffer<cv::Mat> frameRing;
-    std::pair<std::function<void (const cv::Mat &, milliseconds_t &,
-                                  const milliseconds_t &, const milliseconds_t &,
-                                  void *)>, void*> frameCallback;
-    std::pair<std::function<void (const cv::Mat&, const milliseconds_t &, void*)>, void*> displayFrameCallback;
+    QQueue<cv::Mat> displayQueue;
+    std::pair<RawFrameCallback, void*> frameCallback;
+    std::pair<DisplayFrameCallback, void*> displayFrameCallback;
 
-    std::pair<std::function<void (const std::string&, void*)>, void*> messageCallback;
+    std::pair<MessageCallback, void*> messageCallback;
     bool printMessagesToStdout;
 
     bool useColor;
@@ -135,7 +132,7 @@ public:
     bool recordLossless;
     uint recordingSliceInterval;
 
-    std::string lastError;
+    QString lastError;
 };
 #pragma GCC diagnostic pop
 
@@ -177,10 +174,10 @@ void MiniScope::finishCaptureThread()
     }
 }
 
-void MiniScope::emitMessage(const std::string &msg)
+void MiniScope::emitMessage(const QString &msg)
 {
     if (d->printMessagesToStdout)
-        std::cout << msg << std::endl;
+        std::cout << msg.toStdString() << std::endl;
     if (!d->messageCallback.first)
         return;
 
@@ -189,7 +186,7 @@ void MiniScope::emitMessage(const std::string &msg)
     d->messageCallback.first(msg, d->messageCallback.second);
 }
 
-void MiniScope::fail(const std::string &msg)
+void MiniScope::fail(const QString &msg)
 {
     d->recording = false;
     d->running = false;
@@ -308,7 +305,7 @@ bool MiniScope::connect()
     d->failed = false;
     d->connected = true;
 
-    emitMessage(boost::str(boost::format("Initialized camera %1%") % d->scopeCamId));
+    emitMessage(QStringLiteral("Initialized camera %1").arg(d->scopeCamId));
     return true;
 }
 
@@ -317,7 +314,7 @@ void MiniScope::disconnect()
     stop();
     d->cam.release();
     if (d->connected)
-        emitMessage(boost::str(boost::format("Disconnected camera %1%") % d->scopeCamId));
+        emitMessage(QStringLiteral("Disconnected camera %1").arg(d->scopeCamId));
     d->connected = false;
 }
 
@@ -344,7 +341,7 @@ void MiniScope::stop()
     finishCaptureThread();
 }
 
-bool MiniScope::startRecording(const std::string &fname)
+bool MiniScope::startRecording(const QString &fname)
 {
     if (!d->connected)
         return false;
@@ -353,7 +350,7 @@ bool MiniScope::startRecording(const std::string &fname)
             return false;
     }
 
-    if (!fname.empty())
+    if (!fname.isEmpty())
         d->videoFname = fname;
     d->recording = true;
 
@@ -380,7 +377,7 @@ bool MiniScope::captureStartTimeInitialized() const
     return d->captureStartTimeInitialized;
 }
 
-void MiniScope::setOnMessage(std::function<void(const std::string &, void *)> callback, void *udata)
+void MiniScope::setOnMessage(MessageCallback callback, void *udata)
 {
     d->messageCallback = std::make_pair(callback, udata);
 }
@@ -422,12 +419,12 @@ bool MiniScope::showBlueChannel() const
     return d->showBlue;
 }
 
-void MiniScope::setOnFrame(std::function<void (const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)> callback, void *udata)
+void MiniScope::setOnFrame(MScope::RawFrameCallback callback, void *udata)
 {
     d->frameCallback = std::make_pair(callback, udata);
 }
 
-void MiniScope::setOnDisplayFrame(std::function<void (const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata)
+void MiniScope::setOnDisplayFrame(DisplayFrameCallback callback, void *udata)
 {
     d->displayFrameCallback = std::make_pair(callback, udata);
 }
@@ -436,12 +433,10 @@ cv::Mat MiniScope::currentDisplayFrame()
 {
     std::lock_guard<std::mutex> lock(d->frameRingMutex);
     cv::Mat frame;
-    if (d->frameRing.size() == 0)
+    const auto queueSize = d->displayQueue.size();
+    if (queueSize == 0)
         return frame;
-
-    frame = d->frameRing.front();
-    d->frameRing.pop_front();
-    return frame;
+    return d->displayQueue.dequeue();
 }
 
 uint MiniScope::currentFps() const
@@ -505,12 +500,12 @@ void MiniScope::setExternalRecordTrigger(bool enabled)
     d->checkRecTrigger = enabled;
 }
 
-std::string MiniScope::videoFilename() const
+QString MiniScope::videoFilename() const
 {
     return d->videoFname;
 }
 
-void MiniScope::setVideoFilename(const std::string &fname)
+void MiniScope::setVideoFilename(const QString& fname)
 {
     // TODO: Maybe mutex this, to prevent API users from doing the wrong thing
     // and checking the value directly after the recording was started?
@@ -609,7 +604,7 @@ void MiniScope::setRecordingSliceInterval(uint minutes)
     d->recordingSliceInterval = minutes;
 }
 
-std::string MiniScope::lastError() const
+QString MiniScope::lastError() const
 {
     return d->lastError;
 }
@@ -639,9 +634,12 @@ void MiniScope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
     if (displayFrameCB != nullptr)
         displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
 
-    // the frame rinbuffer is protected
+    // the display frame queue is protected
     std::lock_guard<std::mutex> lock(d->frameRingMutex);
-    d->frameRing.push_back(frame);
+
+    // drop frames if we are displaying too slowly, otherwise add new stuff to queue
+    if (d->displayQueue.size() < 28)
+        d->displayQueue.enqueue(frame);
 }
 
 void MiniScope::captureThread(void* msPtr)
@@ -841,7 +839,7 @@ void MiniScope::captureThread(void* msPtr)
                                         static_cast<int>(d->fps),
                                         frame.channels() == 3);
                 } catch (const std::runtime_error& e) {
-                    self->fail(boost::str(boost::format("Unable to initialize recording: %1%") % e.what()));
+                    self->fail(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
                     break;
                 }
 
@@ -929,7 +927,7 @@ void MiniScope::captureThread(void* msPtr)
         self->addDisplayFrameToBuffer(displayFrame, frameTimestamp);
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
-                self->fail(boost::str(boost::format("Unable to send frames to encoder: %1%") % vwriter->lastError()));
+                self->fail(QStringLiteral("Unable to send frames to encoder: %1").arg(vwriter->lastError()));
             d->lastRecordedFrameTime = frameTimestamp;
         }
 

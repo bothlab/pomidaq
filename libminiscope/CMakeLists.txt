@@ -35,6 +35,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miniscope.pc DESTINATION "${CMAKE_INST
 
 target_link_libraries(miniscope
     ${CMAKE_THREAD_LIBS_INIT}
+    Qt5::Core
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${FFMPEG_LIBRARIES}

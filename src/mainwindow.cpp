@@ -133,8 +133,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
     m_mscope = new MiniScope();
-    m_mscope->setOnMessage([&](const std::string &msg, void*) {
-        m_newMessages.enqueue(QString::fromStdString(msg));
+    m_mscope->setOnMessage([&](const QString &msg, void*) {
+        m_newMessages.enqueue(msg);
     });
     m_mscope->setPrintMessagesToStdout(true);
 
@@ -331,10 +331,8 @@ void MainWindow::on_btnStartStop_clicked()
     ui->actionSetFramerateLimit->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
-    if (!m_mscope->lastError().empty())
-        QMessageBox::critical(this,
-                              "Error",
-                              QString::fromStdString(m_mscope->lastError()));
+    if (!m_mscope->lastError().isEmpty())
+        QMessageBox::critical(this, "Error", m_mscope->lastError());
 }
 
 void MainWindow::on_sbGain_valueChanged(int arg1)
@@ -357,7 +355,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     }
 
     if (checked) {
-        auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope").toStdString();
+        const auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
         if (m_mscope->startRecording(videoFname)) {
             ui->gbRecording->setEnabled(false);
             ui->btnStartStop->setEnabled(false);

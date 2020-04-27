@@ -20,7 +20,7 @@
 #ifndef VIDEOWRITER_H
 #define VIDEOWRITER_H
 
-#include <memory>
+#include <QObject>
 #include <chrono>
 #include <opencv2/core.hpp>
 #include "mediatypes.h"
@@ -41,7 +41,7 @@ public:
     VideoWriter();
     ~VideoWriter();
 
-    void initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps = true);
+    void initialize(const QString &fname, int width, int height, int fps, bool hasColor, bool saveTimestamps = true);
     void finalize();
     bool initialized() const;
 
@@ -66,11 +66,12 @@ public:
     uint fileSliceInterval() const;
     void setFileSliceInterval(uint minutes);
 
-    std::string lastError() const;
+    QString lastError() const;
 
 private:
-    class VideoWriterData;
-    std::unique_ptr<VideoWriterData> d;
+    class Private;
+    Q_DISABLE_COPY(VideoWriter)
+    QScopedPointer<Private> d;
 
     void initializeInternal();
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);

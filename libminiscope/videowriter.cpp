@@ -19,15 +19,13 @@
 
 #include "videowriter.h"
 
-#include <string.h>
+#include <QString>
 #include <iostream>
 #include <atomic>
 #include <thread>
 #include <mutex>
 #include <queue>
 #include <fstream>
-#include <boost/format.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 extern "C" {
 #include <libavformat/avformat.h>
@@ -47,10 +45,10 @@ extern "C" {
 static const uint FRAME_QUEUE_MAX_COUNT = 512;
 
 #pragma GCC diagnostic ignored "-Wpadded"
-class VideoWriter::VideoWriterData
+class VideoWriter::Private
 {
 public:
-    VideoWriterData()
+    Private()
         : thread(nullptr)
     {
         initialized = false;
@@ -70,12 +68,12 @@ public:
         lossless = false;
     }
 
-    std::string lastError;
+    QString lastError;
     std::thread *thread;
     std::mutex mutex;
     std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
 
-    std::string fnameBase;
+    QString fnameBase;
     uint fileSliceIntervalMin;
     uint currentSliceNo;
     VideoCodec codec;
@@ -108,7 +106,7 @@ public:
 #pragma GCC diagnostic pop
 
 VideoWriter::VideoWriter()
-    : d(new VideoWriterData())
+    : d(new VideoWriter::Private())
 {
     d->initialized = false;
 }
@@ -159,27 +157,27 @@ void VideoWriter::initializeInternal()
     }
 
     // if file slicing is used, give our new file the appropriate name
-    std::string fname;
+    QString fname;
     if (d->fileSliceIntervalMin > 0)
-        fname = boost::str(boost::format("%1%_%2%") % d->fnameBase % d->currentSliceNo);
+        fname = QStringLiteral("%1_%2").arg(d->fnameBase).arg(d->currentSliceNo);
     else
         fname = d->fnameBase;
 
     // prepare timestamp filename
-    auto timestampFname = fname + "_timestamps.csv";
+    const auto timestampFname = fname + "_timestamps.csv";
 
     // set container format
     switch (d->container) {
     case VideoContainer::Matroska:
-        if (!boost::algorithm::ends_with(fname, ".mkv"))
+        if (!fname.endsWith(".mkv"))
             fname = fname + ".mkv";
         break;
     case VideoContainer::AVI:
-        if (!boost::algorithm::ends_with(fname, ".avi"))
+        if (!fname.endsWith(".avi"))
             fname = fname + ".avi";
         break;
     default:
-        if (!boost::algorithm::ends_with(fname, ".mkv"))
+        if (!fname.endsWith(".mkv"))
             fname = fname + ".mkv";
         break;
     }
@@ -187,15 +185,15 @@ void VideoWriter::initializeInternal()
     // open output format context
     int ret;
     d->octx = nullptr;
-    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
+    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, qPrintable(fname));
     if (ret < 0)
-        throw std::runtime_error(boost::str(boost::format("Failed to allocate output context: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to allocate output context: %1").arg(ret).toStdString());
 
     // open output IO context
-    ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
+    ret = avio_open2(&d->octx->pb, qPrintable(fname), AVIO_FLAG_WRITE, nullptr, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(boost::str(boost::format("Failed to open output I/O context: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to open output I/O context: %1").arg(ret).toStdString());
     }
 
     auto codecId = AV_CODEC_ID_AV1;
@@ -327,7 +325,7 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(boost::str(boost::format("Failed to open video encoder: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to open video encoder: %1").arg(ret).toStdString());
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -362,14 +360,14 @@ void VideoWriter::initializeInternal()
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(boost::str(boost::format("Failed to write format header: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(ret).toStdString());
     }
     d->framePts = 0;
 
     if (d->saveTimestamps) {
         d->timestampFile.close(); // ensure file is closed
         d->timestampFile.clear();
-        d->timestampFile.open(timestampFname);
+        d->timestampFile.open(timestampFname.toStdString());
         d->timestampFile << "frame; timestamp" << "\n";
         d->timestampFile.flush();
     }
@@ -427,7 +425,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
+void VideoWriter::initialize(const QString &fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -438,8 +436,8 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
     d->frames_n = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
-    if (fname.substr(fname.find_last_of(".") + 1).length() == 3)
-        d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
+    if (fname.mid(fname.lastIndexOf(".") + 1).length() == 3)
+        d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
     else
         d->fnameBase = fname;
 
@@ -494,13 +492,13 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(boost::str(boost::format("Received bigger frame than we expected (%1%x%2% instead %3%x%4%)") % width % height % d->width % d->height));
+        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead %3x%4)").arg(width).arg(height).arg(d->width).arg(d->height).toStdString());
     if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
-        d->lastError = boost::str(boost::format("Expected BGR colored image, but received image has %1% channels") % channels);
+        d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels").arg(channels);
         return false;
     }
     else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
-        d->lastError = boost::str(boost::format("Expected grayscale image, but received image has %1% channels") % channels);
+        d->lastError = QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels);
         return false;
     }
 
@@ -549,7 +547,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     int ret;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError << ")" << std::endl;
+        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError.toStdString() << ")" << std::endl;
         return false;
     }
 
@@ -700,7 +698,7 @@ void VideoWriter::setFileSliceInterval(uint minutes)
     d->fileSliceIntervalMin = minutes;
 }
 
-std::string VideoWriter::lastError() const
+QString VideoWriter::lastError() const
 {
     return d->lastError;
 }

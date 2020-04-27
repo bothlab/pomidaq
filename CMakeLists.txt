@@ -62,6 +62,7 @@ endif()
 #
 include(GNUInstallDirs)
 find_package(Threads)
+find_package(Qt5Core REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 
 find_package(OpenCV 4.1 REQUIRED)

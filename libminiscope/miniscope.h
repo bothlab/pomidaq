@@ -20,6 +20,7 @@
 #ifndef MINISCOPE_H
 #define MINISCOPE_H
 
+#include <QObject>
 #include <memory>
 #include <functional>
 #include <opencv2/core.hpp>
@@ -36,6 +37,10 @@ namespace MScope
 {
 
 using milliseconds_t = std::chrono::milliseconds;
+
+using MessageCallback = std::function<void (const QString&, void *)>;
+using RawFrameCallback = std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)>;
+using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
 
 enum class BackgroundDiffMethod {
     None,
@@ -67,14 +72,14 @@ public:
 
     bool run();
     void stop();
-    bool startRecording(const std::string& fname = "");
+    bool startRecording(const QString &fname = "");
     void stopRecording();
 
     bool running() const;
     bool recording() const;
     bool captureStartTimeInitialized() const;
 
-    void setOnMessage(std::function<void(const std::string&, void*)> callback, void *udata = nullptr);
+    void setOnMessage(MessageCallback callback, void *udata = nullptr);
     void setPrintMessagesToStdout(bool enabled);
 
     bool useColor() const;
@@ -102,7 +107,7 @@ public:
      * Please note that this function will also be called in case we are dropping frames. In this case, the
      * frame data matrix will be empty.
      */
-    void setOnFrame(std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)> callback, void *udata = nullptr);
+    void setOnFrame(RawFrameCallback callback, void *udata = nullptr);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired on the edited frame.
@@ -110,7 +115,7 @@ public:
      * This callback is executed for each (possibly modified) "display frame" that an application like
      * PoMiDAQ would show to the user.
      */
-    void setOnDisplayFrame(std::function<void(const cv::Mat &, const milliseconds_t &, void *)> callback, void *udata = nullptr);
+    void setOnDisplayFrame(DisplayFrameCallback callback, void *udata = nullptr);
 
     cv::Mat currentDisplayFrame();
     uint currentFps() const;
@@ -127,8 +132,8 @@ public:
     bool externalRecordTrigger() const;
     void setExternalRecordTrigger(bool enabled);
 
-    std::string videoFilename() const;
-    void setVideoFilename(const std::string& fname);
+    QString videoFilename() const;
+    void setVideoFilename(const QString &fname);
 
     VideoCodec videoCodec() const;
     void setVideoCodec(VideoCodec codec);
@@ -157,7 +162,7 @@ public:
     uint recordingSliceInterval() const;
     void setRecordingSliceInterval(uint minutes);
 
-    std::string lastError() const;
+    QString lastError() const;
 
     milliseconds_t lastRecordedFrameTime() const;
 
@@ -170,8 +175,8 @@ private:
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();
-    void emitMessage(const std::string& msg);
-    void fail(const std::string& msg);
+    void emitMessage(const QString &msg);
+    void fail(const QString &msg);
 };
 
 } // end of MiniScope namespace
