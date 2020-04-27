@@ -38,7 +38,6 @@ namespace MScope
 
 using milliseconds_t = std::chrono::milliseconds;
 
-using MessageCallback = std::function<void (const QString&, void *)>;
 using RawFrameCallback = std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)>;
 using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
 
@@ -48,10 +47,11 @@ enum class BackgroundDiffMethod {
     Division
 };
 
-class MS_LIB_EXPORT Miniscope
+class MS_LIB_EXPORT Miniscope : public QObject
 {
+    Q_OBJECT
 public:
-    explicit Miniscope();
+    explicit Miniscope(QObject *parent = nullptr);
     ~Miniscope();
 
     void setScopeCamId(int id);
@@ -78,7 +78,6 @@ public:
     bool recording() const;
     bool captureStartTimeInitialized() const;
 
-    void setOnMessage(MessageCallback callback, void *udata = nullptr);
     void setPrintMessagesToStdout(bool enabled);
 
     bool useColor() const;
@@ -164,6 +163,9 @@ public:
     QString lastError() const;
 
     milliseconds_t lastRecordedFrameTime() const;
+
+signals:
+    void statusMessage(const QString message);
 
 private:
     class Private;

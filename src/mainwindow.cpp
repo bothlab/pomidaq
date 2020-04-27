@@ -133,7 +133,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
     m_mscope = new Miniscope();
-    m_mscope->setOnMessage([&](const QString &msg, void*) {
+    connect(m_mscope, &Miniscope::statusMessage, [&](const QString &msg) {
         m_newMessages.enqueue(msg);
     });
     m_mscope->setPrintMessagesToStdout(true);

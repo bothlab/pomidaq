@@ -76,7 +76,6 @@ public:
 
         frameCallback.first = nullptr;
         displayFrameCallback.first = nullptr;
-        messageCallback.first = nullptr;
     }
 
     std::thread *thread;
@@ -119,7 +118,6 @@ public:
     std::pair<RawFrameCallback, void*> frameCallback;
     std::pair<DisplayFrameCallback, void*> displayFrameCallback;
 
-    std::pair<MessageCallback, void*> messageCallback;
     bool printMessagesToStdout;
 
     bool useColor;
@@ -139,8 +137,9 @@ public:
 } // end of namespace MScope
 
 
-Miniscope::Miniscope()
-    : d(new Miniscope::Private())
+Miniscope::Miniscope(QObject *parent)
+    : QObject(parent),
+      d(new Miniscope::Private())
 {
     d->exposure = 100;
     d->gain = 32;
@@ -176,12 +175,10 @@ void Miniscope::emitMessage(const QString &msg)
 {
     if (d->printMessagesToStdout)
         std::cout << msg.toStdString() << std::endl;
-    if (!d->messageCallback.first)
-        return;
 
     // we don't want to call this callback twice simultaneously
     std::lock_guard<std::mutex> lock(d->msgMutex);
-    d->messageCallback.first(msg, d->messageCallback.second);
+    Q_EMIT statusMessage(msg);
 }
 
 void Miniscope::fail(const QString &msg)
@@ -373,11 +370,6 @@ bool Miniscope::recording() const
 bool Miniscope::captureStartTimeInitialized() const
 {
     return d->captureStartTimeInitialized;
-}
-
-void Miniscope::setOnMessage(MessageCallback callback, void *udata)
-{
-    d->messageCallback = std::make_pair(callback, udata);
 }
 
 void Miniscope::setPrintMessagesToStdout(bool enabled)
