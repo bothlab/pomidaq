@@ -23,21 +23,37 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <QDebug>
 #include <QQueue>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QVector>
+#include <QHash>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/opencv_modules.hpp>
 #include <opencv2/videoio.hpp>
 
-#include "definitions.h"
+#include "scopeintf.h"
 #include "videowriter.h"
 
 namespace MScope
 {
+
+/**
+ * @brief Defines a rule to scale values and convert them to a packet
+ */
+class ControlCommandRule
+{
+public:
+    QVector<QHash<QString, int>> command;
+    double valueScale;
+    double valueOffset;
+    QVector<double> valueMap;
+};
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class Miniscope::Private
@@ -89,9 +105,18 @@ public:
     cv::VideoCapture cam;
     int scopeCamId;
 
-    double exposure;
-    double gain;
-    double excitation;
+    QJsonObject deviceConfig;
+    QString deviceType;
+    cv::Size resolution;
+    bool supportsColor;
+    QString sensorType;
+
+    QList<ControlDefinition> controls;
+    QHash<QString, ControlCommandRule> controlRules;
+
+
+
+
     std::atomic_uint fps;
     QString videoFname;
     bool useUnixTime;
@@ -144,17 +169,196 @@ Miniscope::Miniscope(QObject *parent)
     : QObject(parent),
       d(new Miniscope::Private())
 {
-    d->exposure = 100;
-    d->gain = 32;
-    d->excitation = 1;
     d->fps = 20;
+    d->deviceConfig = QJsonObject();
 }
 
 Miniscope::~Miniscope()
 {
     finishCaptureThread();
-    setExcitation(0);
     disconnect();
+}
+
+static QJsonObject msconfGetDevicesJson()
+{
+    QFile msTypesRc(QStringLiteral(":/config/miniscopes.json"));
+    if (!msTypesRc.open(QIODevice::ReadOnly))
+        return QJsonObject();
+    const auto jDoc = QJsonDocument::fromJson(msTypesRc.readAll());
+
+    return jDoc.object();
+}
+
+static int msconfStringToInt(const QString &s)
+{
+    // Should return a uint8 type of value (0 to 255)
+    bool ok = false;
+    int value;
+    int size = s.size();
+    if (size == 0) {
+        qDebug() << "No data in string to convert to int";
+        value = SEND_COMMAND_ERROR;
+        ok = false;
+    }
+    else if (s.left(2) == "0x"){
+        // HEX
+        value = s.right(size - 2).toUInt(&ok, 16);
+    }
+    else if (s.left(2) == "0b"){
+        // Binary
+        value = s.right(size - 2).toUInt(&ok, 2);
+    }
+    else {
+        value = s.toUInt(&ok, 10);
+        if (ok == false) {
+            // This is then a string
+            if (s == "I2C")
+                value = PROTOCOL_I2C;
+            else if (s == "SPI")
+                value = PROTOCOL_SPI;
+            else if (s == "valueH24")
+                value = SEND_COMMAND_VALUE_H24;
+            else if (s == "valueH16")
+                value = SEND_COMMAND_VALUE_H16;
+            else if (s == "valueH")
+                value = SEND_COMMAND_VALUE_H;
+            else if (s == "valueL")
+                value = SEND_COMMAND_VALUE_L;
+            else if (s == "value")
+                value = SEND_COMMAND_VALUE;
+            else if (s == "value2H")
+                value = SEND_COMMAND_VALUE2_H;
+            else if (s == "value2L")
+                value = SEND_COMMAND_VALUE2_L;
+            else
+                value = SEND_COMMAND_ERROR;
+            ok = true;
+        }
+    }
+
+    if (ok == true)
+        return value;
+    else
+        return SEND_COMMAND_ERROR;
+}
+
+static QVector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray &sendCommand)
+{
+    // creates a mapping to handle future I2C/SPI slider value send commands
+    QVector<QHash<QString, int>> output;
+    QHash<QString, int> commandStructure;
+    QJsonObject jObj;
+    QStringList keys;
+
+    for (int i = 0; i < sendCommand.size(); i++) {
+        jObj = sendCommand[i].toObject();
+        keys = jObj.keys();
+
+        for (int j = 0; j < keys.size(); j++) {
+            // -1 = controlValue, -2 = error
+            if (jObj[keys[j]].isString())
+                commandStructure[keys[j]] = msconfStringToInt(jObj[keys[j]].toString());
+            else if (jObj[keys[j]].isDouble())
+                commandStructure[keys[j]] = jObj[keys[j]].toInt();
+        }
+        output.append(commandStructure);
+    }
+
+    return output;
+}
+
+QStringList Miniscope::availableMiniscopeTypes() const
+{
+    auto deviceTypes = msconfGetDevicesJson().keys();
+    std::sort(deviceTypes.begin(), deviceTypes.end());
+    return deviceTypes;
+}
+
+bool Miniscope::loadDeviceConfig(const QString &deviceType)
+{
+    const auto allDevConfigs = msconfGetDevicesJson();
+    if (!allDevConfigs.contains(deviceType)) {
+        d->lastError = QStringLiteral("Unable to find device configuration with name '%1'").arg(deviceType);
+        return false;
+    }
+    d->deviceConfig = allDevConfigs[deviceType].toObject();
+    d->deviceType = deviceType;
+
+    // load basic settings
+    d->resolution = cv::Size(d->deviceConfig["width"].toInt(-1), d->deviceConfig["height"].toInt(-1));
+    d->supportsColor = d->deviceConfig["isColor"].toBool(false);
+    d->sensorType = d->deviceConfig["sensor"].toString("unknown");
+
+    // load information about available controls
+    d->controls.clear();
+    d->controlRules.clear();
+    const auto controlSettings = d->deviceConfig["controlSettings"].toObject();
+    if (controlSettings.isEmpty()) {
+        qWarning() << "controlSettings missing from miniscopes.json for deviceType = " << d->deviceType;
+        return true;
+    }
+
+    for (const QString& controlName : controlSettings.keys()) {
+        const auto values = controlSettings.value(controlName).toObject();
+        const auto keys = values.keys();
+        ControlCommandRule commandRule;
+        ControlDefinition control;
+        control.name = controlName;
+
+        QJsonValue startValue;
+        for (const auto &key : values.keys()) {
+            const auto value = values[key];
+            if (key == "sendCommand") {
+                commandRule.command = msconfParseSendCommand(value.toArray());
+            } else if (key == "min") {
+                control.valueMin = value.toInt();
+            } else if (key == "max") {
+                control.valueMax = value.toInt();
+            } else if (key == "stepSize") {
+                control.stepSize = value.toInt();
+            } else if (key == "startValue") {
+                startValue = value;
+            } else if (key == "displayValueScale") {
+                commandRule.valueScale = value.toDouble();
+            } else if (key == "displayValueOffset") {
+                commandRule.valueOffset = value.toDouble();
+            } else if (key == "displaySpinBoxValues") {
+                QStringList labels;
+                for (const auto &text : value.toArray())
+                    labels.append(text.toString());
+                control.labels = labels;
+            } else if (key == "outputValues") {
+                QVector<double> outVals;
+                for (const auto &v : value.toArray())
+                    outVals.push_back(v.toDouble());
+                commandRule.valueMap = outVals;
+            }
+        }
+
+        // if we have a list of labels, we are a selector, otherwise
+        // we assume a sliding-value controller
+        if (control.labels.isEmpty()) {
+            control.kind = ControlKind::Slider;
+        } else {
+            control.kind = ControlKind::Selector;
+            control.valueMin = 0;
+            control.valueMax = control.labels.length() - 1;
+        }
+
+        // set the start value
+        if (!startValue.isNull()) {
+            if (startValue.isString()) {
+                control.startValue = control.labels.indexOf(startValue.toString());
+            } else {
+                control.startValue = startValue.toInt();
+            }
+        }
+
+        d->controlRules[controlName] = commandRule;
+        d->controls.append(control);
+    }
+
+    return true;
 }
 
 void Miniscope::startCaptureThread()
@@ -201,48 +405,6 @@ void Miniscope::setScopeCamId(int id)
 int Miniscope::scopeCamId() const
 {
     return d->scopeCamId;
-}
-
-void Miniscope::setExposure(double value)
-{
-    if (floor(value) == 0)
-        value = 1;
-    if (value > 100)
-        value = 100;
-
-    // NOTE: With V4L as backend, 255 seems to be the max value here
-
-    d->exposure = value;
-    d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * 2.55);
-}
-
-double Miniscope::exposure() const
-{
-    return d->exposure;
-}
-
-void Miniscope::setGain(double value)
-{
-    // NOTE: With V4L as backend, 100 seems to be the max value here
-
-    d->gain = value;
-    d->cam.set(cv::CAP_PROP_GAIN, value);
-}
-
-double Miniscope::gain() const
-{
-    return d->gain;
-}
-
-void Miniscope::setExcitation(double value)
-{
-    d->excitation = value;
-    setLed(value);
-}
-
-double Miniscope::excitation() const
-{
-    return d->excitation;
 }
 
 bool Miniscope::openCamera()
@@ -292,14 +454,6 @@ bool Miniscope::connect()
         return false;
     }
 
-    // initializes CMOS sensor (FPS, gain and exposure enabled...)
-    d->cam.set(cv::CAP_PROP_SATURATION, SET_CMOS_SETTINGS);
-
-    // set default values
-    setExposure(d->exposure);
-    setGain(d->gain);
-    setExcitation(d->excitation);
-
     d->failed = false;
     d->connected = true;
 
@@ -316,16 +470,9 @@ void Miniscope::disconnect()
     d->connected = false;
 }
 
-QStringList Miniscope::availableMiniscopeTypes() const
+QList<ControlDefinition> Miniscope::controls() const
 {
-    QFile msTypesRc(QStringLiteral(":/config/miniscopes.json"));
-    if (!msTypesRc.open(QIODevice::ReadOnly))
-        return QStringList();
-    const auto jDoc = QJsonDocument::fromJson(msTypesRc.readAll());
-
-    auto deviceTypes = jDoc.object().keys();
-    std::sort(deviceTypes.begin(), deviceTypes.end());
-    return deviceTypes;
+    return d->controls;
 }
 
 bool Miniscope::run()
@@ -390,16 +537,6 @@ bool Miniscope::captureStartTimeInitialized() const
 void Miniscope::setPrintMessagesToStdout(bool enabled)
 {
     d->printMessagesToStdout = enabled;
-}
-
-bool Miniscope::useColor() const
-{
-    return d->useColor;
-}
-
-void Miniscope::setUseColor(bool color)
-{
-    d->useColor = color;
 }
 
 void Miniscope::setVisibleChannels(bool red, bool green, bool blue)
@@ -700,22 +837,6 @@ void Miniscope::captureThread(void* msPtr)
         cv::Mat frame;
         const auto cycleStartTime = std::chrono::steady_clock::now();
 
-        // check if we might want to trigger a recording start via external input
-        if (d->checkRecTrigger) {
-            auto temp = static_cast<int>(d->cam.get(cv::CAP_PROP_SATURATION));
-
-            //! std::cout << "GPIO state: " << d->cam.get(cv::CAP_PROP_SATURATION) << std::endl;
-            if ((temp & TRIG_RECORD_EXT) == TRIG_RECORD_EXT) {
-                if (!d->recording) {
-                    // start recording
-                    d->recording = true;
-                }
-            } else {
-                // stop recording (if one was running)
-                d->recording = false;
-            }
-        }
-
         // protect against race-condition when the `captureStartTimeInitialized` var is changed
         // while we are grabbing a frame, or in any other intermediate state before we have
         // initialized the timestamps
@@ -810,10 +931,6 @@ void Miniscope::captureThread(void* msPtr)
                 d->cam.release();
                 d->connected = false;
                 if (self->openCamera()) {
-                    self->emitMessage("Sending settings again.");
-                    self->setExposure(d->exposure);
-                    self->setGain(d->gain);
-                    self->setExcitation(d->excitation);
                     self->emitMessage("Miniscope reconnected.");
                 } else {
                     self->fail("Unable to reopen camera connection.");

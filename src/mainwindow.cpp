@@ -29,10 +29,11 @@
 #include <QStandardPaths>
 #include <QFileDialog>
 #include <QDateTime>
-#include <QMessageBox>
 #include <QSettings>
 #include <QInputDialog>
+
 #include "imageviewwidget.h"
+#include "mscontrolwidget.h"
 
 #ifdef Q_OS_LINUX
 #include <KSharedConfig>
@@ -138,10 +139,14 @@ MainWindow::MainWindow(QWidget *parent) :
     });
     m_mscope->setPrintMessagesToStdout(true);
 
+    // Miniscope controls
+    m_controlsLayout = new QVBoxLayout(this);
+    m_controlsLayout->setMargin(2);
+    m_controlsLayout->setSpacing(4);
+    ui->gbDeviceCtls->setLayout(m_controlsLayout);
+    m_controlsLayout->addStretch();
+
     // display default values
-    ui->sbExposure->setValue(static_cast<int>(m_mscope->exposure()));
-    ui->sbExcitation->setValue(m_mscope->excitation());
-    ui->sbGain->setValue(static_cast<int>(m_mscope->gain()));
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
 
     ui->btnStartStop->setFocus();
@@ -186,21 +191,6 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_sbExcitation_valueChanged(double arg1)
-{
-    arg1 = round(arg1 * 100) / 100;
-    m_mscope->setExcitation(arg1);
-
-    double intpart;
-    if (std::modf(arg1, &intpart) == 0.0)
-        ui->dialExcitation->setValue(static_cast<int>(arg1));
-}
-
-void MainWindow::on_dialExcitation_valueChanged(int value)
-{
-    ui->sbExcitation->setValue(value);
-}
-
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event)
@@ -241,9 +231,27 @@ void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)
         ui->labelTimestampStyle->setText(QStringLiteral("start-at-zero"));
 }
 
-void MainWindow::on_sbExposure_valueChanged(int arg1)
+void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
 {
-    m_mscope->setExposure(arg1);
+    // clear previous controls
+    for (const auto &control : m_controls)
+        delete control;
+    m_controls.clear();
+
+    // load new controls
+    if (!m_mscope->loadDeviceConfig(arg1)) {
+        QMessageBox::critical(this,
+                              "Error",
+                              QString("Unable to load device configuration: %1")
+                              .arg(m_mscope->lastError()));
+    }
+
+    // display widgets for new controls
+    for (const auto &ctl : m_mscope->controls()) {
+        const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
+        m_controlsLayout->insertWidget(0, w);
+        m_controls.append(w);
+    }
 }
 
 void MainWindow::on_btnStartStop_clicked()
@@ -338,11 +346,6 @@ void MainWindow::on_btnStartStop_clicked()
 
     if (!m_mscope->lastError().isEmpty())
         QMessageBox::critical(this, "Error", m_mscope->lastError());
-}
-
-void MainWindow::on_sbGain_valueChanged(int arg1)
-{
-    m_mscope->setGain(arg1);
 }
 
 void MainWindow::on_btnRecord_toggled(bool checked)

@@ -6,7 +6,7 @@ set(LIBMINISCOPE_SRC
 )
 
 set(LIBMINISCOPE_PRIV_HEADERS
-    definitions.h
+    scopeintf.h
     videowriter.h
 )
 

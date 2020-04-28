@@ -26,7 +26,7 @@
       </property>
       <widget class="QWidget" name="widget" native="true">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Maximum" vsizetype="Minimum">
+        <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -36,16 +36,16 @@
          <number>4</number>
         </property>
         <property name="leftMargin">
-         <number>4</number>
+         <number>0</number>
         </property>
         <property name="topMargin">
-         <number>4</number>
+         <number>0</number>
         </property>
         <property name="rightMargin">
          <number>4</number>
         </property>
         <property name="bottomMargin">
-         <number>4</number>
+         <number>0</number>
         </property>
         <item>
          <widget class="QWidget" name="widget_6" native="true">
@@ -56,6 +56,21 @@
            </sizepolicy>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>4</number>
+           </property>
+           <property name="topMargin">
+            <number>2</number>
+           </property>
+           <property name="rightMargin">
+            <number>4</number>
+           </property>
+           <property name="bottomMargin">
+            <number>4</number>
+           </property>
            <item>
             <widget class="QWidget" name="widget_2" native="true">
              <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -300,15 +315,15 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>0</number>
+           <number>1</number>
           </property>
           <widget class="QWidget" name="pageConnect">
            <property name="geometry">
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1072</width>
-             <height>428</height>
+             <width>1106</width>
+             <height>454</height>
             </rect>
            </property>
            <attribute name="label">
@@ -402,8 +417,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1072</width>
-             <height>428</height>
+             <width>1106</width>
+             <height>454</height>
             </rect>
            </property>
            <attribute name="label">
@@ -426,174 +441,10 @@
              <number>4</number>
             </property>
             <item>
-             <widget class="QGroupBox" name="groupBox_2">
+             <widget class="QGroupBox" name="gbDeviceCtls">
               <property name="title">
-               <string>Exposure</string>
+               <string>Device</string>
               </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_2">
-               <property name="spacing">
-                <number>6</number>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QDial" name="dial">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                 <property name="wrapping">
-                  <bool>false</bool>
-                 </property>
-                 <property name="notchesVisible">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="sbExposure">
-                 <property name="toolTip">
-                  <string>Adjust camera exposure</string>
-                 </property>
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                 <property name="value">
-                  <number>10</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QGroupBox" name="groupBox_3">
-              <property name="title">
-               <string>Excitation</string>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_3">
-               <property name="spacing">
-                <number>6</number>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QDial" name="dialExcitation">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                 <property name="singleStep">
-                  <number>1</number>
-                 </property>
-                 <property name="notchesVisible">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QDoubleSpinBox" name="sbExcitation">
-                 <property name="toolTip">
-                  <string>Excitation LED brightness</string>
-                 </property>
-                 <property name="buttonSymbols">
-                  <enum>QAbstractSpinBox::PlusMinus</enum>
-                 </property>
-                 <property name="maximum">
-                  <double>100.000000000000000</double>
-                 </property>
-                 <property name="singleStep">
-                  <double>0.200000000000000</double>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QGroupBox" name="groupBox_4">
-              <property name="title">
-               <string>Gain</string>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_5">
-               <property name="spacing">
-                <number>6</number>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QDial" name="dial_3">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                 <property name="notchesVisible">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="sbGain">
-                 <property name="toolTip">
-                  <string>Adjust gain</string>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
              </widget>
             </item>
             <item>
@@ -812,6 +663,14 @@
            </layout>
           </widget>
           <widget class="QWidget" name="pageRecord">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>0</y>
+             <width>1106</width>
+             <height>454</height>
+            </rect>
+           </property>
            <attribute name="label">
             <string>Recording</string>
            </attribute>
@@ -1065,13 +924,6 @@
      <height>29</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuApp">
-    <property name="title">
-     <string>&amp;DAQ</string>
-    </property>
-    <addaction name="actionSetDataLocation"/>
-    <addaction name="actionQuit"/>
-   </widget>
    <widget class="QMenu" name="menuInfo">
     <property name="title">
      <string>&amp;Info</string>
@@ -1087,6 +939,13 @@
     <addaction name="actionUseDarkTheme"/>
     <addaction name="actionSetFramerateLimit"/>
     <addaction name="actionSetTimestampStyle"/>
+   </widget>
+   <widget class="QMenu" name="menuApp">
+    <property name="title">
+     <string>&amp;DAQ</string>
+    </property>
+    <addaction name="actionSetDataLocation"/>
+    <addaction name="actionQuit"/>
    </widget>
    <addaction name="menuApp"/>
    <addaction name="menuSettings"/>
@@ -1170,70 +1029,5 @@
  <resources>
   <include location="../data/resources.qrc"/>
  </resources>
- <connections>
-  <connection>
-   <sender>dial</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>sbExposure</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>95</x>
-     <y>517</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>248</x>
-     <y>550</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>sbExposure</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>dial</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>550</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>105</x>
-     <y>517</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>dial_3</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>sbGain</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>96</x>
-     <y>681</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>248</x>
-     <y>714</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>sbGain</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>dial_3</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>714</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>105</x>
-     <y>681</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

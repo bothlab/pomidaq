@@ -21,6 +21,7 @@
 #define MINISCOPE_H
 
 #include <QObject>
+#include <QVector>
 #include <memory>
 #include <functional>
 #include <opencv2/core.hpp>
@@ -47,6 +48,35 @@ enum class BackgroundDiffMethod {
     Division
 };
 
+/**
+ * @brief Set which type of control is needed
+ */
+enum class ControlKind {
+    Unknown,  /// Unknown scope control
+    Selector, /// switch between a set of predefined values
+    Slider    /// slide between an min and a max value
+};
+
+class ControlDefinition
+{
+public:
+    explicit ControlDefinition()
+        : valueMin(-1),
+          valueMax(-1)
+    {}
+
+    ControlKind kind;
+    QString name;
+
+    int valueMin;
+    int valueMax;
+    int stepSize;
+    int startValue;
+
+    QStringList labels;
+    QVector<double> values;
+};
+
 class MS_LIB_EXPORT Miniscope : public QObject
 {
     Q_OBJECT
@@ -54,22 +84,16 @@ public:
     explicit Miniscope(QObject *parent = nullptr);
     ~Miniscope();
 
+    QStringList availableMiniscopeTypes() const;
+    bool loadDeviceConfig(const QString &deviceType);
+
     void setScopeCamId(int id);
     int scopeCamId() const;
-
-    void setExposure(double value);
-    double exposure() const;
-
-    void setGain(double value);
-    double gain() const;
-
-    void setExcitation(double value);
-    double excitation() const;
 
     bool connect();
     void disconnect();
 
-    QStringList availableMiniscopeTypes() const;
+    QList<ControlDefinition> controls() const;
 
     bool run();
     void stop();
@@ -81,9 +105,6 @@ public:
     bool captureStartTimeInitialized() const;
 
     void setPrintMessagesToStdout(bool enabled);
-
-    bool useColor() const;
-    void setUseColor(bool color);
 
     void setVisibleChannels(bool red, bool green, bool blue);
     bool showRedChannel() const;

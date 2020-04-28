@@ -10,6 +10,8 @@ set(POMIDAQ_SRC
     main.cpp
     mainwindow.h
     mainwindow.cpp
+    mscontrolwidget.h
+    mscontrolwidget.cpp
     imageviewwidget.h
     imageviewwidget.cpp
 )

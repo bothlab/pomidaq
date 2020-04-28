@@ -21,8 +21,10 @@
 
 #include <QMainWindow>
 #include <QQueue>
+#include <QVBoxLayout>
 
 class ImageViewWidget;
+class MSControlWidget;
 class QLabel;
 namespace MScope {
 class Miniscope;
@@ -41,12 +43,9 @@ public:
     ~MainWindow() override;
 
 private slots:
+    void on_deviceTypeComboBox_currentIndexChanged(const QString &arg1);
     void on_btnStartStop_clicked();
     void on_btnRecord_toggled(bool checked);
-    void on_sbExposure_valueChanged(int arg1);
-    void on_sbExcitation_valueChanged(double arg1);
-    void on_dialExcitation_valueChanged(int value);
-    void on_sbGain_valueChanged(int arg1);
     void on_losslessCheckBox_toggled(bool checked);
     void on_containerComboBox_currentIndexChanged(const QString &arg1);
     void on_codecComboBox_currentIndexChanged(const QString &arg1);
@@ -80,7 +79,10 @@ private:
     QLabel *m_statusBarLabel;
 
     MScope::Miniscope *m_mscope;
+    QList<MSControlWidget*> m_controls;
+    QVBoxLayout *m_controlsLayout;
     ImageViewWidget *m_scopeView;
+
     bool m_useUnixTimestamps;
     bool m_running;
 
