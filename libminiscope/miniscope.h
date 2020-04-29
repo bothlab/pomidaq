@@ -66,6 +66,7 @@ public:
     {}
 
     ControlKind kind;
+    QString id;
     QString name;
 
     int valueMin;
@@ -94,6 +95,7 @@ public:
     void disconnect();
 
     QList<ControlDefinition> controls() const;
+    void setControlValue(const QString &id, double value);
 
     bool run();
     void stop();
@@ -196,7 +198,8 @@ private:
     QScopedPointer<Private> d;
 
     bool openCamera();
-    void setLed(double value);
+    void enqueueI2CCommand(long preambleKey, QVector<quint8> packet);
+    void sendCommandsToDevice();
     void addDisplayFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
     static void captureThread(void *msPtr);
     void startCaptureThread();

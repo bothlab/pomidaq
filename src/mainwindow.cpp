@@ -179,6 +179,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // set device list
     ui->deviceTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
+
+    // set the right first toolbox page
+    ui->toolBox->setCurrentIndex(0);
 }
 
 MainWindow::~MainWindow()
@@ -250,6 +253,7 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
     for (const auto &ctl : m_mscope->controls()) {
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
+        connect(w, &MSControlWidget::valueChanged, m_mscope, &Miniscope::setControlValue);
         m_controls.append(w);
     }
 }

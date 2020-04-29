@@ -27,6 +27,8 @@
 MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent)
     : QWidget(parent)
 {
+    m_controlId = ctlDef.id;
+
     const auto layout = new QVBoxLayout(this);
     layout->setMargin(2);
     layout->setSpacing(2);
@@ -75,8 +77,6 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
     }
 
     setLayout(layout);
-
-    m_controlId = ctlDef.name;
 }
 
 void MSControlWidget::recvSliderValueChange(int value)
