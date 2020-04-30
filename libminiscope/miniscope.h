@@ -95,6 +95,7 @@ public:
     void disconnect();
 
     QList<ControlDefinition> controls() const;
+    double controlValue(const QString &id);
     void setControlValue(const QString &id, double value);
 
     bool run();

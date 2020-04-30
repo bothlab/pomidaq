@@ -22,6 +22,11 @@
 #include <QWidget>
 #include "miniscope.h"
 
+class QSlider;
+
+/**
+ * @brief A simple widget to control Miniscope properties
+ */
 class MSControlWidget : public QWidget
 {
     Q_OBJECT
@@ -29,6 +34,9 @@ public:
     explicit MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent = nullptr);
 
     QString controlId() const;
+
+    double value() const;
+    void setValue(double value);
 
 signals:
     void valueChanged(const QString ctlId, double value);
@@ -38,4 +46,5 @@ private slots:
 
 private:
     QString m_controlId;
+    QSlider *m_slider;
 };

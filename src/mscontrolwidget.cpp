@@ -39,16 +39,16 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
 
     if (ctlDef.kind == MScope::ControlKind::Selector) {
         const auto sc = new QWidget(this);
-        const auto slider = new QSlider(Qt::Horizontal, sc);
         const auto selLayout = new QGridLayout(sc);
         const auto valuesCount = ctlDef.labels.length();
+        m_slider = new QSlider(Qt::Horizontal, sc);
         selLayout->setMargin(0);
         selLayout->setSpacing(2);
 
-        slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
-        slider->setSingleStep(1);
-        slider->setValue(ctlDef.startValue);
-        selLayout->addWidget(slider, 0, 0, 1, valuesCount);
+        m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
+        m_slider->setSingleStep(1);
+        m_slider->setValue(ctlDef.startValue);
+        selLayout->addWidget(m_slider, 0, 0, 1, valuesCount);
 
         for (int i = 0; i < valuesCount; ++i) {
             const auto lbl = new QLabel(QStringLiteral("<html><i>%1</i>").arg(ctlDef.labels[i]), sc);
@@ -63,25 +63,32 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
 
         sc->setLayout(selLayout);
         layout->addWidget(sc);
-
-        connect(slider, &QSlider::valueChanged, this, &MSControlWidget::recvSliderValueChange);
     } else {
-        const auto slider = new QSlider(Qt::Horizontal, this);
+        m_slider = new QSlider(Qt::Horizontal, this);
         // just assume slider here, for now
-        slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
-        slider->setValue(ctlDef.startValue);
-        slider->setSingleStep(ctlDef.stepSize);
-        layout->addWidget(slider);
-
-        connect(slider, &QSlider::valueChanged, this, &MSControlWidget::recvSliderValueChange);
+        m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
+        m_slider->setValue(ctlDef.startValue);
+        m_slider->setSingleStep(ctlDef.stepSize);
+        layout->addWidget(m_slider);
     }
 
+    connect(m_slider, &QSlider::valueChanged, this, &MSControlWidget::recvSliderValueChange);
     setLayout(layout);
 }
 
 QString MSControlWidget::controlId() const
 {
     return m_controlId;
+}
+
+double MSControlWidget::value() const
+{
+    return m_slider->value();
+}
+
+void MSControlWidget::setValue(double value)
+{
+    m_slider->setValue(value);
 }
 
 void MSControlWidget::recvSliderValueChange(int value)

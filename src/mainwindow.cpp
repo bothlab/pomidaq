@@ -285,6 +285,10 @@ void MainWindow::on_btnStartStop_clicked()
     // or UNIX timestamps instead
     m_mscope->setUseUnixTimestamps(m_useUnixTimestamps);
 
+    // reflect currently active control values in the UI
+    for (const auto &w : m_controls)
+        w->setValue(m_mscope->controlValue(w->controlId()));
+
     // run and display images
     m_mscope->run();
 
@@ -341,7 +345,7 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnStartStop->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
     ui->sbCamId->setEnabled(true);
-    ui->deviceTypeComboBox->setEnabled(false);
+    ui->deviceTypeComboBox->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
     if (!m_mscope->lastError().isEmpty())

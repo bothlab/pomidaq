@@ -631,6 +631,20 @@ QList<ControlDefinition> Miniscope::controls() const
     return d->controls;
 }
 
+double Miniscope::controlValue(const QString &id)
+{
+    if (!d->controlRules.contains(id)) {
+        emitMessage(QStringLiteral("Unable to get value for nonexisting control %1").arg(id));
+        return -1;
+    }
+
+    for (const auto &ctl : d->controls) {
+        if (ctl.id == id)
+            return ctl.startValue;
+    }
+    return 0;
+}
+
 void Miniscope::setControlValue(const QString &id, double value)
 {
     if (!d->controlRules.contains(id)) {
