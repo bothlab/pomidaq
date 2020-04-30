@@ -49,6 +49,11 @@ namespace MScope
 class ControlCommandRule
 {
 public:
+    explicit ControlCommandRule()
+        : valueScale(1),
+          valueOffset(0),
+          valueBitshift(0)
+    {}
     QVector<QHash<QString, int>> commands;
     double valueScale;
     double valueOffset;
