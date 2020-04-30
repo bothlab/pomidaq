@@ -28,6 +28,8 @@ class MSControlWidget : public QWidget
 public:
     explicit MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent = nullptr);
 
+    QString controlId() const;
+
 signals:
     void valueChanged(const QString ctlId, double value);
 

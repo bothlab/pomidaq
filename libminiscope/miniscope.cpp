@@ -54,6 +54,7 @@ public:
     double valueOffset;
     int valueBitshift;
     QVector<double> valueMap;
+    QVector<double> numLabelMap;
 };
 
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -99,7 +100,7 @@ public:
     }
 
     std::thread *thread;
-    std::mutex frameRingMutex;
+    std::mutex frameMutex;
     std::mutex timeMutex;
     std::mutex cmdMutex;
     std::mutex msgMutex;
@@ -115,11 +116,11 @@ public:
 
     QList<ControlDefinition> controls;
     QHash<QString, ControlCommandRule> controlRules;
+    QHash<QString, double> controlValueCache;
 
     QQueue<QPair<long, QVector<quint8> >> commandQueue;
 
-
-    std::atomic_uint fps;
+    double fps;
     QString videoFname;
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
@@ -128,8 +129,8 @@ public:
 
     std::atomic_int minFluor;
     std::atomic_int maxFluor;
-    int minFluorDisplay;
-    int maxFluorDisplay;
+    std::atomic_int minFluorDisplay;
+    std::atomic_int maxFluorDisplay;
 
     std::atomic<BackgroundDiffMethod> bgDiffMethod;
     std::atomic<double> bgAccumulateAlpha;  // NOTE: Double may not actually be atomic
@@ -346,6 +347,11 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
                 for (const auto &v : value.toArray())
                     outVals.push_back(v.toDouble());
                 commandRule.valueMap = outVals;
+            } else if (key == "displayTextValues") {
+                QVector<double> numLabels;
+                for (const auto &n : value.toArray())
+                    numLabels.push_back(n.toDouble());
+                commandRule.numLabelMap = numLabels;
             }
         }
 
@@ -367,6 +373,19 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
             } else {
                 control.startValue = startValue.toInt();
             }
+        }
+
+        // the framerate is a special case, as we control that in software
+        // we set the default here
+        if (controlKey == "frameRate") {
+            if (commandRule.numLabelMap.isEmpty()) {
+                d->fps = control.startValue;
+            } else {
+                d->fps = commandRule.numLabelMap[control.startValue];
+            }
+
+            if (d->fps <= 1)
+                d->fps = 20;
         }
 
         d->controlRules[control.id] = commandRule;
@@ -551,9 +570,14 @@ bool Miniscope::openCamera()
         }
     }
 
-    // reset all controls to default values
-    for (const auto &ctl : d->controls)
-        setControlValue(ctl.id, ctl.startValue);
+    // reset all controls to default values, or last values
+    // if we have cached any
+    for (const auto &ctl : d->controls) {
+        if (d->controlValueCache.contains(ctl.id))
+            setControlValue(ctl.id, d->controlValueCache[ctl.id]);
+        else
+            setControlValue(ctl.id, ctl.startValue);
+    }
 
     // send all commands to the device for initialization
     sendCommandsToDevice();
@@ -581,6 +605,9 @@ bool Miniscope::connect()
         fail("Unable to connect to Miniscope: No device type to connect to was selected.");
         return false;
     }
+
+    // reset cached control values, so we start with pristine defaults
+    d->controlValueCache.clear();
 
     if (!openCamera()) {
         fail("Unable to connect to Miniscope camera. Is the DAQ board connected?");
@@ -615,6 +642,10 @@ void Miniscope::setControlValue(const QString &id, double value)
         return;
     }
 
+    // cache the current value so we can use it for resets
+    d->controlValueCache[id] = value;
+
+    // convert API value to device-specific command
     const auto rule = d->controlRules[id];
     double devValue = value;
     if (!rule.valueMap.isEmpty()) {
@@ -645,7 +676,7 @@ void Miniscope::setControlValue(const QString &id, double value)
 
             for (int j = 0; j < command["dataLength"]; j++) {
                 const auto tempValue = command["data" + QString::number(j)];
-                qDebug() << "TMPVAL" << tempValue;
+
                 // TODO: Handle value1 through value3
                 if (tempValue == SEND_COMMAND_VALUE_H24) {
                     packet.append((static_cast<quint32>(i2cValue) >> 24) & 0xFF);
@@ -675,6 +706,27 @@ void Miniscope::setControlValue(const QString &id, double value)
         } else {
             qDebug() << command["protocol"] << " protocol for " << id << " not yet supported";
         }
+    }
+
+    // get a human-readable value
+    double dispValue = devValue;
+    if (!rule.numLabelMap.isEmpty())
+        dispValue = rule.numLabelMap[value];
+
+    // write a message to the log
+    emitMessage(QStringLiteral("Control %1 value changed to %2").arg(id).arg(dispValue));
+
+    // the framerate is special, we also need to adjust this locally
+    // for the DAQ thread
+    if (id == "frameRate") {
+        if (rule.numLabelMap.isEmpty()) {
+            d->fps = value;
+        } else {
+            d->fps = rule.numLabelMap[value];
+        }
+
+        if (d->fps <= 1)
+            d->fps = 20;
     }
 }
 
@@ -776,7 +828,7 @@ void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback, void *udata)
 
 cv::Mat Miniscope::currentDisplayFrame()
 {
-    std::lock_guard<std::mutex> lock(d->frameRingMutex);
+    std::lock_guard<std::mutex> lock(d->frameMutex);
     cv::Mat frame;
     const auto queueSize = d->displayQueue.size();
     if (queueSize == 0)
@@ -794,14 +846,9 @@ size_t Miniscope::droppedFramesCount() const
     return d->droppedFramesCount;
 }
 
-uint Miniscope::fps() const
+double Miniscope::fps() const
 {
     return d->fps;
-}
-
-void Miniscope::setFps(uint fps)
-{
-    d->fps = fps;
 }
 
 void Miniscope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
@@ -967,7 +1014,7 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
         displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
 
     // the display frame queue is protected
-    std::lock_guard<std::mutex> lock(d->frameRingMutex);
+    std::lock_guard<std::mutex> lock(d->frameMutex);
 
     // drop frames if we are displaying too slowly, otherwise add new stuff to queue
     if (d->displayQueue.size() < 28)
@@ -1061,7 +1108,7 @@ void Miniscope::captureThread(void* msPtr)
                 d->droppedFramesCount++;
                 if (d->droppedFramesCount >= 5) {
                     if (!status) {
-                        self->fail("Unable to grab valid frames for initialization. (You may try to physically reconnect the DAQ board to resolve this issue)");
+                        self->fail("Unable to grab valid frames for initialization. (You may try to power-cycle the DAQ board to resolve this issue)");
                         break;
                     } else if (d->droppedFramesCount >= 20) {
                         self->fail("Unable to get valid timestamps for initialization.");
@@ -1120,6 +1167,7 @@ void Miniscope::captureThread(void* msPtr)
                 self->emitMessage("Reconnecting Miniscope...");
                 d->cam.release();
                 d->connected = false;
+                std::this_thread::sleep_for(milliseconds_t(1000));
                 if (self->openCamera()) {
                     self->emitMessage("Miniscope reconnected.");
                 } else {
@@ -1249,7 +1297,7 @@ void Miniscope::captureThread(void* msPtr)
 
         // wait a bit if necessary, to keep the right framerate
         const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
-        const auto extraWaitTime = std::chrono::milliseconds((1000 / d->fps) - cycleTime.count());
+        const auto extraWaitTime = std::chrono::milliseconds(qRound(1000.0 / d->fps) - cycleTime.count());
         if (extraWaitTime.count() > 0)
             std::this_thread::sleep_for(extraWaitTime);
 

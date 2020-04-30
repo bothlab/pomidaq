@@ -173,7 +173,6 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->actionUseDarkTheme->setVisible(true);
         ui->actionUseDarkTheme->setChecked(settings.value("ui/useDarkStyle", true).toBool());
     }
-    ui->fpsSpinBox->setMaximum(settings.value("recording/framerateMax", 30).toInt());
     setUseUnixTimestamps(settings.value("recording/useUnixTimestamps", false).toBool());
     ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 5).toInt());
 
@@ -187,7 +186,6 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     QSettings settings(qApp->organizationName(), qApp->applicationName());
-    settings.setValue("recording/framerate", ui->fpsSpinBox->value());
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
 
@@ -298,7 +296,6 @@ void MainWindow::on_btnStartStop_clicked()
     ui->btnStartStop->setEnabled(true);
     ui->sbCamId->setEnabled(false);
     ui->deviceTypeComboBox->setEnabled(false);
-    ui->actionSetFramerateLimit->setEnabled(false);
     ui->actionSetTimestampStyle->setEnabled(false);
 
     while (m_mscope->running()) {
@@ -345,7 +342,6 @@ void MainWindow::on_btnStartStop_clicked()
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
     ui->sbCamId->setEnabled(true);
     ui->deviceTypeComboBox->setEnabled(false);
-    ui->actionSetFramerateLimit->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
     if (!m_mscope->lastError().isEmpty())
@@ -470,11 +466,6 @@ void MainWindow::on_sbDisplayMax_valueChanged(int arg1)
     m_mscope->setMaxFluorDisplay(arg1);
 }
 
-void MainWindow::on_fpsSpinBox_valueChanged(int arg1)
-{
-    m_mscope->setFps(static_cast<uint>(arg1));
-}
-
 void MainWindow::on_btnOpenSaveDir_clicked()
 {
     on_actionSetDataLocation_triggered();
@@ -589,21 +580,6 @@ void MainWindow::on_actionUseDarkTheme_toggled(bool arg1)
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("ui/useDarkStyle", arg1);
 #endif
-}
-
-void MainWindow::on_actionSetFramerateLimit_triggered()
-{
-    bool ok;
-    int maxFps = QInputDialog::getInt(this,
-                                      QStringLiteral("Set upper framerate limit"),
-                                      QStringLiteral("Max. Framerate:"),
-                                      ui->fpsSpinBox->maximum(), 30, 1000, 1,
-                                      &ok);
-    if (ok) {
-        ui->fpsSpinBox->setMaximum(maxFps);
-        QSettings settings(qApp->organizationName(), qApp->applicationName());
-        settings.setValue("recording/framerateMax", maxFps);
-    }
 }
 
 void MainWindow::on_actionSetTimestampStyle_triggered()

@@ -79,6 +79,11 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
     setLayout(layout);
 }
 
+QString MSControlWidget::controlId() const
+{
+    return m_controlId;
+}
+
 void MSControlWidget::recvSliderValueChange(int value)
 {
     Q_EMIT valueChanged(m_controlId, value);

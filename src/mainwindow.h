@@ -52,7 +52,6 @@ private slots:
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
-    void on_fpsSpinBox_valueChanged(int arg1);
     void on_sliceIntervalSpinBox_valueChanged(int arg1);
 
     void on_actionAbout_triggered();
@@ -68,7 +67,6 @@ private slots:
     void on_actionShowMiniscopeLog_toggled(bool arg1);
 
     void on_actionUseDarkTheme_toggled(bool arg1);
-    void on_actionSetFramerateLimit_triggered();
     void on_actionSetTimestampStyle_triggered();
 
 protected:

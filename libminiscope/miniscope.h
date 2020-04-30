@@ -144,8 +144,7 @@ public:
     uint currentFps() const;
     size_t droppedFramesCount() const;
 
-    uint fps() const;
-    void setFps(uint fps);
+    double fps() const;
 
     void setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock> &startTime);
     bool useUnixTimestamps() const;
