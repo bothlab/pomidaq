@@ -322,7 +322,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1108</width>
+             <width>1106</width>
              <height>454</height>
             </rect>
            </property>
@@ -388,7 +388,7 @@
              </layout>
             </item>
             <item>
-             <widget class="QPushButton" name="btnStartStop">
+             <widget class="QPushButton" name="btnDevConnect">
               <property name="text">
                <string>Connect</string>
               </property>
@@ -417,7 +417,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1108</width>
+             <width>1106</width>
              <height>454</height>
             </rect>
            </property>
@@ -686,7 +686,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1108</width>
+             <width>1106</width>
              <height>454</height>
             </rect>
            </property>

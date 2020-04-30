@@ -91,8 +91,8 @@ public:
     void setScopeCamId(int id);
     int scopeCamId() const;
 
-    bool connect();
-    void disconnect();
+    bool deviceConnect();
+    void deviceDisconnect();
 
     QList<ControlDefinition> controls() const;
     double controlValue(const QString &id);

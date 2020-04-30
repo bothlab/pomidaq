@@ -149,7 +149,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // display default values
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
 
-    ui->btnStartStop->setFocus();
+    ui->btnDevConnect->setFocus();
     ui->containerScopeControls->setEnabled(false);
     ui->groupBoxDisplay->setEnabled(false);
     ui->btnRecord->setEnabled(false);
@@ -195,7 +195,7 @@ MainWindow::~MainWindow()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event)
-    m_mscope->disconnect();
+    m_mscope->deviceDisconnect();
 }
 
 void MainWindow::addLogMessage(const QString &msg)
@@ -256,28 +256,28 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
     }
 }
 
-void MainWindow::on_btnStartStop_clicked()
+void MainWindow::on_btnDevConnect_clicked()
 {
     if (m_mscope->running()) {
-        ui->btnStartStop->setEnabled(false);
+        ui->btnDevConnect->setEnabled(false);
         QApplication::processEvents();
-        m_mscope->disconnect();
-        ui->btnStartStop->setEnabled(true);
+        m_mscope->deviceDisconnect();
+        ui->btnDevConnect->setEnabled(true);
         ui->sbCamId->setEnabled(true);
         ui->deviceTypeComboBox->setEnabled(true);
         return;
     }
     m_newMessages.clear();
 
-    ui->btnStartStop->setEnabled(false);
+    ui->btnDevConnect->setEnabled(false);
     m_mscope->setScopeCamId(ui->sbCamId->value());
-    if (!m_mscope->connect()) {
+    if (!m_mscope->deviceConnect()) {
         QMessageBox::critical(this,
                               "Error",
-                              QString("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")
-                                .arg(ui->sbCamId->value()));
+                              QStringLiteral("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")
+                                             .arg(ui->sbCamId->value()));
         setStatusText("Connection error.");
-        ui->btnStartStop->setEnabled(true);
+        ui->btnDevConnect->setEnabled(true);
         return;
     }
 
@@ -292,12 +292,12 @@ void MainWindow::on_btnStartStop_clicked()
     // run and display images
     m_mscope->run();
 
-    ui->btnStartStop->setText("Disconnect");
-    ui->btnStartStop->setChecked(true);
+    ui->btnDevConnect->setText("Disconnect");
+    ui->btnDevConnect->setChecked(true);
     ui->containerScopeControls->setEnabled(true);
     ui->groupBoxDisplay->setEnabled(true);
     ui->btnRecord->setEnabled(true);
-    ui->btnStartStop->setEnabled(true);
+    ui->btnDevConnect->setEnabled(true);
     ui->sbCamId->setEnabled(false);
     ui->deviceTypeComboBox->setEnabled(false);
     ui->actionSetTimestampStyle->setEnabled(false);
@@ -335,14 +335,14 @@ void MainWindow::on_btnStartStop_clicked()
         addLogMessage(m_newMessages.dequeue());
 
     // reset UI elements
-    ui->btnStartStop->setText("Connect");
-    ui->btnStartStop->setChecked(false);
+    ui->btnDevConnect->setText("Connect");
+    ui->btnDevConnect->setChecked(false);
     ui->btnRecord->setText("Record");
 
     ui->containerScopeControls->setEnabled(false);
     ui->groupBoxDisplay->setEnabled(false);
     ui->btnRecord->setEnabled(false);
-    ui->btnStartStop->setEnabled(true);
+    ui->btnDevConnect->setEnabled(true);
     ui->labelCurrentFPS->setText(QStringLiteral("???"));
     ui->sbCamId->setEnabled(true);
     ui->deviceTypeComboBox->setEnabled(true);
@@ -370,7 +370,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
         const auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
         if (m_mscope->startRecording(videoFname)) {
             ui->pageRecord->setEnabled(false);
-            ui->btnStartStop->setEnabled(false);
+            ui->btnDevConnect->setEnabled(false);
             ui->btnRecord->setText("Recording...");
         } else {
             ui->btnRecord->setChecked(false);
@@ -379,7 +379,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     } else {
         m_mscope->stopRecording();
         ui->pageRecord->setEnabled(true);
-        ui->btnStartStop->setEnabled(true);
+        ui->btnDevConnect->setEnabled(true);
         ui->btnRecord->setText("Record");
     }
 }

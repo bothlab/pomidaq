@@ -591,7 +591,7 @@ bool Miniscope::openCamera()
     return ret;
 }
 
-bool Miniscope::connect()
+bool Miniscope::deviceConnect()
 {
     if (d->connected) {
         if (d->failed) {
@@ -622,7 +622,7 @@ bool Miniscope::connect()
     return true;
 }
 
-void Miniscope::disconnect()
+void Miniscope::deviceDisconnect()
 {
     stop();
     d->cam.release();
@@ -713,7 +713,7 @@ void Miniscope::setControlValue(const QString &id, double value)
                 }
                 else {
                     packet.append(tempValue);
-                    preambleKey = (preambleKey<<8) | packet.last();
+                    preambleKey = (preambleKey << 8) | packet.last();
                 }
             }
 
@@ -753,7 +753,7 @@ bool Miniscope::run()
         // try to recover from failed state by reconnecting
         emitMessage("Reconnecting to recover from previous failure.");
         disconnect();
-        if (!connect())
+        if (!deviceConnect())
             return false;
     }
 

@@ -44,7 +44,7 @@ public:
 
 private slots:
     void on_deviceTypeComboBox_currentIndexChanged(const QString &arg1);
-    void on_btnStartStop_clicked();
+    void on_btnDevConnect_clicked();
     void on_btnRecord_toggled(bool checked);
     void on_losslessCheckBox_toggled(bool checked);
     void on_containerComboBox_currentIndexChanged(const QString &arg1);
@@ -70,7 +70,7 @@ private slots:
     void on_actionSetTimestampStyle_triggered();
 
 protected:
-    void closeEvent (QCloseEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
