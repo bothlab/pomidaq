@@ -103,7 +103,6 @@ public:
     std::mutex frameMutex;
     std::mutex timeMutex;
     std::mutex cmdMutex;
-    std::mutex msgMutex;
 
     cv::VideoCapture cam;
     int scopeCamId;
@@ -416,9 +415,6 @@ void Miniscope::emitMessage(const QString &msg)
 {
     if (d->printMessagesToStdout)
         std::cout << msg.toStdString() << std::endl;
-
-    // we don't want to call this callback twice simultaneously
-    std::lock_guard<std::mutex> lock(d->msgMutex);
     Q_EMIT statusMessage(msg);
 }
 
