@@ -245,6 +245,7 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
                               "Error",
                               QString("Unable to load device configuration: %1")
                               .arg(m_mscope->lastError()));
+        return;
     }
 
     // display widgets for new controls

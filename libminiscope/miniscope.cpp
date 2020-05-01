@@ -399,6 +399,11 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     return true;
 }
 
+QString Miniscope::deviceType() const
+{
+    return d->deviceType;
+}
+
 void Miniscope::startCaptureThread()
 {
     finishCaptureThread();
@@ -1123,7 +1128,7 @@ void Miniscope::captureThread(void* msPtr)
                 d->droppedFramesCount++;
                 if (d->droppedFramesCount >= 5) {
                     if (!status) {
-                        self->fail("Unable to grab valid frames for initialization. (You may try to power-cycle the DAQ board to resolve this issue)");
+                        self->fail("Unable to grab valid frames for initialization. (You may try to power cycle the DAQ board to resolve this issue)");
                         break;
                     } else if (d->droppedFramesCount >= 20) {
                         self->fail("Unable to get valid timestamps for initialization.");

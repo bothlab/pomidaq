@@ -87,6 +87,7 @@ public:
 
     QStringList availableMiniscopeTypes() const;
     bool loadDeviceConfig(const QString &deviceType);
+    QString deviceType() const;
 
     void setScopeCamId(int id);
     int scopeCamId() const;
