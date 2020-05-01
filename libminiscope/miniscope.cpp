@@ -486,7 +486,6 @@ void Miniscope::sendCommandsToDevice()
         const auto packet = pair.second;
         bool success = false;
         quint64 tempPacket;
-        qDebug() << "Sending:" << packet;
 
         if (packet.length() < 6){
             tempPacket = (quint64) packet[0]; // address
@@ -495,7 +494,7 @@ void Miniscope::sendCommandsToDevice()
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64) packet[j]) << (8 * (j + 1));
 
-            qDebug().noquote().nospace() << "Send: 1-5: 0x" << QString::number(tempPacket,16);
+            qDebug().noquote().nospace() << "Miniscope: Send 1-5: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
@@ -508,17 +507,17 @@ void Miniscope::sendCommandsToDevice()
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
 
-            qDebug().noquote().nospace() << "Send: 6: 0x" << QString::number(tempPacket,16);
+            qDebug().noquote().nospace() << "Miniscope: Send 6: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
                                         (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qDebug() << "Unable to send long control packet";
+                qDebug().noquote() << "Miniscope: Unable to send long control packet";
         }
         else {
             //TODO: Handle packets longer than 6 bytes
-            qDebug() << "Can not handle packets longer than 6 bytes!";
+            qWarning() << "Can not handle packets longer than 6 bytes!";
         }
     }
 }
@@ -526,7 +525,7 @@ void Miniscope::sendCommandsToDevice()
 bool Miniscope::openCamera()
 {
     if (d->connected)
-        std::cerr << "Trying to open an already opened camera connection. This is likely not intended." << std::endl;
+        qWarning().noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
 
     // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
     // has issues with some properties of the Miniscope camera and will refuse to
