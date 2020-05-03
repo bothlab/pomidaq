@@ -1314,12 +1314,6 @@ void Miniscope::captureThread(void* msPtr)
         if (!d->commandQueue.isEmpty())
             self->sendCommandsToDevice();
 
-        // wait a bit if necessary, to keep the right framerate
-        const auto cycleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
-        const auto extraWaitTime = std::chrono::milliseconds(qRound(1000.0 / d->fps) - cycleTime.count());
-        if (extraWaitTime.count() > 0)
-            std::this_thread::sleep_for(extraWaitTime);
-
         const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
         d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
