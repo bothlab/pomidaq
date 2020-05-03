@@ -303,6 +303,9 @@ void MainWindow::on_btnDevConnect_clicked()
     ui->deviceTypeComboBox->setEnabled(false);
     ui->actionSetTimestampStyle->setEnabled(false);
 
+    // switch to controls page, the user will likely need to use that next
+    ui->toolBox->setCurrentIndex(1);
+
     while (m_mscope->running()) {
         auto frame = m_mscope->currentDisplayFrame();
         if (!frame.empty()) {
@@ -351,6 +354,10 @@ void MainWindow::on_btnDevConnect_clicked()
 
     if (!m_mscope->lastError().isEmpty())
         QMessageBox::critical(this, "Error", m_mscope->lastError());
+
+    // switch back to connect page, as this is the
+    // only useful page when no scope is connected
+    ui->toolBox->setCurrentIndex(0);
 }
 
 void MainWindow::on_btnRecord_toggled(bool checked)
