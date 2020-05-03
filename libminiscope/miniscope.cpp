@@ -43,6 +43,8 @@
 namespace MScope
 {
 
+Q_LOGGING_CATEGORY(logMiniscope, "miniscope")
+
 /**
  * @brief Defines a rule to scale values and convert them to a packet
  */
@@ -212,7 +214,7 @@ static int msconfStringToInt(const QString &s)
     int value;
     int size = s.size();
     if (size == 0) {
-        qDebug() << "No data in string to convert to int";
+        qCDebug(logMiniscope) << "No data in string to convert to int";
         value = SEND_COMMAND_ERROR;
         ok = false;
     }
@@ -310,7 +312,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     d->controlRules.clear();
     const auto controlSettings = d->deviceConfig["controlSettings"].toObject();
     if (controlSettings.isEmpty()) {
-        qWarning() << "controlSettings missing from miniscopes.json for deviceType = " << d->deviceType;
+        qCWarning(logMiniscope) << "controlSettings missing from miniscopes.json for deviceType = " << d->deviceType;
         return true;
     }
 
@@ -494,30 +496,30 @@ void Miniscope::sendCommandsToDevice()
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64) packet[j]) << (8 * (j + 1));
 
-            qDebug().noquote().nospace() << "Miniscope: Send 1-5: 0x" << QString::number(tempPacket,16);
+            qCDebug(logMiniscope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
                                         (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qWarning() << "Unable to send short control packet";
+                qCWarning(logMiniscope) << "Unable to send short control packet";
         } else if (packet.length() == 6) {
             tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
 
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
 
-            qDebug().noquote().nospace() << "Miniscope: Send 6: 0x" << QString::number(tempPacket,16);
+            qCDebug(logMiniscope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
                                         (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qDebug().noquote() << "Miniscope: Unable to send long control packet";
+                qCDebug(logMiniscope).noquote() << "Unable to send long control packet";
         }
         else {
             //TODO: Handle packets longer than 6 bytes
-            qWarning() << "Can not handle packets longer than 6 bytes!";
+            qCWarning(logMiniscope) << "Can not handle packets longer than 6 bytes!";
         }
     }
 }
@@ -525,7 +527,7 @@ void Miniscope::sendCommandsToDevice()
 bool Miniscope::openCamera()
 {
     if (d->connected)
-        qWarning().noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
+        qCWarning(logMiniscope).noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
 
     // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
     // has issues with some properties of the Miniscope camera and will refuse to
@@ -571,7 +573,7 @@ bool Miniscope::openCamera()
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            qDebug() << command["protocol"] << " initialization protocol not yet supported";
+            qCDebug(logMiniscope) << command["protocol"] << " initialization protocol not yet supported";
         }
     }
 
@@ -723,7 +725,7 @@ void Miniscope::setControlValue(const QString &id, double value)
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            qDebug() << command["protocol"] << " protocol for " << id << " not yet supported";
+            qCDebug(logMiniscope) << command["protocol"] << " protocol for " << id << " not yet supported";
         }
     }
 

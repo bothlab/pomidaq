@@ -22,8 +22,7 @@
 
 #include <QObject>
 #include <QVector>
-#include <memory>
-#include <functional>
+#include <QLoggingCategory>
 #include <opencv2/core.hpp>
 
 #include "mediatypes.h"
@@ -36,6 +35,8 @@
 
 namespace MScope
 {
+
+Q_DECLARE_LOGGING_CATEGORY(logMiniscope)
 
 using milliseconds_t = std::chrono::milliseconds;
 
