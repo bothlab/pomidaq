@@ -396,7 +396,6 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
 {
     // reset state of lossless infobox
     ui->losslessCheckBox->setEnabled(true);
-    ui->losslessLabel->setEnabled(true);
     ui->losslessCheckBox->setChecked(m_mscope->recordLossless());
     ui->containerComboBox->setEnabled(true);
 
@@ -408,7 +407,6 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
 
         // FFV1 is always lossless
         ui->losslessCheckBox->setEnabled(false);
-        ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
     } else if (arg1 == "VP9") {
@@ -426,7 +424,6 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
 
         // MPEG-4 can't do lossless encoding
         ui->losslessCheckBox->setEnabled(false);
-        ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
 
     } else if (arg1 == "None") {
@@ -434,7 +431,6 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
 
         // Raw is always lossless
         ui->losslessCheckBox->setEnabled(false);
-        ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
         // Raw RGB only works with AVI containers
