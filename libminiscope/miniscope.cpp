@@ -484,6 +484,12 @@ void Miniscope::sendCommandsToDevice()
     std::lock_guard<std::mutex> lock(d->cmdMutex);
 
     while (!d->commandQueue.isEmpty()) {
+        // Slow down command submission to give the DAQ board time to process
+        // some of them. Connection instability increases if we are sending a
+        // large set of packets in a short time.
+        if ((d->commandQueue.size() % 4) == 0)
+            std::this_thread::sleep_for(milliseconds_t(10));
+
         const auto pair = d->commandQueue.dequeue();
         const auto packet = pair.second;
         bool success = false;
@@ -546,6 +552,10 @@ bool Miniscope::openCamera()
         emitMessage("Unable to use preferred camera backend, falling back to autodetection.");
         ret = d->cam.open(d->scopeCamId);
     }
+
+    // ensure the command queue isn't full with old packets that flood the
+    // DAQ board immediately after it is connected
+    d->commandQueue.clear();
 
     // reset all packet parts to zero
     scopeDAQSendBytes(&d->cam, 0x00, 0x00 ,0x00);
