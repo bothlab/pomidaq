@@ -745,11 +745,11 @@ void MiniScope::captureThread(void* msPtr)
                 // which may indicate issues in the DAQ board itself or connectivity problems.
                 // Otherwise we fail after 20 dropped frames.
                 d->droppedFramesCount++;
-                if (d->droppedFramesCount >= 4) {
+                if (d->droppedFramesCount >= 5) {
                     if (!status) {
                         self->fail("Unable to grab valid frames for initialization. (You may try to physically reconnect the DAQ board to resolve this issue)");
                         break;
-                    } else if (d->droppedFramesCount >= 20) {
+                    } else if (d->droppedFramesCount >= 34) {
                         self->fail("Unable to get valid timestamps for initialization.");
                         break;
                     }
