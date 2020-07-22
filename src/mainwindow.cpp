@@ -116,6 +116,35 @@ static void changeColorsDarkmode(bool enabled)
 }
 #endif
 
+
+static MainWindow *g_mainWin = nullptr;
+
+void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const QString &msg)
+{
+    QByteArray localMsg = msg.toLocal8Bit();
+    switch (type) {
+    case QtDebugMsg:
+        fprintf(stderr, "%s: %s\n", ctx.category, localMsg.constData());
+        break;
+    case QtInfoMsg:
+        fprintf(stderr, "%s: %s\n", ctx.category, localMsg.constData());
+        if (g_mainWin) g_mainWin->queueLogMessage(msg);
+        break;
+    case QtWarningMsg:
+        fprintf(stderr, "W: %s: %s\n", ctx.category, localMsg.constData());
+        if (g_mainWin) g_mainWin->queueLogMessage(QStringLiteral("W: %1").arg(msg));
+        break;
+    case QtCriticalMsg:
+        fprintf(stderr, "E: %s: %s\n", ctx.category, localMsg.constData());
+        if (g_mainWin) g_mainWin->queueLogMessage(QStringLiteral("E: %1").arg(msg));
+        break;
+    case QtFatalMsg:
+        fprintf(stderr, "FATAL: %s: %s\n", ctx.category, localMsg.constData());
+        if (g_mainWin) g_mainWin->queueLogMessage(QStringLiteral("FATAL: %1").arg(msg));
+        break;
+    }
+}
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -135,7 +164,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_mscope = new Miniscope();
     m_mscope->setOnStatusMessage([&](const QString &msg, void*) {
-        m_newMessages.enqueue(msg);
+        setStatusText(msg);
     });
 
     // Miniscope controls
@@ -180,6 +209,11 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // set the right first toolbox page
     ui->toolBox->setCurrentIndex(0);
+
+    // install new message handler so output can also be redirected to the GUI
+    // log display (Windows users like this...)
+    g_mainWin = this;
+    qInstallMessageHandler(messageOutputHandler);
 }
 
 MainWindow::~MainWindow()
@@ -187,6 +221,10 @@ MainWindow::~MainWindow()
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
+
+    // reset default message handler
+    qInstallMessageHandler(nullptr);
+    g_mainWin = nullptr;
 
     delete ui;
     delete m_mscope;
@@ -198,7 +236,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     m_mscope->disconnect();
 }
 
-void MainWindow::addLogMessage(const QString &msg)
+void MainWindow::writeLogMessage(const QString &msg)
 {
     m_messageCount += 1;
     if (m_messageCount > 200) {
@@ -208,7 +246,13 @@ void MainWindow::addLogMessage(const QString &msg)
 
     ui->logTextList->appendPlainText(msg);
     ui->logTextList->verticalScrollBar()->setValue(ui->logTextList->verticalScrollBar()->maximum());
-    setStatusText(msg);
+}
+
+void MainWindow::queueLogMessage(const QString &msg)
+{
+    QMetaObject::invokeMethod(this, [=](){
+        writeLogMessage(msg);
+    }, Qt::QueuedConnection);
 }
 
 void MainWindow::setStatusText(const QString& msg)
@@ -270,7 +314,6 @@ void MainWindow::on_btnDevConnect_clicked()
         ui->deviceTypeComboBox->setEnabled(true);
         return;
     }
-    m_newMessages.clear();
 
     ui->btnDevConnect->setEnabled(false);
     m_mscope->setScopeCamId(ui->sbCamId->value());
@@ -329,16 +372,8 @@ void MainWindow::on_btnDevConnect_clicked()
             }
         }
 
-        if (!m_newMessages.isEmpty())
-            addLogMessage(m_newMessages.dequeue());
-
         QApplication::processEvents();
     }
-
-    // if we are here, we stopped running
-    // get last messages
-    while (!m_newMessages.isEmpty())
-        addLogMessage(m_newMessages.dequeue());
 
     // reset UI elements
     ui->btnDevConnect->setText("Connect");

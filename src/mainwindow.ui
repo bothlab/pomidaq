@@ -19,6 +19,21 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>4</number>
+    </property>
+    <property name="leftMargin">
+     <number>4</number>
+    </property>
+    <property name="topMargin">
+     <number>4</number>
+    </property>
+    <property name="rightMargin">
+     <number>4</number>
+    </property>
+    <property name="bottomMargin">
+     <number>4</number>
+    </property>
     <item>
      <widget class="QSplitter" name="splitter">
       <property name="orientation">
@@ -322,8 +337,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1106</width>
-             <height>454</height>
+             <width>1107</width>
+             <height>285</height>
             </rect>
            </property>
            <attribute name="label">
@@ -417,8 +432,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1106</width>
-             <height>454</height>
+             <width>1107</width>
+             <height>285</height>
             </rect>
            </property>
            <attribute name="label">
@@ -686,8 +701,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1106</width>
-             <height>454</height>
+             <width>1107</width>
+             <height>285</height>
             </rect>
            </property>
            <attribute name="label">
@@ -863,12 +878,6 @@
         </item>
         <item>
          <widget class="QPlainTextEdit" name="logTextList">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -920,7 +929,7 @@
      <x>0</x>
      <y>0</y>
      <width>1157</width>
-     <height>29</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuInfo">

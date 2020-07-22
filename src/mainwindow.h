@@ -42,6 +42,8 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
+    void queueLogMessage(const QString &msg);
+
 private slots:
     void on_deviceTypeComboBox_currentIndexChanged(const QString &arg1);
     void on_btnDevConnect_clicked();
@@ -85,11 +87,10 @@ private:
     bool m_running;
 
     int m_messageCount;
-    QQueue<QString> m_newMessages;
 
     QString dataDir;
 
-    void addLogMessage(const QString &msg);
+    void writeLogMessage(const QString &msg);
     void setStatusText(const QString& msg);
     void setDataExportDir(const QString& dir);
     void setUseUnixTimestamps(bool useUnixTimestamp);
