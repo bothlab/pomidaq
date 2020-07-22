@@ -38,9 +38,10 @@ Q_DECLARE_LOGGING_CATEGORY(logMScope)
 
 using milliseconds_t = std::chrono::milliseconds;
 
+using StatusMessageCallback = std::function<void(const QString&, void *)>;
+using ControlChangeCallback = std::function<void(const QString&, double, double, void *)>;
 using RawFrameCallback = std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)>;
 using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
-using StatusMessageCallback = std::function<void(const QString&, void *)>;
 
 enum class BackgroundDiffMethod {
     None,
@@ -119,6 +120,11 @@ public:
      * or detailed event reporting.
      */
     void setOnStatusMessage(StatusMessageCallback callback, void *udata = nullptr);
+
+    /**
+     * @brief Called when a Miniscope setting is changes.
+     */
+    void setOnControlValueChange(ControlChangeCallback callback, void *udata = nullptr);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired.

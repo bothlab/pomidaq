@@ -100,6 +100,7 @@ public:
         unixCaptureStartTime = milliseconds_t(0);
 
         statusCallback.first = nullptr;
+        controlChangeCallback.first = nullptr;
         frameCallback.first = nullptr;
         displayFrameCallback.first = nullptr;
     }
@@ -110,6 +111,8 @@ public:
     std::mutex cmdMutex;
 
     std::pair<StatusMessageCallback, void*> statusCallback;
+    std::pair<ControlChangeCallback, void*> controlChangeCallback;
+
     cv::VideoCapture cam;
     int scopeCamId;
 
@@ -176,6 +179,7 @@ Q_GLOBAL_STATIC_WITH_ARGS(ControlIdToNameHash, g_controlIdToName, ( {
     { QLatin1String("frameRate"), QLatin1String("Framerate") },
     { QLatin1String("led0"), QLatin1String("Excitation") },
     { QLatin1String("gain"), QLatin1String("Gain") },
+    { QLatin1String("ewl"), QLatin1String("EWL") },
     }
 ));
 
@@ -751,6 +755,11 @@ void Miniscope::setControlValue(const QString &id, double value)
     // write a message to the log
     msgInfo(QStringLiteral("Control %1 value changed to %2").arg(id).arg(dispValue));
 
+    // emit a machine-readable message about this control change
+    const auto cchangeCB = d->controlChangeCallback.first;
+    if (cchangeCB != nullptr)
+        cchangeCB(id, dispValue, devValue, d->controlChangeCallback.second);
+
     // the framerate is special, we also need to adjust this locally
     // for the DAQ thread
     if (id == "frameRate") {
@@ -851,6 +860,11 @@ bool Miniscope::showBlueChannel() const
 void Miniscope::setOnStatusMessage(StatusMessageCallback callback, void *udata)
 {
     d->statusCallback = std::make_pair(callback, udata);
+}
+
+void Miniscope::setOnControlValueChange(ControlChangeCallback callback, void *udata)
+{
+    d->controlChangeCallback = std::make_pair(callback, udata);
 }
 
 void Miniscope::setOnFrame(MScope::RawFrameCallback callback, void *udata)
