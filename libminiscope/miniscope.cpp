@@ -29,7 +29,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QVector>
 #include <QHash>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -43,7 +42,7 @@
 namespace MScope
 {
 
-Q_LOGGING_CATEGORY(logMiniscope, "miniscope")
+Q_LOGGING_CATEGORY(logMScope, "miniscope")
 
 /**
  * @brief Defines a rule to scale values and convert them to a packet
@@ -56,12 +55,12 @@ public:
           valueOffset(0),
           valueBitshift(0)
     {}
-    QVector<QHash<QString, int>> commands;
+    std::vector<QHash<QString, int>> commands;
     double valueScale;
     double valueOffset;
     int valueBitshift;
-    QVector<double> valueMap;
-    QVector<double> numLabelMap;
+    std::vector<double> valueMap;
+    std::vector<double> numLabelMap;
 };
 
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -84,8 +83,6 @@ public:
         videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
 
-        printMessagesToStdout = false;
-
         showRed = true;
         showGreen = true;
         showBlue = true;
@@ -102,6 +99,7 @@ public:
         useUnixTime = false; // no timestamps in UNIX time by default
         unixCaptureStartTime = milliseconds_t(0);
 
+        statusCallback.first = nullptr;
         frameCallback.first = nullptr;
         displayFrameCallback.first = nullptr;
     }
@@ -111,6 +109,7 @@ public:
     std::mutex timeMutex;
     std::mutex cmdMutex;
 
+    std::pair<StatusMessageCallback, void*> statusCallback;
     cv::VideoCapture cam;
     int scopeCamId;
 
@@ -124,7 +123,7 @@ public:
     QHash<QString, ControlCommandRule> controlRules;
     QHash<QString, double> controlValueCache;
 
-    QQueue<QPair<long, QVector<quint8> >> commandQueue;
+    QQueue<QPair<long, std::vector<quint8> >> commandQueue;
 
     double fps;
     QString videoFname;
@@ -155,8 +154,6 @@ public:
     std::pair<RawFrameCallback, void*> frameCallback;
     std::pair<DisplayFrameCallback, void*> displayFrameCallback;
 
-    bool printMessagesToStdout;
-
     bool useColor;
     bool showRed;
     bool showGreen;
@@ -183,9 +180,8 @@ Q_GLOBAL_STATIC_WITH_ARGS(ControlIdToNameHash, g_controlIdToName, ( {
 ));
 
 
-Miniscope::Miniscope(QObject *parent)
-    : QObject(parent),
-      d(new Miniscope::Private())
+Miniscope::Miniscope()
+    : d(new Miniscope::Private())
 {
     d->fps = 20;
     d->deviceConfig = QJsonObject();
@@ -195,6 +191,11 @@ Miniscope::~Miniscope()
 {
     finishCaptureThread();
     disconnect();
+}
+
+static void msgInfo(const QString &msg)
+{
+    qCInfo(logMScope).noquote() << msg;
 }
 
 static QJsonObject msconfGetDevicesJson()
@@ -214,7 +215,7 @@ static int msconfStringToInt(const QString &s)
     int value;
     int size = s.size();
     if (size == 0) {
-        qCDebug(logMiniscope) << "No data in string to convert to int";
+        qCDebug(logMScope) << "No data in string to convert to int";
         value = SEND_COMMAND_ERROR;
         ok = false;
     }
@@ -260,10 +261,10 @@ static int msconfStringToInt(const QString &s)
         return SEND_COMMAND_ERROR;
 }
 
-static QVector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray &sendCommand)
+static std::vector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray &sendCommand)
 {
     // creates a mapping to handle future I2C/SPI slider value send commands
-    QVector<QHash<QString, int>> output;
+    std::vector<QHash<QString, int>> output;
     QHash<QString, int> commandStructure;
     QJsonObject jObj;
     QStringList keys;
@@ -279,7 +280,7 @@ static QVector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray &sen
             else if (jObj[keys[j]].isDouble())
                 commandStructure[keys[j]] = jObj[keys[j]].toInt();
         }
-        output.append(commandStructure);
+        output.push_back(commandStructure);
     }
 
     return output;
@@ -312,7 +313,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     d->controlRules.clear();
     const auto controlSettings = d->deviceConfig["controlSettings"].toObject();
     if (controlSettings.isEmpty()) {
-        qCWarning(logMiniscope) << "controlSettings missing from miniscopes.json for deviceType = " << d->deviceType;
+        qCWarning(logMScope) << "controlSettings missing from miniscopes.json for deviceType = " << d->deviceType;
         return true;
     }
 
@@ -349,12 +350,12 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
                     labels.append(text.toString());
                 control.labels = labels;
             } else if (key == "outputValues") {
-                QVector<double> outVals;
+                std::vector<double> outVals;
                 for (const auto &v : value.toArray())
                     outVals.push_back(v.toDouble());
                 commandRule.valueMap = outVals;
             } else if (key == "displayTextValues") {
-                QVector<double> numLabels;
+                std::vector<double> numLabels;
                 for (const auto &n : value.toArray())
                     numLabels.push_back(n.toDouble());
                 commandRule.numLabelMap = numLabels;
@@ -384,7 +385,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
         // the framerate is a special case, as we control that in software
         // we set the default here
         if (controlKey == "frameRate") {
-            if (commandRule.numLabelMap.isEmpty()) {
+            if (commandRule.numLabelMap.empty()) {
                 d->fps = control.startValue;
             } else {
                 d->fps = commandRule.numLabelMap[control.startValue];
@@ -423,11 +424,13 @@ void Miniscope::finishCaptureThread()
     }
 }
 
-void Miniscope::emitMessage(const QString &msg)
+void Miniscope::statusMessage(const QString &msg)
 {
-    if (d->printMessagesToStdout)
-        std::cout << msg.toStdString() << std::endl;
-    Q_EMIT statusMessage(msg);
+    qCInfo(logMScope).noquote() << "Status:" << msg;
+
+    const auto statusCB = d->statusCallback.first;
+    if (statusCB != nullptr)
+        statusCB(msg, d->statusCallback.second);
 }
 
 void Miniscope::fail(const QString &msg)
@@ -436,7 +439,8 @@ void Miniscope::fail(const QString &msg)
     d->running = false;
     d->failed = true;
     d->lastError = msg;
-    emitMessage(msg);
+
+    qCWarning(logMScope).noquote() << msg;
 }
 
 void Miniscope::setScopeCamId(int id)
@@ -449,7 +453,7 @@ int Miniscope::scopeCamId() const
     return d->scopeCamId;
 }
 
-void Miniscope::enqueueI2CCommand(long preambleKey, QVector<quint8> packet)
+void Miniscope::enqueueI2CCommand(long preambleKey, std::vector<quint8> packet)
 {
     std::lock_guard<std::mutex> lock(d->cmdMutex);
 
@@ -495,37 +499,37 @@ void Miniscope::sendCommandsToDevice()
         bool success = false;
         quint64 tempPacket;
 
-        if (packet.length() < 6){
+        if (packet.size() < 6){
             tempPacket = (quint64) packet[0]; // address
-            tempPacket |= (((quint64) packet.length()) & 0xFF) << 8; // data length
+            tempPacket |= (((quint64) packet.size()) & 0xFF) << 8; // data length
 
-            for (int j = 1; j < packet.length(); j++)
+            for (size_t j = 1; j < packet.size(); j++)
                 tempPacket |= ((quint64) packet[j]) << (8 * (j + 1));
 
-            qCDebug(logMiniscope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket,16);
+            qCDebug(logMScope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
                                         (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qCWarning(logMiniscope) << "Unable to send short control packet";
-        } else if (packet.length() == 6) {
+                qCWarning(logMScope) << "Unable to send short control packet";
+        } else if (packet.size() == 6) {
             tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
 
-            for (int j = 1; j < packet.length(); j++)
+            for (size_t j = 1; j < packet.size(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
 
-            qCDebug(logMiniscope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket,16);
+            qCDebug(logMScope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
                                         (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qCDebug(logMiniscope).noquote() << "Unable to send long control packet";
+                qCDebug(logMScope).noquote() << "Unable to send long control packet";
         }
         else {
             //TODO: Handle packets longer than 6 bytes
-            qCWarning(logMiniscope) << "Can not handle packets longer than 6 bytes!";
+            qCWarning(logMScope) << "Can not handle packets longer than 6 bytes!";
         }
     }
 }
@@ -533,7 +537,7 @@ void Miniscope::sendCommandsToDevice()
 bool Miniscope::openCamera()
 {
     if (d->connected)
-        qCWarning(logMiniscope).noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
+        qCWarning(logMScope).noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
 
     // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
     // has issues with some properties of the Miniscope camera and will refuse to
@@ -549,7 +553,7 @@ bool Miniscope::openCamera()
     auto ret = d->cam.open(d->scopeCamId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
-        emitMessage("Unable to use preferred camera backend, falling back to autodetection.");
+        msgInfo("Unable to use preferred camera backend, falling back to autodetection.");
         ret = d->cam.open(d->scopeCamId);
     }
 
@@ -563,27 +567,27 @@ bool Miniscope::openCamera()
     // prepare all commands to initialize the Miniscope hardware
     const auto initCommands = msconfParseSendCommand(d->deviceConfig["initialize"].toArray());
     for (const auto &command : initCommands) {
-        QVector<quint8> packet;
+        std::vector<quint8> packet;
 
         if (command["protocol"] == PROTOCOL_I2C) {
             int preambleKey = 0;
 
-            packet.append(command["addressW"]);
-            preambleKey = (preambleKey << 8) | packet.last();
+            packet.push_back(command["addressW"]);
+            preambleKey = (preambleKey << 8) | packet.back();
 
             for (int i = 0; i < command["regLength"]; i++) {
-                packet.append(command["reg" + QString::number(i)]);
-                preambleKey = (preambleKey << 8) | packet.last();
+                packet.push_back(command["reg" + QString::number(i)]);
+                preambleKey = (preambleKey << 8) | packet.back();
             }
             for (int i = 0; i < command["dataLength"]; i++) {
                 int tempValue = command["data" + QString::number(i)];
-                packet.append(tempValue);
-                preambleKey = (preambleKey<<8) | packet.last();
+                packet.push_back(tempValue);
+                preambleKey = (preambleKey<<8) | packet.back();
             }
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            qCDebug(logMiniscope) << command["protocol"] << " initialization protocol not yet supported";
+            qCDebug(logMScope) << command["protocol"] << " initialization protocol not yet supported";
         }
     }
 
@@ -607,7 +611,7 @@ bool Miniscope::openCamera()
     return ret;
 }
 
-bool Miniscope::deviceConnect()
+bool Miniscope::connect()
 {
     if (d->connected) {
         if (d->failed) {
@@ -634,16 +638,16 @@ bool Miniscope::deviceConnect()
     d->failed = false;
     d->connected = true;
 
-    emitMessage(QStringLiteral("Initialized camera %1").arg(d->scopeCamId));
+    statusMessage(QStringLiteral("Initialized camera %1").arg(d->scopeCamId));
     return true;
 }
 
-void Miniscope::deviceDisconnect()
+void Miniscope::disconnect()
 {
     stop();
     d->cam.release();
     if (d->connected)
-        emitMessage(QStringLiteral("Disconnected camera %1").arg(d->scopeCamId));
+        statusMessage(QStringLiteral("Disconnected camera %1").arg(d->scopeCamId));
     d->connected = false;
 }
 
@@ -655,7 +659,7 @@ QList<ControlDefinition> Miniscope::controls() const
 double Miniscope::controlValue(const QString &id)
 {
     if (!d->controlRules.contains(id)) {
-        emitMessage(QStringLiteral("Unable to get value for nonexisting control %1").arg(id));
+        qCWarning(logMScope).noquote() << QStringLiteral("Unable to get value for nonexisting control %1").arg(id);
         return -1;
     }
 
@@ -669,7 +673,7 @@ double Miniscope::controlValue(const QString &id)
 void Miniscope::setControlValue(const QString &id, double value)
 {
     if (!d->controlRules.contains(id)) {
-        emitMessage(QStringLiteral("Unable to set nonexisting control %1 to %2").arg(id).arg(value));
+        qCWarning(logMScope).noquote() << QStringLiteral("Unable to set nonexisting control %1 to %2").arg(id).arg(value);
         return;
     }
 
@@ -679,9 +683,9 @@ void Miniscope::setControlValue(const QString &id, double value)
     // convert API value to device-specific command
     const auto rule = d->controlRules[id];
     double devValue = value;
-    if (!rule.valueMap.isEmpty()) {
+    if (!rule.valueMap.empty()) {
         // sanity check, the fetch the real value
-        if ((value >= 0) && (value < rule.valueMap.length()))
+        if ((value >= 0) && (value < rule.valueMap.size()))
             devValue = rule.valueMap[value];
     }
 
@@ -689,20 +693,20 @@ void Miniscope::setControlValue(const QString &id, double value)
     double i2cValue2 = 0;
 
     // TODO: Handle int values greater than 8 bits
-    for (int i = 0; i < rule.commands.length(); i++) {
+    for (size_t i = 0; i < rule.commands.size(); i++) {
         const auto command = rule.commands[i];
-        QVector<quint8> packet;
+        std::vector<quint8> packet;
         long preambleKey; // Holds a value that represents the address and reg
 
         if (command["protocol"] == PROTOCOL_I2C) {
             preambleKey = 0;
 
-            packet.append(command["addressW"]);
-            preambleKey = (preambleKey << 8) | packet.last();
+            packet.push_back(command["addressW"]);
+            preambleKey = (preambleKey << 8) | packet.back();
 
             for (int j = 0; j < command["regLength"]; j++) {
-                packet.append(command["reg" + QString::number(j)]);
-                preambleKey = (preambleKey << 8) | packet.last();
+                packet.push_back(command["reg" + QString::number(j)]);
+                preambleKey = (preambleKey << 8) | packet.back();
             }
 
             for (int j = 0; j < command["dataLength"]; j++) {
@@ -710,47 +714,47 @@ void Miniscope::setControlValue(const QString &id, double value)
 
                 // TODO: Handle value1 through value3
                 if (tempValue == SEND_COMMAND_VALUE_H24) {
-                    packet.append((static_cast<quint32>(i2cValue) >> 24) & 0xFF);
+                    packet.push_back((static_cast<quint32>(i2cValue) >> 24) & 0xFF);
                 }
                 else if (tempValue == SEND_COMMAND_VALUE_H16) {
-                    packet.append((static_cast<quint32>(i2cValue) >> 16) & 0xFF);
+                    packet.push_back((static_cast<quint32>(i2cValue) >> 16) & 0xFF);
                 }
                 else if (tempValue == SEND_COMMAND_VALUE_H) {
-                    packet.append((static_cast<quint32>(i2cValue) >> 8) & 0xFF);
+                    packet.push_back((static_cast<quint32>(i2cValue) >> 8) & 0xFF);
                 }
                 else if (tempValue == SEND_COMMAND_VALUE_L) {
-                    packet.append(static_cast<quint32>(i2cValue) & 0xFF);
+                    packet.push_back(static_cast<quint32>(i2cValue) & 0xFF);
                 }
                 else if (tempValue == SEND_COMMAND_VALUE2_H) {
-                    packet.append((static_cast<quint32>(i2cValue2) >> 8) & 0xFF);
+                    packet.push_back((static_cast<quint32>(i2cValue2) >> 8) & 0xFF);
                 }
                 else if (tempValue == SEND_COMMAND_VALUE2_L) {
-                    packet.append(static_cast<quint32>(i2cValue2) & 0xFF);
+                    packet.push_back(static_cast<quint32>(i2cValue2) & 0xFF);
                 }
                 else {
-                    packet.append(tempValue);
-                    preambleKey = (preambleKey << 8) | packet.last();
+                    packet.push_back(tempValue);
+                    preambleKey = (preambleKey << 8) | packet.back();
                 }
             }
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            qCDebug(logMiniscope) << command["protocol"] << " protocol for " << id << " not yet supported";
+            qCDebug(logMScope) << command["protocol"] << " protocol for " << id << " not yet supported";
         }
     }
 
     // get a human-readable value
     double dispValue = devValue;
-    if (!rule.numLabelMap.isEmpty())
+    if (!rule.numLabelMap.empty())
         dispValue = rule.numLabelMap[value];
 
     // write a message to the log
-    emitMessage(QStringLiteral("Control %1 value changed to %2").arg(id).arg(dispValue));
+    msgInfo(QStringLiteral("Control %1 value changed to %2").arg(id).arg(dispValue));
 
     // the framerate is special, we also need to adjust this locally
     // for the DAQ thread
     if (id == "frameRate") {
-        if (rule.numLabelMap.isEmpty()) {
+        if (rule.numLabelMap.empty()) {
             d->fps = value;
         } else {
             d->fps = rule.numLabelMap[value];
@@ -767,9 +771,9 @@ bool Miniscope::run()
         return false;
     if (d->failed) {
         // try to recover from failed state by reconnecting
-        emitMessage("Reconnecting to recover from previous failure.");
+        msgInfo("Reconnecting to recover from previous failure.");
         disconnect();
-        if (!deviceConnect())
+        if (!connect())
             return false;
     }
 
@@ -796,6 +800,7 @@ bool Miniscope::startRecording(const QString &fname)
     if (!fname.isEmpty())
         d->videoFname = fname;
     d->recording = true;
+    statusMessage("Video recording started.");
 
     return true;
 }
@@ -803,6 +808,7 @@ bool Miniscope::startRecording(const QString &fname)
 void Miniscope::stopRecording()
 {
     d->recording = false;
+    statusMessage("Video recording stopped.");
 }
 
 bool Miniscope::running() const
@@ -818,11 +824,6 @@ bool Miniscope::recording() const
 bool Miniscope::captureStartTimeInitialized() const
 {
     return d->captureStartTimeInitialized;
-}
-
-void Miniscope::setPrintMessagesToStdout(bool enabled)
-{
-    d->printMessagesToStdout = enabled;
 }
 
 void Miniscope::setVisibleChannels(bool red, bool green, bool blue)
@@ -845,6 +846,11 @@ bool Miniscope::showGreenChannel() const
 bool Miniscope::showBlueChannel() const
 {
     return d->showBlue;
+}
+
+void Miniscope::setOnStatusMessage(StatusMessageCallback callback, void *udata)
+{
+    d->statusCallback = std::make_pair(callback, udata);
 }
 
 void Miniscope::setOnFrame(MScope::RawFrameCallback callback, void *udata)
@@ -1131,7 +1137,7 @@ void Miniscope::captureThread(void* msPtr)
             // perform timestamp sanity check - occasionally we get bad timestamps, and we must not
             // initialize our timer with those.
             if (driverFrameTimestamp.count() <= 0) {
-                self->emitMessage("Frame with timestamp of zero ignored for timer initialization.");
+                msgInfo("Frame with timestamp of zero ignored for timer initialization.");
 
                 // We fail quickly here in case we actually failed to grab a falid frame (status == false),
                 // which may indicate issues in the DAQ board itself or connectivity problems.
@@ -1189,18 +1195,18 @@ void Miniscope::captureThread(void* msPtr)
             // terminate recording
             d->recording = false;
 
-            self->emitMessage("Dropped frame.");
+            msgInfo("Dropped frame.");
             self->addDisplayFrameToBuffer(droppedFrameImage, frameTimestamp);
             if (d->droppedFramesCount > 0) {
                 // reconnect in case we run into multiple failures when trying
                 // to acquire a timestamp
                 // NOTE: This behaviour was copied from the original Miniscope DAQ software
-                self->emitMessage("Reconnecting Miniscope...");
+                msgInfo("Reconnecting Miniscope...");
                 d->cam.release();
                 d->connected = false;
                 std::this_thread::sleep_for(milliseconds_t(1000));
                 if (self->openCamera()) {
-                    self->emitMessage("Miniscope reconnected.");
+                    msgInfo("Miniscope reconnected.");
                 } else {
                     self->fail("Unable to reopen camera connection.");
                     break;
@@ -1216,7 +1222,7 @@ void Miniscope::captureThread(void* msPtr)
         // prepare video recording if it was enabled while we were running
         if (self->recording()) {
             if (!vwriter->initialized()) {
-                self->emitMessage("Recording enabled.");
+                msgInfo("Recording enabled.");
                 // we want to record, but are not initialized yet
                 vwriter->setFileSliceInterval(d->recordingSliceInterval);
                 vwriter->setCodec(d->videoCodec);
@@ -1237,7 +1243,7 @@ void Miniscope::captureThread(void* msPtr)
                 // we are set for recording and initialized the video writer,
                 // so we allow recording frames now
                 recordFrames = true;
-                self->emitMessage("Initialized video recording.");
+                msgInfo("Initialized video recording.");
 
                 // first frame happens at 0 time elapsed, so we cheat here and manipulate the current frame timestamp,
                 // as the current frame will already be added to the recording.
@@ -1259,7 +1265,7 @@ void Miniscope::captureThread(void* msPtr)
                 vwriter->finalize();
                 vwriter.reset(new VideoWriter());
                 recordFrames = false;
-                self->emitMessage("Recording finalized.");
+                msgInfo("Recording finalized.");
                 d->lastRecordedFrameTime = std::chrono::milliseconds(0);
             }
         }

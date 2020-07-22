@@ -133,11 +133,10 @@ MainWindow::MainWindow(QWidget *parent) :
     m_scopeView = new ImageViewWidget(this);
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
-    m_mscope = new Miniscope(this);
-    connect(m_mscope, &Miniscope::statusMessage, [&](const QString &msg) {
+    m_mscope = new Miniscope();
+    m_mscope->setOnStatusMessage([&](const QString &msg, void*) {
         m_newMessages.enqueue(msg);
     });
-    m_mscope->setPrintMessagesToStdout(true);
 
     // Miniscope controls
     m_controlsLayout = new QVBoxLayout(this);
@@ -190,12 +189,13 @@ MainWindow::~MainWindow()
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
 
     delete ui;
+    delete m_mscope;
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event)
-    m_mscope->deviceDisconnect();
+    m_mscope->disconnect();
 }
 
 void MainWindow::addLogMessage(const QString &msg)
@@ -252,7 +252,9 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
     for (const auto &ctl : m_mscope->controls()) {
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
-        connect(w, &MSControlWidget::valueChanged, m_mscope, &Miniscope::setControlValue);
+        connect(w, &MSControlWidget::valueChanged, [&](const QString ctlId, double value) {
+            m_mscope->setControlValue(ctlId, value);
+        });
         m_controls.append(w);
     }
 }
@@ -262,7 +264,7 @@ void MainWindow::on_btnDevConnect_clicked()
     if (m_mscope->running()) {
         ui->btnDevConnect->setEnabled(false);
         QApplication::processEvents();
-        m_mscope->deviceDisconnect();
+        m_mscope->disconnect();
         ui->btnDevConnect->setEnabled(true);
         ui->sbCamId->setEnabled(true);
         ui->deviceTypeComboBox->setEnabled(true);
@@ -272,7 +274,7 @@ void MainWindow::on_btnDevConnect_clicked()
 
     ui->btnDevConnect->setEnabled(false);
     m_mscope->setScopeCamId(ui->sbCamId->value());
-    if (!m_mscope->deviceConnect()) {
+    if (!m_mscope->connect()) {
         QMessageBox::critical(this,
                               "Error",
                               QStringLiteral("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")

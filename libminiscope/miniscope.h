@@ -20,8 +20,6 @@
 #ifndef MINISCOPE_H
 #define MINISCOPE_H
 
-#include <QObject>
-#include <QVector>
 #include <QLoggingCategory>
 #include <opencv2/core.hpp>
 
@@ -36,12 +34,13 @@
 namespace MScope
 {
 
-Q_DECLARE_LOGGING_CATEGORY(logMiniscope)
+Q_DECLARE_LOGGING_CATEGORY(logMScope)
 
 using milliseconds_t = std::chrono::milliseconds;
 
 using RawFrameCallback = std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)>;
 using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
+using StatusMessageCallback = std::function<void(const QString&, void *)>;
 
 enum class BackgroundDiffMethod {
     None,
@@ -76,14 +75,13 @@ public:
     int startValue;
 
     QStringList labels;
-    QVector<double> values;
+    std::vector<double> values;
 };
 
-class MS_LIB_EXPORT Miniscope : public QObject
+class MS_LIB_EXPORT Miniscope
 {
-    Q_OBJECT
 public:
-    explicit Miniscope(QObject *parent = nullptr);
+    explicit Miniscope();
     ~Miniscope();
 
     QStringList availableMiniscopeTypes() const;
@@ -93,8 +91,8 @@ public:
     void setScopeCamId(int id);
     int scopeCamId() const;
 
-    bool deviceConnect();
-    void deviceDisconnect();
+    bool connect();
+    void disconnect();
 
     QList<ControlDefinition> controls() const;
     double controlValue(const QString &id);
@@ -109,12 +107,18 @@ public:
     bool recording() const;
     bool captureStartTimeInitialized() const;
 
-    void setPrintMessagesToStdout(bool enabled);
-
     void setVisibleChannels(bool red, bool green, bool blue);
     bool showRedChannel() const;
     bool showGreenChannel() const;
     bool showBlueChannel() const;
+
+    /**
+     * @brief Called when a new status message is generated.
+     *
+     * Status messages reflect the general device state. They are not used for logging
+     * or detailed event reporting.
+     */
+    void setOnStatusMessage(StatusMessageCallback callback, void *udata = nullptr);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired.
@@ -191,22 +195,19 @@ public:
 
     milliseconds_t lastRecordedFrameTime() const;
 
-signals:
-    void statusMessage(const QString message);
-
 private:
     class Private;
     Q_DISABLE_COPY(Miniscope)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     bool openCamera();
-    void enqueueI2CCommand(long preambleKey, QVector<quint8> packet);
+    void enqueueI2CCommand(long preambleKey, std::vector<quint8> packet);
     void sendCommandsToDevice();
     void addDisplayFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();
-    void emitMessage(const QString &msg);
+    void statusMessage(const QString &msg);
     void fail(const QString &msg);
 };
 
