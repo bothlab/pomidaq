@@ -83,6 +83,9 @@ public:
         videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
 
+        deviceAlwaysReinit = true;
+        deviceInitDoneOnce = false;
+
         showRed = true;
         showGreen = true;
         showBlue = true;
@@ -121,6 +124,8 @@ public:
     cv::Size resolution;
     bool supportsColor;
     QString sensorType;
+    bool deviceAlwaysReinit;
+    bool deviceInitDoneOnce;
 
     QList<ControlDefinition> controls;
     QHash<QString, ControlCommandRule> controlRules;
@@ -189,6 +194,8 @@ Miniscope::Miniscope()
 {
     d->fps = 20;
     d->deviceConfig = QJsonObject();
+    d->deviceAlwaysReinit = true;
+    d->deviceInitDoneOnce = false;
 }
 
 Miniscope::~Miniscope()
@@ -569,30 +576,35 @@ bool Miniscope::openCamera()
     scopeDAQSendBytes(&d->cam, 0x00, 0x00 ,0x00);
 
     // prepare all commands to initialize the Miniscope hardware
-    const auto initCommands = msconfParseSendCommand(d->deviceConfig["initialize"].toArray());
-    for (const auto &command : initCommands) {
-        std::vector<quint8> packet;
+    if (d->deviceAlwaysReinit || !d->deviceInitDoneOnce) {
+        const auto initCommands = msconfParseSendCommand(d->deviceConfig["initialize"].toArray());
+        for (const auto &command : initCommands) {
+            std::vector<quint8> packet;
 
-        if (command["protocol"] == PROTOCOL_I2C) {
-            int preambleKey = 0;
+            if (command["protocol"] == PROTOCOL_I2C) {
+                int preambleKey = 0;
 
-            packet.push_back(command["addressW"]);
-            preambleKey = (preambleKey << 8) | packet.back();
-
-            for (int i = 0; i < command["regLength"]; i++) {
-                packet.push_back(command["reg" + QString::number(i)]);
+                packet.push_back(command["addressW"]);
                 preambleKey = (preambleKey << 8) | packet.back();
-            }
-            for (int i = 0; i < command["dataLength"]; i++) {
-                int tempValue = command["data" + QString::number(i)];
-                packet.push_back(tempValue);
-                preambleKey = (preambleKey<<8) | packet.back();
-            }
 
-            enqueueI2CCommand(preambleKey, packet);
-        } else {
-            qCDebug(logMScope) << command["protocol"] << " initialization protocol not yet supported";
+                for (int i = 0; i < command["regLength"]; i++) {
+                    packet.push_back(command["reg" + QString::number(i)]);
+                    preambleKey = (preambleKey << 8) | packet.back();
+                }
+                for (int i = 0; i < command["dataLength"]; i++) {
+                    int tempValue = command["data" + QString::number(i)];
+                    packet.push_back(tempValue);
+                    preambleKey = (preambleKey<<8) | packet.back();
+                }
+
+                enqueueI2CCommand(preambleKey, packet);
+                d->deviceInitDoneOnce = true;
+            } else {
+                qCDebug(logMScope) << command["protocol"] << " initialization protocol not yet supported";
+            }
         }
+    } else {
+        msgInfo("Scope initialization skipped: Re-initialization is disabled.");
     }
 
     // reset all controls to default values, or last values
@@ -772,6 +784,16 @@ void Miniscope::setControlValue(const QString &id, double value)
         if (d->fps <= 1)
             d->fps = 20;
     }
+}
+
+bool Miniscope::alwaysReinitializeDevice()
+{
+    return d->deviceAlwaysReinit;
+}
+
+void Miniscope::setAlwaysReinitializeDevice(bool enabled)
+{
+    d->deviceAlwaysReinit = enabled;
 }
 
 bool Miniscope::run()
