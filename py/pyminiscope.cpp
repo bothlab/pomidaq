@@ -55,7 +55,7 @@ BOOST_PYTHON_MODULE(miniscope)
             .value("FFV1", VideoCodec::FFV1)
             .value("AV1", VideoCodec::AV1)
             .value("VP9", VideoCodec::VP9)
-            .value("H265", VideoCodec::H265)
+            .value("HEVC", VideoCodec::HEVC)
             .value("MPEG4", VideoCodec::MPEG4)
             .export_values()
             ;
@@ -74,57 +74,52 @@ BOOST_PYTHON_MODULE(miniscope)
             .export_values()
             ;
 
-    class_<MiniScope>("MiniScope")
-        .def("set_cam_id", &MiniScope::setScopeCamId, "Set the Miniscope camera ID")
+    class_<Miniscope>("Miniscope")
+        .def("set_cam_id", &Miniscope::setScopeCamId, "Set the Miniscope camera ID")
 
-        .def("connect", &MiniScope::connect, "Connect the selected Miniscope")
-        .def("disconnect", &MiniScope::disconnect, "Disconnect the selected Miniscope and stop all operations")
-        .def("run", &MiniScope::run, "Start image acquisition with the selected settings")
-        .def("stop", &MiniScope::stop, "Stop image acquisition")
-        .def("start_recording", &MiniScope::startRecording, "Start recording a video file")
-        .def("stop_recording", &MiniScope::stopRecording, "Finish the current recording")
+        .def("connect", &Miniscope::connect, "Connect the selected Miniscope")
+        .def("disconnect", &Miniscope::disconnect, "Disconnect the selected Miniscope and stop all operations")
+        .def("run", &Miniscope::run, "Start image acquisition with the selected settings")
+        .def("stop", &Miniscope::stop, "Stop image acquisition")
+        .def("start_recording", &Miniscope::startRecording, "Start recording a video file")
+        .def("stop_recording", &Miniscope::stopRecording, "Finish the current recording")
 
-        // TODO: This needs special plumbing, so we don't make this function available for now and have
-        // all messages printed to stdut when called from a Python script
-        .def("set_on_message", &MiniScope::setOnMessage, "Set message handling function")
-        .def("set_print_messages_to_stdout", &MiniScope::setPrintMessagesToStdout, "Set to True to repeat each emitted message on stdout.")
+        .def("set_visible_channels", &Miniscope::setVisibleChannels, "Set which channels (red, green, blue) should be visible")
+        .add_property("show_red_channels", &Miniscope::showRedChannel)
+        .add_property("show_green_channels", &Miniscope::showGreenChannel)
+        .add_property("show_blue_channels", &Miniscope::showBlueChannel)
 
-        .def("set_visible_channels", &MiniScope::setVisibleChannels, "Set which channels (red, green, blue) should be visible")
-        .add_property("show_red_channels", &MiniScope::showRedChannel)
-        .add_property("show_green_channels", &MiniScope::showGreenChannel)
-        .add_property("show_blue_channels", &MiniScope::showBlueChannel)
+        .add_property("exposure", &Miniscope::exposure, &Miniscope::setExposure, "Exposure setting")
+        .add_property("gain", &Miniscope::gain, &Miniscope::setGain, "Gain setting")
+        .add_property("excitation", &Miniscope::excitation, &Miniscope::setExcitation, "Excitation LED power setting")
 
-        .add_property("exposure", &MiniScope::exposure, &MiniScope::setExposure, "Exposure setting")
-        .add_property("gain", &MiniScope::gain, &MiniScope::setGain, "Gain setting")
-        .add_property("excitation", &MiniScope::excitation, &MiniScope::setExcitation, "Excitation LED power setting")
+        .add_property("running", &Miniscope::running, "Is True if we are acquiring images from the Miniscope")
+        .add_property("recording", &Miniscope::recording, "Is True if we are recording data")
 
-        .add_property("running", &MiniScope::running, "Is True if we are acquiring images from the Miniscope")
-        .add_property("recording", &MiniScope::recording, "Is True if we are recording data")
+        .add_property("use_color", &Miniscope::useColor, &Miniscope::setUseColor)
 
-        .add_property("use_color", &MiniScope::useColor, &MiniScope::setUseColor)
+        .add_property("current_disp_frame", &Miniscope::currentDisplayFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
+        .add_property("current_fps", &Miniscope::currentFps)
+        .add_property("dropped_frames_count", &Miniscope::droppedFramesCount)
+        .add_property("last_recorded_frame_time", &Miniscope::lastRecordedFrameTime) // TODO: we need to add a converter for the return type
 
-        .add_property("current_disp_frame", &MiniScope::currentDisplayFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
-        .add_property("current_fps", &MiniScope::currentFps)
-        .add_property("dropped_frames_count", &MiniScope::droppedFramesCount)
-        .add_property("last_recorded_frame_time", &MiniScope::lastRecordedFrameTime) // TODO: we need to add a converter for the return type
+        .add_property("fps", &Miniscope::fps, &Miniscope::setFps, "Target frames per second")
 
-        .add_property("fps", &MiniScope::fps, &MiniScope::setFps, "Target frames per second")
+        .add_property("video_filename", &Miniscope::videoFilename, &Miniscope::setVideoFilename, "The name of the saved video")
+        .add_property("video_codec", &Miniscope::videoCodec, &Miniscope::setVideoCodec, "The video codec to use")
+        .add_property("video_container", &Miniscope::videoContainer, &Miniscope::setVideoContainer, "The video container to use")
+        .add_property("record_lossless", &Miniscope::recordLossless, &Miniscope::setRecordLossless, "Toggle lossless recording, if the codec supports it")
 
-        .add_property("video_filename", &MiniScope::videoFilename, &MiniScope::setVideoFilename, "The name of the saved video")
-        .add_property("video_codec", &MiniScope::videoCodec, &MiniScope::setVideoCodec, "The video codec to use")
-        .add_property("video_container", &MiniScope::videoContainer, &MiniScope::setVideoContainer, "The video container to use")
-        .add_property("record_lossless", &MiniScope::recordLossless, &MiniScope::setRecordLossless, "Toggle lossless recording, if the codec supports it")
+        .add_property("min_fluor_display", &Miniscope::minFluorDisplay, &Miniscope::setMinFluorDisplay, "Minimum fluorescence to display")
+        .add_property("max_fluor_display", &Miniscope::maxFluorDisplay, &Miniscope::setMaxFluorDisplay, "Maximum fluorescence to display")
+        .add_property("min_fluor", &Miniscope::minFluor, "Minimum fluorescence (pixel value) in the current image")
+        .add_property("max_fluor", &Miniscope::maxFluor, "Maximum fluorescence (pixel value) in the current image")
 
-        .add_property("min_fluor_display", &MiniScope::minFluorDisplay, &MiniScope::setMinFluorDisplay, "Minimum fluorescence to display")
-        .add_property("max_fluor_display", &MiniScope::maxFluorDisplay, &MiniScope::setMaxFluorDisplay, "Maximum fluorescence to display")
-        .add_property("min_fluor", &MiniScope::minFluor, "Minimum fluorescence (pixel value) in the current image")
-        .add_property("max_fluor", &MiniScope::maxFluor, "Maximum fluorescence (pixel value) in the current image")
+        .add_property("display_bg_diff_method", &Miniscope::displayBgDiffMethod, &Miniscope::setDisplayBgDiffMethod, "Set background elimination method for the displayed image")
+        .add_property("bg_accumulate_alpha", &Miniscope::bgAccumulateAlpha, &Miniscope::setBgAccumulateAlpha)
 
-        .add_property("display_bg_diff_method", &MiniScope::displayBgDiffMethod, &MiniScope::setDisplayBgDiffMethod, "Set background elimination method for the displayed image")
-        .add_property("bg_accumulate_alpha", &MiniScope::bgAccumulateAlpha, &MiniScope::setBgAccumulateAlpha)
+        .add_property("recording_slice_interval", &Miniscope::recordingSliceInterval, &Miniscope::setRecordingSliceInterval, "The interval at which new video files should be started when recording, in minutes")
 
-        .add_property("recording_slice_interval", &MiniScope::recordingSliceInterval, &MiniScope::setRecordingSliceInterval, "The interval at which new video files should be started when recording, in minutes")
-
-        .add_property("last_error", &MiniScope::lastError, "Message of the last error, if there was one")
+        .add_property("last_error", &Miniscope::lastError, "Message of the last error, if there was one")
     ;
 }
