@@ -568,6 +568,13 @@ bool Miniscope::openCamera()
         ret = d->cam.open(d->scopeCamId);
     }
 
+    // set height/width for new DAQ firmware versions which can support
+    // multiple Miniscope device types
+    if (d->resolution.width > 0)
+        d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->resolution.width);
+    if (d->resolution.height > 0)
+        d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->resolution.height);
+
     // ensure the command queue isn't full with old packets that flood the
     // DAQ board immediately after it is connected
     d->commandQueue.clear();
