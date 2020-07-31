@@ -25,12 +25,12 @@
 #include <QScrollBar>
 #include <QMessageBox>
 #include <QLabel>
-#include <miniscope.h>
 #include <QStandardPaths>
 #include <QFileDialog>
 #include <QDateTime>
 #include <QSettings>
 #include <QInputDialog>
+#include <miniscope.h>
 
 #include "imageviewwidget.h"
 #include "mscontrolwidget.h"
@@ -192,7 +192,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // set export directory, default to /tmp
     setDataExportDir(QStandardPaths::writableLocation(QStandardPaths::StandardLocation::TempLocation));
-    if (dataDir.isEmpty())
+    if (m_dataDir.isEmpty())
         setDataExportDir("/tmp");
 
     QSettings settings(qApp->organizationName(), qApp->applicationName());
@@ -217,6 +217,20 @@ MainWindow::MainWindow(QWidget *parent) :
     // restore geometry, if any is saved
     setGeometry(settings.value("ui/geometry", geometry()).toRect());
 
+    // restore previous data storage location, if it is still valid
+    const auto savedDataDir = settings.value("recording/dataDir").toString();
+    if (!savedDataDir.isEmpty()) {
+        QFileInfo fi(savedDataDir);
+        if (fi.isDir()) {
+            setDataExportDir(savedDataDir);
+        } else {
+            QMessageBox::warning(this,
+                                 "Data directory changed",
+                                 QStringLiteral("The previous data storage location ('%1') does no longer exist or is not writable. Falling back to default, temporary directory.")
+                                 .arg(savedDataDir));
+        }
+    }
+
     // install new message handler so output can also be redirected to the GUI
     // log display (Windows users like this...)
     g_mainWin = this;
@@ -229,6 +243,8 @@ MainWindow::~MainWindow()
     settings.setValue("ui/geometry", this->geometry());
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
+    if (!m_dataDir.isEmpty())
+        settings.setValue("recording/dataDir", m_dataDir);
 
     // reset default message handler
     qInstallMessageHandler(nullptr);
@@ -240,8 +256,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    Q_UNUSED(event)
     m_mscope->disconnect();
+
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::writeLogMessage(const QString &msg)
@@ -272,9 +289,9 @@ void MainWindow::setStatusText(const QString& msg)
 void MainWindow::setDataExportDir(const QString &dir)
 {
     setWindowTitle(QStringLiteral("Portable Miniscope DAQ - %1").arg(dir));
-    dataDir = dir;
-    ui->pathHintLabel->setText(dataDir);
-    ui->pathHintLabel->setToolTip(dataDir);
+    m_dataDir = dir;
+    ui->pathHintLabel->setText(m_dataDir);
+    ui->pathHintLabel->setToolTip(m_dataDir);
 }
 
 void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)
@@ -413,16 +430,16 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     if (!m_mscope->running())
         return;
 
-    QFileInfo dataLocation(dataDir);
-    if (!dataLocation.isDir() || !dataLocation.isWritable() || dataDir.isEmpty()) {
+    QFileInfo dataLocation(m_dataDir);
+    if (!dataLocation.isDir() || !dataLocation.isWritable() || m_dataDir.isEmpty()) {
         QMessageBox::critical(this,
                               "Recording Error",
-                              QStringLiteral("Data location '%1' is not a directory or not writable.").arg(dataDir));
+                              QStringLiteral("Data location '%1' is not a directory or not writable.").arg(m_dataDir));
         return;
     }
 
     if (checked) {
-        const auto videoFname = QDir(dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
+        const auto videoFname = QDir(m_dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
         if (m_mscope->startRecording(videoFname)) {
             ui->pageRecord->setEnabled(false);
             ui->btnDevConnect->setEnabled(false);

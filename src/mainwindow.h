@@ -81,12 +81,11 @@ private:
     QVBoxLayout *m_controlsLayout;
     ImageViewWidget *m_scopeView;
 
+    QString m_dataDir;
     bool m_useUnixTimestamps;
     bool m_running;
 
     int m_messageCount;
-
-    QString dataDir;
 
     void writeLogMessage(const QString &msg);
     void setStatusText(const QString& msg);
