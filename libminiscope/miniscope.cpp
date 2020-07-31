@@ -299,6 +299,11 @@ QStringList Miniscope::availableMiniscopeTypes() const
 
 bool Miniscope::loadDeviceConfig(const QString &deviceType)
 {
+    // automatically disconnect in case we were connected
+    if (d->connected)
+        disconnect();
+
+    // load new device data
     const auto allDevConfigs = msconfGetDevicesJson();
     if (!allDevConfigs.contains(deviceType)) {
         d->lastError = QStringLiteral("Unable to find device configuration with name '%1'").arg(deviceType);
@@ -804,8 +809,8 @@ bool Miniscope::run()
 
 void Miniscope::stop()
 {
-    d->running = false;
     d->recording = false;
+    d->running = false;
     finishCaptureThread();
 }
 
