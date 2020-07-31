@@ -99,9 +99,6 @@ public:
     double controlValue(const QString &id);
     void setControlValue(const QString &id, double value);
 
-    bool alwaysReinitializeDevice();
-    void setAlwaysReinitializeDevice(bool enabled);
-
     bool run();
     void stop();
     bool startRecording(const QString &fname = "");
