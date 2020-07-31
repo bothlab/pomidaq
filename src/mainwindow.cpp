@@ -214,6 +214,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // set the right first toolbox page
     ui->toolBox->setCurrentIndex(0);
 
+    // restore geometry, if any is saved
+    setGeometry(settings.value("ui/geometry", geometry()).toRect());
+
     // install new message handler so output can also be redirected to the GUI
     // log display (Windows users like this...)
     g_mainWin = this;
@@ -223,6 +226,7 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     QSettings settings(qApp->organizationName(), qApp->applicationName());
+    settings.setValue("ui/geometry", this->geometry());
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
 
