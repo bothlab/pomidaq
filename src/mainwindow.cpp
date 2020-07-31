@@ -323,8 +323,8 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
     // load new controls
     if (!m_mscope->loadDeviceConfig(arg1)) {
         QMessageBox::critical(this,
-                              "Error",
-                              QString("Unable to load device configuration: %1")
+                              QStringLiteral("Error"),
+                              QStringLiteral("Unable to load device configuration: %1")
                               .arg(m_mscope->lastError()));
         return;
     }
