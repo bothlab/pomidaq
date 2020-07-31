@@ -463,7 +463,7 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
 
-    } else if (arg1 == "None") {
+    } else if (arg1 == "Raw") {
         m_mscope->setVideoCodec(VideoCodec::Raw);
 
         // Raw is always lossless

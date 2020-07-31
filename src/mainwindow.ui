@@ -783,7 +783,7 @@
                 </item>
                 <item>
                  <property name="text">
-                  <string>None</string>
+                  <string>Raw</string>
                  </property>
                 </item>
                </widget>
