@@ -214,6 +214,15 @@ MainWindow::MainWindow(QWidget *parent) :
     // set the right first toolbox page
     ui->toolBox->setCurrentIndex(0);
 
+    // select our default Miniscope device choice, or the one last used by the user
+    const auto selectedDevice = settings.value("device/type", QStringLiteral("Miniscope_V4")).toString().toLower();
+    for (int i = 0; i < ui->deviceTypeComboBox->count(); ++i) {
+        if (ui->deviceTypeComboBox->itemText(i).toLower() == selectedDevice) {
+            ui->deviceTypeComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+
     // restore geometry, if any is saved
     setGeometry(settings.value("ui/geometry", geometry()).toRect());
 
@@ -243,6 +252,7 @@ MainWindow::~MainWindow()
     settings.setValue("ui/geometry", this->geometry());
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
+    settings.setValue("device/type", ui->deviceTypeComboBox->currentText());
     if (!m_dataDir.isEmpty())
         settings.setValue("recording/dataDir", m_dataDir);
 
