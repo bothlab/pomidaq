@@ -87,7 +87,7 @@ public:
         showGreen = true;
         showBlue = true;
 
-        bgDiffMethod = BackgroundDiffMethod::None;
+        displayMode = DisplayMode::RawFrames;
 
         minFluorDisplay = 0;
         maxFluorDisplay = 255;
@@ -140,7 +140,7 @@ public:
     std::atomic_int minFluorDisplay;
     std::atomic_int maxFluorDisplay;
 
-    std::atomic<BackgroundDiffMethod> bgDiffMethod;
+    std::atomic<DisplayMode> displayMode;
     std::atomic<double> bgAccumulateAlpha;  // NOTE: Double may not actually be atomic
 
     bool connected;
@@ -1032,14 +1032,14 @@ int Miniscope::maxFluor() const
     return d->maxFluor;
 }
 
-BackgroundDiffMethod Miniscope::displayBgDiffMethod() const
+MScope::DisplayMode Miniscope::displayMode() const
 {
-    return d->bgDiffMethod;
+    return d->displayMode;
 }
 
-void Miniscope::setDisplayBgDiffMethod(BackgroundDiffMethod method)
+void Miniscope::setDisplayMode(DisplayMode mode)
 {
-    d->bgDiffMethod = method;
+    d->displayMode = mode;
 }
 
 double Miniscope::bgAccumulateAlpha() const
@@ -1313,11 +1313,7 @@ void Miniscope::captureThread(void* msPtr)
         cv::Mat displayF32;
         displayFrame.convertTo(displayF32, CV_32F, 1.0 / 255.0);
         cv::accumulateWeighted(displayF32, accumulatedMat, d->bgAccumulateAlpha);
-        if (d->bgDiffMethod == BackgroundDiffMethod::Division) {
-            cv::Mat tmpMat;
-            cv::divide(displayF32, accumulatedMat, tmpMat, 1, CV_32FC(frame.channels()));
-            tmpMat.convertTo(displayFrame, displayFrame.type(), 250.0);
-        } else if (d->bgDiffMethod == BackgroundDiffMethod::Subtraction) {
+        if (d->displayMode == DisplayMode::BackgroundDiff) {
             cv::Mat tmpBgMat;
             accumulatedMat.convertTo(tmpBgMat, CV_8UC1, 255.0);
             cv::subtract(displayFrame, tmpBgMat, displayFrame);

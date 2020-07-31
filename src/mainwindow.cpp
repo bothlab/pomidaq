@@ -204,6 +204,10 @@ MainWindow::MainWindow(QWidget *parent) :
     setUseUnixTimestamps(settings.value("recording/useUnixTimestamps", false).toBool());
     ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 5).toInt());
 
+    // set display modes
+    ui->displayModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
+    ui->displayModeCB->addItem(QStringLiteral("F - F₀"), QVariant::fromValue(DisplayMode::BackgroundDiff));
+
     // set device list
     ui->deviceTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
 
@@ -582,24 +586,14 @@ void MainWindow::on_actionAbout_triggered()
     QMessageBox::about(this, QStringLiteral("About this tool"), text);
 }
 
-void MainWindow::on_bgSubstCheckBox_toggled(bool checked)
+void MainWindow::on_displayModeCB_currentIndexChanged(int)
 {
-    if (checked) {
-        ui->bgDivCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::Subtraction);
-    } else {
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::None);
-    }
-}
+    const auto mode = ui->displayModeCB->currentData().value<DisplayMode>();
 
-void MainWindow::on_bgDivCheckBox_toggled(bool checked)
-{
-    if (checked) {
-        ui->bgSubstCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::Division);
-    } else {
-        m_mscope->setDisplayBgDiffMethod(BackgroundDiffMethod::None);
-    }
+    ui->accAlphaSpinBox->setEnabled(mode == DisplayMode::BackgroundDiff);
+    ui->accumulateAlphaLabel->setEnabled(mode == DisplayMode::BackgroundDiff);
+
+    m_mscope->setDisplayMode(mode);
 }
 
 void MainWindow::on_sliceIntervalSpinBox_valueChanged(int arg1)

@@ -20,12 +20,13 @@
 #ifndef MINISCOPE_H
 #define MINISCOPE_H
 
+#include <QMetaObject>
 #include <QLoggingCategory>
 #include <opencv2/core.hpp>
 
 #include "mediatypes.h"
 
-#ifdef _WIN32
+#ifdef Q_OS_WIN
 #define MS_LIB_EXPORT __declspec(dllexport)
 #else
 #define MS_LIB_EXPORT __attribute__((visibility("default")))
@@ -33,8 +34,15 @@
 
 namespace MScope
 {
+#ifndef Q_OS_WIN
+#pragma GCC visibility push(default)
+#endif
+Q_NAMESPACE
 
 Q_DECLARE_LOGGING_CATEGORY(logMScope)
+#ifndef Q_OS_WIN
+#pragma GCC visibility pop
+#endif
 
 using milliseconds_t = std::chrono::milliseconds;
 
@@ -43,11 +51,11 @@ using ControlChangeCallback = std::function<void(const QString&, double, double,
 using RawFrameCallback = std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)>;
 using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
 
-enum class BackgroundDiffMethod {
-    None,
-    Subtraction,
-    Division
+enum class DisplayMode {
+    RawFrames,
+    BackgroundDiff
 };
+Q_ENUM_NS(DisplayMode)
 
 /**
  * @brief Set which type of control is needed
@@ -57,6 +65,7 @@ enum class ControlKind {
     Selector, /// switch between a set of predefined values
     Slider    /// slide between an min and a max value
 };
+Q_ENUM_NS(ControlKind)
 
 class ControlDefinition
 {
@@ -189,8 +198,8 @@ public:
     int minFluor() const;
     int maxFluor() const;
 
-    BackgroundDiffMethod displayBgDiffMethod() const;
-    void setDisplayBgDiffMethod(BackgroundDiffMethod method);
+    DisplayMode displayMode() const;
+    void setDisplayMode(DisplayMode mode);
 
     double bgAccumulateAlpha() const;
     void setBgAccumulateAlpha(double value);
