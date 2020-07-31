@@ -269,6 +269,8 @@ void MainWindow::setDataExportDir(const QString &dir)
 {
     setWindowTitle(QStringLiteral("Portable Miniscope DAQ - %1").arg(dir));
     dataDir = dir;
+    ui->pathHintLabel->setText(dataDir);
+    ui->pathHintLabel->setToolTip(dataDir);
 }
 
 void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)

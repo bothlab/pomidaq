@@ -14,6 +14,8 @@ set(POMIDAQ_SRC
     mscontrolwidget.cpp
     imageviewwidget.h
     imageviewwidget.cpp
+    elidedlabel.h
+    elidedlabel.cpp
 )
 
 set(POMIDAQ_UI
