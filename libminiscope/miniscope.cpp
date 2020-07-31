@@ -662,6 +662,11 @@ void Miniscope::disconnect()
     d->connected = false;
 }
 
+bool Miniscope::isConnected() const
+{
+    return d->connected;
+}
+
 QList<ControlDefinition> Miniscope::controls() const
 {
     return d->controls;

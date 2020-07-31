@@ -94,6 +94,7 @@ public:
 
     bool connect();
     void disconnect();
+    bool isConnected() const;
 
     QList<ControlDefinition> controls() const;
     double controlValue(const QString &id);
