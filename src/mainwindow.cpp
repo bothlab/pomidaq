@@ -168,7 +168,7 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     // Miniscope controls
-    m_controlsLayout = new QVBoxLayout(this);
+    m_controlsLayout = new QVBoxLayout(ui->gbDeviceCtls);
     m_controlsLayout->setMargin(2);
     m_controlsLayout->setSpacing(4);
     ui->gbDeviceCtls->setLayout(m_controlsLayout);
