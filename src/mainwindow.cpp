@@ -116,7 +116,6 @@ static void changeColorsDarkmode(bool enabled)
 }
 #endif
 
-
 static MainWindow *g_mainWin = nullptr;
 
 void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const QString &msg)
@@ -124,10 +123,10 @@ void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const Q
     QByteArray localMsg = msg.toLocal8Bit();
     switch (type) {
     case QtDebugMsg:
-        fprintf(stderr, "%s: %s\n", ctx.category, localMsg.constData());
+        fprintf(stdout, "%s: %s\n", ctx.category, localMsg.constData());
         break;
     case QtInfoMsg:
-        fprintf(stderr, "%s: %s\n", ctx.category, localMsg.constData());
+        fprintf(stdout, "%s: %s\n", ctx.category, localMsg.constData());
         if (g_mainWin) g_mainWin->queueLogMessage(msg);
         break;
     case QtWarningMsg:
