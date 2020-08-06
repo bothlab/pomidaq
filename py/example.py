@@ -12,7 +12,22 @@ import sys
 import cv2
 from miniscope import Miniscope, VideoCodec, VideoContainer
 
+MINISCOPE_DEVICE = 'Miniscope_V4'
+
 mscope = Miniscope()
+
+# list all available miniscope types
+print('Available Miniscope harware types:')
+for dname in mscope.available_device_types:
+    print(' * {}'.format(dname))
+
+print('Selecting: {}'.format(MINISCOPE_DEVICE))
+
+if not mscope.load_device_config(MINISCOPE_DEVICE):
+    print('Unable to load device configuration for {}: {}'.format(MINISCOPE_DEVICE, mscope.last_error),
+          file=sys.stderr)
+    sys.exit(1)
+
 mscope.set_cam_id(0)  # Connect to video camera 0
 
 if not mscope.connect():

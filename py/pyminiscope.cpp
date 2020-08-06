@@ -59,6 +59,11 @@ PYBIND11_MODULE(miniscope, m) {
 
     py::class_<Miniscope>(m, "Miniscope")
         .def(py::init<>())
+
+        .def_property_readonly("available_device_types", &Miniscope::availableDeviceTypes, "Get a list of all Miniscope variants we can communicate with")
+        .def("load_device_config", &Miniscope::loadDeviceConfig, "Load harware definition for a given Miniscope device type")
+
+        .def_property_readonly("device_type", &Miniscope::deviceType, "get the name of the currently loaded Miniscope device type")
         .def("set_cam_id", &Miniscope::setScopeCamId, "Set the Miniscope camera ID")
 
         .def("connect", &Miniscope::connect, "Connect the selected Miniscope")

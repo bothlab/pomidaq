@@ -291,7 +291,7 @@ static std::vector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray 
     return output;
 }
 
-QStringList Miniscope::availableMiniscopeTypes() const
+QStringList Miniscope::availableDeviceTypes() const
 {
     auto deviceTypes = msconfGetDevicesJson().keys();
     std::sort(deviceTypes.begin(), deviceTypes.end());
@@ -668,11 +668,6 @@ void Miniscope::disconnect()
     d->connected = false;
 }
 
-bool Miniscope::isConnected() const
-{
-    return d->connected;
-}
-
 QList<ControlDefinition> Miniscope::controls() const
 {
     return d->controls;
@@ -836,6 +831,11 @@ void Miniscope::stopRecording()
 {
     d->recording = false;
     statusMessage("Video recording stopped.");
+}
+
+bool Miniscope::isConnected() const
+{
+    return d->connected;
 }
 
 bool Miniscope::isRunning() const

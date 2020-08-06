@@ -94,7 +94,7 @@ public:
     explicit Miniscope();
     ~Miniscope();
 
-    QStringList availableMiniscopeTypes() const;
+    QStringList availableDeviceTypes() const;
     bool loadDeviceConfig(const QString &deviceType);
     QString deviceType() const;
 
@@ -103,7 +103,6 @@ public:
 
     bool connect();
     void disconnect();
-    bool isConnected() const;
 
     QList<ControlDefinition> controls() const;
     double controlValue(const QString &id);
@@ -114,6 +113,7 @@ public:
     bool startRecording(const QString &fname = "");
     void stopRecording();
 
+    bool isConnected() const;
     bool isRunning() const;
     bool isRecording() const;
     bool captureStartTimeInitialized() const;

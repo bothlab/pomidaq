@@ -209,7 +209,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->displayModeCB->addItem(QStringLiteral("F - F₀"), QVariant::fromValue(DisplayMode::BackgroundDiff));
 
     // set device list
-    ui->deviceTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
+    ui->deviceTypeComboBox->addItems(m_mscope->availableDeviceTypes());
 
     // set the right first toolbox page
     ui->toolBox->setCurrentIndex(0);

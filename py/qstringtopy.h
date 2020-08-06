@@ -32,13 +32,17 @@
 
 #include <pybind11/pybind11.h>
 #include <QString>
+#include <QStringList>
 
 namespace pybind11
 {
 namespace detail
 {
-template <>
-struct type_caster<QString>
+
+/**
+ * QString conversion
+ */
+template <> struct type_caster<QString>
 {
 public:
     PYBIND11_TYPE_CASTER(QString, _("QString"));
@@ -96,4 +100,29 @@ public:
         return PyUnicode_FromKindAndData(PyUnicode_2BYTE_KIND, src.constData(), src.length());
     }
 };
-}}
+
+/**
+ * QStringList conversion
+ */
+template<> struct type_caster<QStringList> {
+    public:
+        PYBIND11_TYPE_CASTER(QStringList, _("QStringList"));
+
+        bool load(handle src, bool) {
+            if(!isinstance<sequence>(src)) return false;
+            sequence seq = reinterpret_borrow<sequence>(src);
+            for(size_t i = 0; i < seq.size(); i++)
+                value.push_back(seq[i].cast<QString>());
+            return true;
+        }
+
+        static handle cast(const QStringList& src, return_value_policy /* policy */, handle /* parent */) {
+            list lst;
+            for(const QString& s : src)
+                lst.append(pybind11::cast(s));
+            return lst.release();
+        }
+    };
+
+}
+}
