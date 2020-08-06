@@ -21,6 +21,8 @@
 #include <sstream>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl_bind.h>
+#include <pybind11/chrono.h>
 #include "qstringtopy.h"
 #include "cvmatndsliceconvert.h"
 #include "miniscope.h"
@@ -28,10 +30,15 @@
 using namespace MScope;
 namespace py = pybind11;
 
+PYBIND11_MAKE_OPAQUE(std::vector<ControlDefinition>);
+PYBIND11_MAKE_OPAQUE(std::vector<double>);
+
 PYBIND11_MODULE(miniscope, m) {
     m.doc() = "Access a Miniscope through Python"; // optional module docstring
 
     NDArrayConverter::initNDArray();
+    py::bind_vector<std::vector<double>>(m, "VectorDouble");
+    py::bind_vector<std::vector<ControlDefinition>>(m, "VectorControlDefinition");
 
     py::enum_<VideoCodec>(m, "VideoCodec", py::arithmetic())
             .value("UNKNOWN", VideoCodec::Unknown)
@@ -42,20 +49,43 @@ PYBIND11_MODULE(miniscope, m) {
             .value("HEVC", VideoCodec::HEVC)
             .value("MPEG4", VideoCodec::MPEG4)
             .export_values()
-            ;
+    ;
 
     py::enum_<VideoContainer>(m, "VideoContainer", py::arithmetic())
             .value("UNKNOWN", VideoContainer::Unknown)
             .value("MATROSKA", VideoContainer::Matroska)
             .value("AVI", VideoContainer::AVI)
             .export_values()
-            ;
+    ;
 
     py::enum_<DisplayMode>(m, "DisplayMode", py::arithmetic())
             .value("RAW_FRAMES", DisplayMode::RawFrames)
             .value("BACKGROUND_DIFF", DisplayMode::BackgroundDiff)
             .export_values()
-            ;
+    ;
+
+    py::enum_<ControlKind>(m, "ControlKind", py::arithmetic())
+            .value("UNKNOWN", ControlKind::Unknown)
+            .value("SELECTOR", ControlKind::Selector)
+            .value("SLIDER", ControlKind::Slider)
+            .export_values()
+    ;
+
+    py::class_<ControlDefinition>(m, "ControlDefinition")
+        .def(py::init<>())
+
+        .def_readwrite("kind", &ControlDefinition::kind, "Type of this control")
+        .def_readwrite("id", &ControlDefinition::id, "Identifier of this control")
+        .def_readwrite("name", &ControlDefinition::name, "Human-readable name for this control")
+
+        .def_readwrite("value_min", &ControlDefinition::valueMin, "Minimum possible value for this control")
+        .def_readwrite("value_max", &ControlDefinition::valueMax, "Maximum possible value for this control")
+        .def_readwrite("value_start", &ControlDefinition::valueStart, "Initial value for this control")
+        .def_readwrite("step_size", &ControlDefinition::stepSize, "Size of a single value step")
+
+        .def_readwrite("labels", &ControlDefinition::labels, "Labels for individual values (mostly used for ControlKind.SELECTOR types, their index can be set as control value)")
+        .def_readwrite("values", &ControlDefinition::values, "Possible values for this control")
+    ;
 
     py::class_<Miniscope>(m, "Miniscope")
         .def(py::init<>())
@@ -73,6 +103,10 @@ PYBIND11_MODULE(miniscope, m) {
         .def("start_recording", &Miniscope::startRecording, "Start recording a video file")
         .def("stop_recording", &Miniscope::stopRecording, "Finish the current recording")
 
+        .def_property_readonly("controls", &Miniscope::controls, "Get available controls for this device")
+        .def("control_value", &Miniscope::controlValue, "Retrieve current control value for the given control ID")
+        .def("set_control_value", &Miniscope::setControlValue, "Set new value for control with the given ID")
+
         .def("set_visible_channels", &Miniscope::setVisibleChannels, "Set which channels (red, green, blue) should be visible")
         .def_property_readonly("show_red_channels", &Miniscope::showRedChannel)
         .def_property_readonly("show_green_channels", &Miniscope::showGreenChannel)
@@ -85,7 +119,7 @@ PYBIND11_MODULE(miniscope, m) {
         .def_property_readonly("current_disp_frame", &Miniscope::currentDisplayFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
         .def_property_readonly("current_fps", &Miniscope::currentFps)
         .def_property_readonly("dropped_frames_count", &Miniscope::droppedFramesCount)
-        .def_property_readonly("last_recorded_frame_time", &Miniscope::lastRecordedFrameTime) // TODO: we need to add a converter for the return type
+        .def_property_readonly("last_recorded_frame_time", &Miniscope::lastRecordedFrameTime)
 
         .def_property("video_filename", &Miniscope::videoFilename, &Miniscope::setVideoFilename, "The name of the saved video")
         .def_property("video_codec", &Miniscope::videoCodec, &Miniscope::setVideoCodec, "The video codec to use")
@@ -102,6 +136,7 @@ PYBIND11_MODULE(miniscope, m) {
 
         .def_property("recording_slice_interval", &Miniscope::recordingSliceInterval, &Miniscope::setRecordingSliceInterval, "The interval at which new video files should be started when recording, in minutes")
 
+        .def("set_print_extra_debug", &Miniscope::setPrintExtraDebug, "Set whether protocol transmission debug messages should be printed to stdout")
         .def_property_readonly("last_error", &Miniscope::lastError, "Message of the last error, if there was one")
     ;
 }
