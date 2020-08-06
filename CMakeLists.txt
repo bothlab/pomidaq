@@ -19,8 +19,8 @@ set(LIBSOVERSION 0)
 # Options
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
-option(GUI        "Build Python module" ON)
-option(PYTHON     "Build Python module" OFF)
+option(GUI        "Build Qt user interface" ON)
+option(PYTHON     "Build Python module" ON)
 
 
 #

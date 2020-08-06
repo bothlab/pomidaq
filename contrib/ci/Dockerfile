@@ -26,6 +26,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
+    pybind11-dev \
     python3-dev \
     python3-numpy
 

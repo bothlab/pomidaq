@@ -10,43 +10,43 @@
 
 import sys
 import cv2
-from miniscope import MiniScope, VideoCodec, VideoContainer
+from miniscope import Miniscope, VideoCodec, VideoContainer
 
-scope = MiniScope()
-scope.set_cam_id(0)  # Connect to video camera 0
+mscope = Miniscope()
+mscope.set_cam_id(0)  # Connect to video camera 0
 
-if not scope.connect():
-    print('Unable to connect to Miniscope: {}'.format(scope.last_error), file=sys.stderr)
+if not mscope.connect():
+    print('Unable to connect to Miniscope: {}'.format(mscope.last_error), file=sys.stderr)
     sys.exit(1)
 
-if not scope.run():
-    print('Unable to start data acquisition: {}'.format(scope.last_error), file=sys.stderr)
+if not mscope.run():
+    print('Unable to start data acquisition: {}'.format(mscope.last_error), file=sys.stderr)
     sys.exit(1)
 
 print('\n--------')
-scope.video_filename = '/tmp/miniscope-test.mkv'
-print('Codec used for recording: {}'.format(scope.video_codec))
-print('Container used for recording: {}'.format(scope.video_container))
-print('Saving video in: {}'.format(scope.video_filename))
+mscope.video_filename = '/tmp/miniscope-test.mkv'
+print('Codec used for recording: {}'.format(mscope.video_codec))
+print('Container used for recording: {}'.format(mscope.video_container))
+print('Saving video in: {}'.format(mscope.video_filename))
 print('--------\n')
 
-if not scope.start_recording(''):
-    print('Unable to start video recording: {}'.format(scope.last_error), file=sys.stderr)
+if not mscope.start_recording(''):
+    print('Unable to start video recording: {}'.format(mscope.last_error), file=sys.stderr)
     sys.exit(1)
 
 try:
     print('Recording... Terminate with CTL+C')
-    while scope.running:
-        frame = scope.current_disp_frame
+    while mscope.is_running:
+        frame = mscope.current_disp_frame
         if frame is not None:
             cv2.imshow('Miniscope Display', frame)
             cv2.waitKey(50)
 except KeyboardInterrupt:
     print('User terminated recording. Shutting down.')
-    scope.stop()
+    mscope.stop()
 
-if scope.last_error:
-    print('Error while acquiring data from Miniscope: {}'.format(scope.last_error), file=sys.stderr)
+if mscope.last_error:
+    print('Error while acquiring data from Miniscope: {}'.format(mscope.last_error), file=sys.stderr)
 
-scope.disconnect()
+mscope.disconnect()
 cv2.destroyAllWindows()

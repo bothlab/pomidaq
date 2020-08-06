@@ -19,8 +19,32 @@
 
 #pragma once
 
-#include <Python.h>
+#include <pybind11/pybind11.h>
 #include <opencv2/core/core.hpp>
 
-PyObject *initNDArray();
-PyObject* cvMatToNDArray(const cv::Mat& m);
+class NDArrayConverter {
+public:
+    // calls import_array1() and has to be called first!
+    static bool initNDArray();
+
+    static bool toMat(PyObject* o, cv::Mat &m);
+    static PyObject* toNDArray(const cv::Mat& mat);
+};
+
+namespace pybind11 {
+namespace detail {
+
+template <> struct type_caster<cv::Mat> {
+public:
+    PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
+
+    bool load(handle src, bool) {
+        return NDArrayConverter::toMat(src.ptr(), value);
+    }
+
+    static handle cast(const cv::Mat &m, return_value_policy, handle) {
+        return handle(NDArrayConverter::toNDArray(m));
+    }
+};
+}
+}

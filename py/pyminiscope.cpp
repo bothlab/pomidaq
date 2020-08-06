@@ -20,36 +20,20 @@
 #include <string>
 #include <sstream>
 
+#include <pybind11/pybind11.h>
+#include "qstringtopy.h"
+#include "cvmatndsliceconvert.h"
 #include "miniscope.h"
 
 using namespace MScope;
+namespace py = pybind11;
 
-#include <boost/python.hpp>
-#include "cvmatndsliceconvert.h"
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include <numpy/ndarrayobject.h>
-using namespace boost::python;
+PYBIND11_MODULE(miniscope, m) {
+    m.doc() = "Access a Miniscope through Python"; // optional module docstring
 
-#pragma GCC diagnostic ignored "-Wold-style-cast"
-struct cvmat_to_ndarray
-{
-    static PyObject* convert(const cv::Mat& mat)
-    {
-        return cvMatToNDArray(mat);
-    }
-    static PyTypeObject const* get_pytype()
-    {
-        return &PyArray_Type;
-    }
-};
-#pragma GCC diagnostic pop
+    NDArrayConverter::initNDArray();
 
-BOOST_PYTHON_MODULE(miniscope)
-{
-    initNDArray();
-    to_python_converter<cv::Mat, cvmat_to_ndarray, true>();
-
-    enum_<VideoCodec>("VideoCodec")
+    py::enum_<VideoCodec>(m, "VideoCodec", py::arithmetic())
             .value("UNKNOWN", VideoCodec::Unknown)
             .value("RAW", VideoCodec::Raw)
             .value("FFV1", VideoCodec::FFV1)
@@ -60,21 +44,21 @@ BOOST_PYTHON_MODULE(miniscope)
             .export_values()
             ;
 
-    enum_<VideoContainer>("VideoContainer")
+    py::enum_<VideoContainer>(m, "VideoContainer", py::arithmetic())
             .value("UNKNOWN", VideoContainer::Unknown)
             .value("MATROSKA", VideoContainer::Matroska)
             .value("AVI", VideoContainer::AVI)
             .export_values()
             ;
 
-    enum_<BackgroundDiffMethod>("BackgroundDiffMethod")
-            .value("NONE", BackgroundDiffMethod::None)
-            .value("SUBTRACTION", BackgroundDiffMethod::Subtraction)
-            .value("DIVISION", BackgroundDiffMethod::Division)
+    py::enum_<DisplayMode>(m, "DisplayMode", py::arithmetic())
+            .value("RAW_FRAMES", DisplayMode::RawFrames)
+            .value("BACKGROUND_DIFF", DisplayMode::BackgroundDiff)
             .export_values()
             ;
 
-    class_<Miniscope>("Miniscope")
+    py::class_<Miniscope>(m, "Miniscope")
+        .def(py::init<>())
         .def("set_cam_id", &Miniscope::setScopeCamId, "Set the Miniscope camera ID")
 
         .def("connect", &Miniscope::connect, "Connect the selected Miniscope")
@@ -85,41 +69,34 @@ BOOST_PYTHON_MODULE(miniscope)
         .def("stop_recording", &Miniscope::stopRecording, "Finish the current recording")
 
         .def("set_visible_channels", &Miniscope::setVisibleChannels, "Set which channels (red, green, blue) should be visible")
-        .add_property("show_red_channels", &Miniscope::showRedChannel)
-        .add_property("show_green_channels", &Miniscope::showGreenChannel)
-        .add_property("show_blue_channels", &Miniscope::showBlueChannel)
+        .def_property_readonly("show_red_channels", &Miniscope::showRedChannel)
+        .def_property_readonly("show_green_channels", &Miniscope::showGreenChannel)
+        .def_property_readonly("show_blue_channels", &Miniscope::showBlueChannel)
 
-        .add_property("exposure", &Miniscope::exposure, &Miniscope::setExposure, "Exposure setting")
-        .add_property("gain", &Miniscope::gain, &Miniscope::setGain, "Gain setting")
-        .add_property("excitation", &Miniscope::excitation, &Miniscope::setExcitation, "Excitation LED power setting")
+        .def_property_readonly("is_connected", &Miniscope::isConnected, "Is True if a Miniscope is connected")
+        .def_property_readonly("is_running", &Miniscope::isRunning, "Is True if we are acquiring images from the Miniscope")
+        .def_property_readonly("is_recording", &Miniscope::isRecording, "Is True if we are recording data")
 
-        .add_property("running", &Miniscope::running, "Is True if we are acquiring images from the Miniscope")
-        .add_property("recording", &Miniscope::recording, "Is True if we are recording data")
+        .def_property_readonly("current_disp_frame", &Miniscope::currentDisplayFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
+        .def_property_readonly("current_fps", &Miniscope::currentFps)
+        .def_property_readonly("dropped_frames_count", &Miniscope::droppedFramesCount)
+        .def_property_readonly("last_recorded_frame_time", &Miniscope::lastRecordedFrameTime) // TODO: we need to add a converter for the return type
 
-        .add_property("use_color", &Miniscope::useColor, &Miniscope::setUseColor)
+        .def_property("video_filename", &Miniscope::videoFilename, &Miniscope::setVideoFilename, "The name of the saved video")
+        .def_property("video_codec", &Miniscope::videoCodec, &Miniscope::setVideoCodec, "The video codec to use")
+        .def_property("video_container", &Miniscope::videoContainer, &Miniscope::setVideoContainer, "The video container to use")
+        .def_property("record_lossless", &Miniscope::recordLossless, &Miniscope::setRecordLossless, "Toggle lossless recording, if the codec supports it")
 
-        .add_property("current_disp_frame", &Miniscope::currentDisplayFrame, "Retrieve the current frame intended for display. May not be the recorded frame.")
-        .add_property("current_fps", &Miniscope::currentFps)
-        .add_property("dropped_frames_count", &Miniscope::droppedFramesCount)
-        .add_property("last_recorded_frame_time", &Miniscope::lastRecordedFrameTime) // TODO: we need to add a converter for the return type
+        .def_property("min_fluor_display", &Miniscope::minFluorDisplay, &Miniscope::setMinFluorDisplay, "Minimum fluorescence to display")
+        .def_property("max_fluor_display", &Miniscope::maxFluorDisplay, &Miniscope::setMaxFluorDisplay, "Maximum fluorescence to display")
+        .def_property_readonly("min_fluor", &Miniscope::minFluor, "Minimum fluorescence (pixel value) in the current image")
+        .def_property_readonly("max_fluor", &Miniscope::maxFluor, "Maximum fluorescence (pixel value) in the current image")
 
-        .add_property("fps", &Miniscope::fps, &Miniscope::setFps, "Target frames per second")
+        .def_property("display_mode", &Miniscope::displayMode, &Miniscope::setDisplayMode, "Set styling mode for the displayed images")
+        .def_property("bg_accumulate_alpha", &Miniscope::bgAccumulateAlpha, &Miniscope::setBgAccumulateAlpha)
 
-        .add_property("video_filename", &Miniscope::videoFilename, &Miniscope::setVideoFilename, "The name of the saved video")
-        .add_property("video_codec", &Miniscope::videoCodec, &Miniscope::setVideoCodec, "The video codec to use")
-        .add_property("video_container", &Miniscope::videoContainer, &Miniscope::setVideoContainer, "The video container to use")
-        .add_property("record_lossless", &Miniscope::recordLossless, &Miniscope::setRecordLossless, "Toggle lossless recording, if the codec supports it")
+        .def_property("recording_slice_interval", &Miniscope::recordingSliceInterval, &Miniscope::setRecordingSliceInterval, "The interval at which new video files should be started when recording, in minutes")
 
-        .add_property("min_fluor_display", &Miniscope::minFluorDisplay, &Miniscope::setMinFluorDisplay, "Minimum fluorescence to display")
-        .add_property("max_fluor_display", &Miniscope::maxFluorDisplay, &Miniscope::setMaxFluorDisplay, "Maximum fluorescence to display")
-        .add_property("min_fluor", &Miniscope::minFluor, "Minimum fluorescence (pixel value) in the current image")
-        .add_property("max_fluor", &Miniscope::maxFluor, "Maximum fluorescence (pixel value) in the current image")
-
-        .add_property("display_bg_diff_method", &Miniscope::displayBgDiffMethod, &Miniscope::setDisplayBgDiffMethod, "Set background elimination method for the displayed image")
-        .add_property("bg_accumulate_alpha", &Miniscope::bgAccumulateAlpha, &Miniscope::setBgAccumulateAlpha)
-
-        .add_property("recording_slice_interval", &Miniscope::recordingSliceInterval, &Miniscope::setRecordingSliceInterval, "The interval at which new video files should be started when recording, in minutes")
-
-        .add_property("last_error", &Miniscope::lastError, "Message of the last error, if there was one")
+        .def_property_readonly("last_error", &Miniscope::lastError, "Message of the last error, if there was one")
     ;
 }
