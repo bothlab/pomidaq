@@ -12,7 +12,7 @@ Recorded data is encoded with the [FFV1](https://en.wikipedia.org/wiki/FFV1) cod
 smaller video files at lossless quality that are safe to archive.
 
 It also provides an experimental Python module to access a Miniscope easily from Python. This feature has
-currently only been tested on Linux (and may stay Linux-only) and is still considered experimental.
+currently only been tested on Linux (and may stay Linux-only) and is still considered a bit experimental.
 
 Some features the original Miniscope DAQ software has, like the behavior recording, are intentionally left out.
 This software is developed on Linux, but has also been successfully tested on Windows. As of now, no macOS build
@@ -31,15 +31,28 @@ still a good chance to encounter strange behavior that was not previously tested
 
 ### Dependencies
 
- * cmake (>= 3.12)
- * Qt5 (>= 5.10)
- * Boost (>= 1.66)
+ * CMake (>= 3.16)
+ * Qt5 (>= 5.12)
  * FFmpeg (>= 4.1)
  * OpenCV (>= 4.1)
  * KF5ConfigWidgets (on Linux)
- * Boost-Python (optional)
+ * [pyBind11](https://github.com/pybind/pybind11) (optional)
 
 Before attempting to build PoMiDAQ, ensure all dependencies (and their development files) are installed on your system.
 You should then be able to build the software after configuring the build with cmake for your platform.
+
+On Debian-based Linux systems, all dependencies can be installed from the package repositories with this command:
+```bash
+sudo apt install cmake ninja-build qt5-default libqt5opengl5-dev libkf5configwidgets-dev \
+                 libopencv-dev libavcodec-dev libavformat-dev libswscale-dev \
+                 pybind11-dev python3-dev python3-numpy
+```
+The software can then be built:
+```bash
+mkdir build && cd build
+cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+ninja
+sudo ninja install
+```
 
 Pull-requests are very welcome! (Code should be valid C++14, use 4 spaces for indentation)
