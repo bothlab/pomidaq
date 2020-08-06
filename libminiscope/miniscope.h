@@ -81,8 +81,8 @@ public:
 
     int valueMin;
     int valueMax;
+    double valueStart;
     int stepSize;
-    int startValue;
 
     QStringList labels;
     std::vector<double> values;
@@ -104,7 +104,7 @@ public:
     bool connect();
     void disconnect();
 
-    QList<ControlDefinition> controls() const;
+    std::vector<ControlDefinition> controls() const;
     double controlValue(const QString &id);
     void setControlValue(const QString &id, double value);
 
@@ -206,6 +206,8 @@ public:
 
     uint recordingSliceInterval() const;
     void setRecordingSliceInterval(uint minutes);
+
+    void setPrintExtraDebug(bool enabled);
 
     QString lastError() const;
 

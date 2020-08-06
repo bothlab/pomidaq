@@ -77,7 +77,8 @@ public:
           failed(false),
           checkRecTrigger(false),
           droppedFramesCount(0),
-          useColor(false)
+          useColor(false),
+          printExtraDebug(true)
     {
         fps = 30;
         displayQueue.clear();
@@ -123,7 +124,7 @@ public:
     bool supportsColor;
     QString sensorType;
 
-    QList<ControlDefinition> controls;
+    std::vector<ControlDefinition> controls;
     QHash<QString, ControlCommandRule> controlRules;
     QHash<QString, double> controlValueCache;
 
@@ -168,6 +169,7 @@ public:
     bool recordLossless;
     uint recordingSliceInterval;
 
+    bool printExtraDebug;
     QString lastError;
 };
 #pragma GCC diagnostic pop
@@ -386,9 +388,9 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
         // set the start value
         if (!startValue.isNull()) {
             if (startValue.isString()) {
-                control.startValue = control.labels.indexOf(startValue.toString());
+                control.valueStart = control.labels.indexOf(startValue.toString());
             } else {
-                control.startValue = startValue.toInt();
+                control.valueStart = startValue.toInt();
             }
         }
 
@@ -396,9 +398,9 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
         // we set the default here
         if (controlKey == "frameRate") {
             if (commandRule.numLabelMap.empty()) {
-                d->fps = control.startValue;
+                d->fps = control.valueStart;
             } else {
-                d->fps = commandRule.numLabelMap[control.startValue];
+                d->fps = commandRule.numLabelMap[control.valueStart];
             }
 
             if (d->fps <= 1)
@@ -406,7 +408,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
         }
 
         d->controlRules[control.id] = commandRule;
-        d->controls.append(control);
+        d->controls.push_back(control);
     }
 
     return true;
@@ -516,7 +518,8 @@ void Miniscope::sendCommandsToDevice()
             for (size_t j = 1; j < packet.size(); j++)
                 tempPacket |= ((quint64) packet[j]) << (8 * (j + 1));
 
-            qCDebug(logMScope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket,16);
+            if (d->printExtraDebug)
+                qCDebug(logMScope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
@@ -529,7 +532,8 @@ void Miniscope::sendCommandsToDevice()
             for (size_t j = 1; j < packet.size(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
 
-            qCDebug(logMScope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket,16);
+            if (d->printExtraDebug)
+                qCDebug(logMScope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket,16);
             success = scopeDAQSendBytes(&d->cam,
                                         tempPacket & 0x00000000FFFF,
                                         (tempPacket & 0x0000FFFF0000) >> 16,
@@ -614,7 +618,7 @@ bool Miniscope::openCamera()
         if (d->controlValueCache.contains(ctl.id))
             setControlValue(ctl.id, d->controlValueCache[ctl.id]);
         else
-            setControlValue(ctl.id, ctl.startValue);
+            setControlValue(ctl.id, ctl.valueStart);
     }
 
     // send all commands to the device for initialization
@@ -668,7 +672,7 @@ void Miniscope::disconnect()
     d->connected = false;
 }
 
-QList<ControlDefinition> Miniscope::controls() const
+std::vector<ControlDefinition> Miniscope::controls() const
 {
     return d->controls;
 }
@@ -682,7 +686,7 @@ double Miniscope::controlValue(const QString &id)
 
     for (const auto &ctl : d->controls) {
         if (ctl.id == id)
-            return ctl.startValue;
+            return ctl.valueStart;
     }
     return 0;
 }
@@ -1063,6 +1067,11 @@ uint Miniscope::recordingSliceInterval() const
 void Miniscope::setRecordingSliceInterval(uint minutes)
 {
     d->recordingSliceInterval = minutes;
+}
+
+void Miniscope::setPrintExtraDebug(bool enabled)
+{
+    d->printExtraDebug = enabled;
 }
 
 QString Miniscope::lastError() const
