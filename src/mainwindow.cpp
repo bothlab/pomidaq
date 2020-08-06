@@ -342,7 +342,7 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
 
 void MainWindow::on_btnDevConnect_clicked()
 {
-    if (m_mscope->running()) {
+    if (m_mscope->isRunning()) {
         ui->btnDevConnect->setEnabled(false);
         QApplication::processEvents();
         m_mscope->disconnect();
@@ -388,7 +388,7 @@ void MainWindow::on_btnDevConnect_clicked()
     // switch to controls page, the user will likely need to use that next
     ui->toolBox->setCurrentIndex(1);
 
-    while (m_mscope->running()) {
+    while (m_mscope->isRunning()) {
         auto frame = m_mscope->currentDisplayFrame();
         if (!frame.empty()) {
             m_scopeView->showImage(frame);
@@ -437,7 +437,7 @@ void MainWindow::on_btnDevConnect_clicked()
 void MainWindow::on_btnRecord_toggled(bool checked)
 {
     // don't do anything if miniscope isn't running
-    if (!m_mscope->running())
+    if (!m_mscope->isRunning())
         return;
 
     QFileInfo dataLocation(m_dataDir);

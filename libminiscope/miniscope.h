@@ -114,8 +114,8 @@ public:
     bool startRecording(const QString &fname = "");
     void stopRecording();
 
-    bool running() const;
-    bool recording() const;
+    bool isRunning() const;
+    bool isRecording() const;
     bool captureStartTimeInitialized() const;
 
     void setVisibleChannels(bool red, bool green, bool blue);

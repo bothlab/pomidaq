@@ -63,6 +63,7 @@ public:
     std::vector<double> numLabelMap;
 };
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class Miniscope::Private
 {
@@ -837,12 +838,12 @@ void Miniscope::stopRecording()
     statusMessage("Video recording stopped.");
 }
 
-bool Miniscope::running() const
+bool Miniscope::isRunning() const
 {
     return d->running;
 }
 
-bool Miniscope::recording() const
+bool Miniscope::isRecording() const
 {
     return d->running && d->recording;
 }
@@ -1251,7 +1252,7 @@ void Miniscope::captureThread(void* msPtr)
         }
 
         // prepare video recording if it was enabled while we were running
-        if (self->recording()) {
+        if (self->isRecording()) {
             if (!vwriter->initialized()) {
                 msgInfo("Recording enabled.");
                 // we want to record, but are not initialized yet
