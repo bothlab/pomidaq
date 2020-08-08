@@ -1,6 +1,6 @@
 image:
   - Ubuntu
-  - Visual Studio 2017
+  - Visual Studio 2019
 
 services:
   - docker
@@ -13,12 +13,11 @@ environment:
 init:
   # Windows
   - cmd: set GENERATOR=Ninja
-  - cmd: set VCVARS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
+  - cmd: set VCVARS=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat
   - cmd: set PLATFORM=
   - cmd: set VER_SUFFIX=win64
-  - cmd: set QT_DIR=C:\Qt\5.12\msvc2017_64
+  - cmd: set QT_DIR=C:\Qt\5.15\msvc2019_64
   - cmd: set OPENCV_DIR=C:\tools\opencv\build\x64\vc15\lib
-  - cmd: set BOOST_DIR=C:\Libraries\boost_1_69_0
   - cmd: set FFMPEG_DIR=C:\projects\ffmpeg-root
 
   - cmd: call "%QT_DIR%\bin\qtenv2.bat"
@@ -37,11 +36,11 @@ install:
 
   # Windows
   - cmd: choco upgrade cmake ninja
-  - cmd: choco install opencv --version 4.1.0
+  - cmd: choco install opencv --version 4.1.2
   - ps: |
         mkdir -p $env:FFMPEG_DIR
         cd $env:FFMPEG_DIR
-        bash -c "wget -q -O ffmpeg.zip https://ffmpeg.zeranoe.com/builds/win64/dev/ffmpeg-4.1.1-win64-dev.zip"
+        bash -c "wget -q -O ffmpeg.zip https://ffmpeg.zeranoe.com/builds/win64/dev/ffmpeg-4.2.3-win64-dev.zip"
         Expand-Archive ffmpeg.zip -DestinationPath .
   - cmd: cd /D "%APPVEYOR_BUILD_FOLDER%"
 
@@ -58,9 +57,7 @@ before_build:
       -DCMAKE_BUILD_TYPE=Release
       -DCMAKE_INSTALL_PREFIX="%DEPLOY_DIR%"
       -DOpenCV_DIR="%OPENCV_DIR%"
-      -DFFmpegPath="%FFMPEG_DIR%/ffmpeg-4.1.1-win64-dev/include"
-      -DBoost_COMPILER="-vc141"
-      -DBOOST_ROOT="%BOOST_DIR%" -DBOOST_LIBRARYDIR="%BOOST_DIR%\lib64-msvc-14.1"
+      -DFFmpegPath="%FFMPEG_DIR%/ffmpeg-4.2.3-win64-dev/include"
       -DGUI=ON
       -DPYTHON=OFF
   - cmd: cd ..
@@ -78,7 +75,7 @@ after_build:
   - cmd: cmake --build build --target install
   - cmd: cd build
   - ps: |
-        bash -c "wget -q -O ffmpeg.zip https://ffmpeg.zeranoe.com/builds/win64/shared/ffmpeg-4.1.1-win64-shared.zip"
+        bash -c "wget -q -O ffmpeg.zip https://ffmpeg.zeranoe.com/builds/win64/shared/ffmpeg-4.2.3-win64-shared.zip"
         Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-bin
         cp .\ffmpeg-bin\*\bin\*.dll $env:DEPLOY_DIR\bin\
 
