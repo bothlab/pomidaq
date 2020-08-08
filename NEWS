@@ -1,3 +1,37 @@
+Version 0.4.0
+~~~~~~~~~~~~~~
+Released: 2020-08-08
+
+Features:
+ * Supports a lot more Miniscope devices, including the new Miniscope v4!
+ * Drop dependency on Boost
+ * Add Miniscope device type listing
+ * Implement dynamic loading of scope controls
+ * Implement the new DAQ board communication API
+ * ui: Jump to the next useful toolbox page automatically
+ * Simplify logging, write more detailed log in GUI
+ * Add callback to be notified of control value changes
+ * Don't call the raw encoding "No codec"/"None" in the UI
+ * Drop background division, make background diff a display mode
+ * Display storage location next to directory select button as well
+ * Save & restore window geometry
+ * Remember user data storage directory choice
+ * Remember last Miniscope device choice
+ * Add build instructions to README
+ * Use newer compiler and libs on Windows
+ * Update Python bindings
+
+Bugfixes:
+ * Convert more pixel formats in video writer
+ * Only show tested and suitable codecs in selection box
+ * Reset control value UI to device values upon reconnect
+ * Remove explicit framerate delay code
+ * Avoid sending lots of packets to the DAQ device in a short time
+ * Make amount of permitted broken timestamps framerate-dependent
+ * Auto-disconnect on device type change
+ * Fix Python module build and switch to pybind11
+ * Show GUI error message when failing to initialize OpenGL
+
 Version 0.3.0
 ~~~~~~~~~~~~~~
 Released: 2020-04-04
