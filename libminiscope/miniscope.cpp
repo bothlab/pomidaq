@@ -39,6 +39,11 @@
 #include "scopeintf.h"
 #include "videowriter.h"
 
+void initLibraryResources()
+{
+    Q_INIT_RESOURCE(mscoperes);
+}
+
 namespace MScope
 {
 
@@ -190,6 +195,8 @@ Q_GLOBAL_STATIC_WITH_ARGS(ControlIdToNameHash, g_controlIdToName, ( {
 Miniscope::Miniscope()
     : d(new Miniscope::Private())
 {
+    initLibraryResources();
+
     d->fps = 20;
     d->deviceConfig = QJsonObject();
 }
@@ -208,8 +215,10 @@ static void msgInfo(const QString &msg)
 static QJsonObject msconfGetDevicesJson()
 {
     QFile msTypesRc(QStringLiteral(":/config/miniscopes.json"));
-    if (!msTypesRc.open(QIODevice::ReadOnly))
+    if (!msTypesRc.open(QIODevice::ReadOnly)) {
+        qCWarning(logMScope).noquote() << "Unable to find Miniscope hardware definitions!";
         return QJsonObject();
+    }
     const auto jDoc = QJsonDocument::fromJson(msTypesRc.readAll());
 
     return jDoc.object();

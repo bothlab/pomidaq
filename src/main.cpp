@@ -19,10 +19,14 @@
 
 #include "mainwindow.h"
 #include <QApplication>
+#include "miniscope.h"
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+#ifdef Q_OS_WIN
+    MSCOPE_RES_INIT;
+#endif
 
     a.setApplicationName(QStringLiteral("PoMiDAQ"));
     a.setOrganizationName(QStringLiteral("DraguhnLab"));

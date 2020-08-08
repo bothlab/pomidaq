@@ -231,4 +231,10 @@ private:
 
 } // end of MiniScope namespace
 
+/**
+ * \brief Call this in main() to initialize resources. Only needed when using static linking.
+ */
+#define MSCOPE_RES_INIT	\
+  Q_INIT_RESOURCE(mscoperes)
+
 #endif // MINISCOPE_H
