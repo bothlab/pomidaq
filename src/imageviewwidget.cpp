@@ -24,6 +24,7 @@
 #include <QDebug>
 
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class ImageViewWidget::Private
 {
@@ -58,7 +59,7 @@ ImageViewWidget::~ImageViewWidget()
 void ImageViewWidget::initializeGL()
 {
     if (!initializeOpenGLFunctions()) {
-        qCritical() << "Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application.";
+        qFatal("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application.");
         QCoreApplication::exit(6);
     }
 
