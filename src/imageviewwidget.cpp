@@ -21,8 +21,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <QCoreApplication>
+#include <QMessageBox>
 #include <QDebug>
-
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -59,6 +59,12 @@ ImageViewWidget::~ImageViewWidget()
 void ImageViewWidget::initializeGL()
 {
     if (!initializeOpenGLFunctions()) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Unable to initialize OpenGL"),
+                              QStringLiteral("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application. "
+                                             "You may want to try to upgrade your graphics drivers.\n"
+                                             "Can not continue."),
+                              QMessageBox::Ok);
         qFatal("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application.");
         QCoreApplication::exit(6);
     }
