@@ -33,7 +33,8 @@ namespace py = pybind11;
 PYBIND11_MAKE_OPAQUE(std::vector<ControlDefinition>);
 PYBIND11_MAKE_OPAQUE(std::vector<double>);
 
-PYBIND11_MODULE(miniscope, m) {
+PYBIND11_MODULE(miniscope, m)
+{
     m.doc() = "Access a Miniscope through Python"; // optional module docstring
 
     NDArrayConverter::initNDArray();
