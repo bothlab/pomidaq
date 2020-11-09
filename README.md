@@ -43,7 +43,7 @@ You should then be able to build the software after configuring the build with c
 
 On Debian-based Linux systems, all dependencies can be installed from the package repositories with this command:
 ```bash
-sudo apt install cmake ninja-build qt5-default libqt5opengl5-dev libkf5configwidgets-dev \
+sudo apt install cmake ninja-build qtbase5-dev libqt5opengl5-dev libkf5configwidgets-dev \
                  libopencv-dev libavcodec-dev libavformat-dev libswscale-dev \
                  pybind11-dev python3-dev python3-numpy
 ```

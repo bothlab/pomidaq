@@ -19,7 +19,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     debhelper \
     debspawn \
     cmake \
-    qt5-default \
+    qtbase5-dev \
     libqt5opengl5-dev \
     libkf5configwidgets-dev \
     libopencv-dev \
