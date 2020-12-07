@@ -1,0 +1,145 @@
+name: Build
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-debian:
+    name: Debian
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd contrib/ci/ && docker build -t pomidaq -f Dockerfile-debian .
+
+    - name: Build
+      run: |
+        docker run --security-opt seccomp:unconfined \
+            -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+            -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
+
+    - name: Upload Debian package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Debian Package
+        path: pomidaq_*.deb
+
+
+  build-ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd contrib/ci/ && docker build -t pomidaq -f Dockerfile-ubuntu .
+      
+    - name: Build
+      run: |
+        docker run --security-opt seccomp:unconfined \
+            -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+            -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
+
+    - name: Upload Ubuntu package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Ubuntu Package
+        path: pomidaq_*.deb
+
+
+  build-windows:
+    name: Windows
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v2.11.1
+      with:
+        version: 5.15.2
+
+    - name: Make vcpkg only build release builds
+      run: |
+        "`r`nset(VCPKG_BUILD_TYPE release)" | Add-Content "$env:VCPKG_INSTALLATION_ROOT\triplets\x64-windows.cmake"
+        "`r`nset(VCPKG_BUILD_TYPE release)" | Add-Content "$env:VCPKG_INSTALLATION_ROOT\triplets\x64-windows-static.cmake"
+
+    - name: Setup OpenCV
+      run: vcpkg install --triplet x64-windows opencv[core,opengl,world]
+
+    - name: Setup FFmpeg
+      run: |
+        vcpkg install --triplet x86-windows yasm-tool
+        vcpkg install --triplet x64-windows ffmpeg[core,avcodec,avfilter,avformat,swresample,swscale,vpx,opus,openssl]
+
+    - name: Determine PoMiDAQ revision number
+      shell: bash
+      run: |
+        git_commit=$(git log --pretty="format:%h" -n1)
+        git_current_tag=$(git describe --tags 2> /dev/null || echo "v0.1")
+        git_commit_no=$(git rev-list --count HEAD)
+        PMD_VERSION=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/./g')
+        PMD_VERSION="$PMD_VERSION+git$git_commit_no"
+        echo "PMD_VERSION=${PMD_VERSION}" >> $GITHUB_ENV
+
+    - name: Create Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/build
+
+    - name: Configure Build
+      shell: bash
+      working-directory: ${{runner.workspace}}/build
+      run: |
+        cmake $GITHUB_WORKSPACE \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/PoMiDAQ-$PMD_VERSION" \
+          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+          -DVCPKG_TARGET_TRIPLET="x64-windows" \
+          -DOpenCV_DIR="C:/vcpkg/installed/x64-windows/share/opencv" \
+          -DFFmpegPath="C:/vcpkg/installed/x64-windows/share/ffmpeg" \
+          -Dprotobuf_DIR="C:/vcpkg/installed/x64-windows/share/protobuf" \
+          -DGUI=ON \
+          -DPYTHON=OFF
+
+    - name: Build
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: cmake --build . --config $BUILD_TYPE
+
+    - name: Install & Bundle
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: |
+        cmake --build . --config $BUILD_TYPE --target install
+
+        cd $GITHUB_WORKSPACE
+        DEPLOY_DIR=$GITHUB_WORKSPACE/PoMiDAQ-$PMD_VERSION
+        windeployqt $DEPLOY_DIR/bin/pomidaq.exe
+
+        # FFmpeg
+        cp C:/vcpkg/installed/x64-windows/bin/av*.dll $DEPLOY_DIR/bin/
+        cp C:/vcpkg/installed/x64-windows/bin/sw*.dll $DEPLOY_DIR/bin/
+
+        # OpenCV
+        cp C:/vcpkg/installed/x64-windows/bin/opencv*.dll $DEPLOY_DIR/bin/
+
+        # Misc
+        cp LICENSE $DEPLOY_DIR/LICENSE.txt
+        cp README.md $DEPLOY_DIR/
+        cp contrib/LICENSES.3rd-party $DEPLOY_DIR/LICENSES_3rd-party.txt
+
+    - name: Upload Windows build
+      uses: actions/upload-artifact@v2
+      with:
+        name: Win64 build
+        path: PoMiDAQ-${{env.PMD_VERSION}}
