@@ -1197,7 +1197,7 @@ void Miniscope::captureThread(void* msPtr)
                     if (!status) {
                         self->fail("Unable to grab valid frames for initialization. (You may try to power cycle the DAQ board to resolve this issue)");
                         break;
-                    } else if (d->droppedFramesCount >= d->fps) {
+                    } else if (d->droppedFramesCount >= (d->fps * 2)) {
                         self->fail("Unable to get valid timestamps for initialization.");
                         break;
                     }
