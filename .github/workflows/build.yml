@@ -87,9 +87,9 @@ jobs:
       shell: bash
       run: |
         git_commit=$(git log --pretty="format:%h" -n1)
-        git_current_tag=$(git describe --tags 2> /dev/null || echo "v0.1")
+        git_current_tag=$(git describe --tags --abbrev=0 2> /dev/null || echo "v0.1")
         git_commit_no=$(git rev-list --count HEAD)
-        PMD_VERSION=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/./g')
+        PMD_VERSION=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/~/g')
         PMD_VERSION="$PMD_VERSION+git$git_commit_no"
         echo "PMD_VERSION=${PMD_VERSION}" >> $GITHUB_ENV
 
@@ -147,8 +147,12 @@ jobs:
         cp README.md $DEPLOY_DIR/
         cp contrib/LICENSES.3rd-party $DEPLOY_DIR/LICENSES_3rd-party.txt
 
+        # move deploy dir into subdirectory
+        mkdir -p $GITHUB_WORKSPACE/win64-deploy
+        mv $DEPLOY_DIR $GITHUB_WORKSPACE/win64-deploy/
+
     - name: Upload Windows build
       uses: actions/upload-artifact@v2
       with:
-        name: Win64 build
-        path: PoMiDAQ-${{env.PMD_VERSION}}
+        name: PoMiDAQ-${{env.PMD_VERSION}}_win64
+        path: win64-deploy/
