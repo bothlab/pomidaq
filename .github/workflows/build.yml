@@ -107,7 +107,6 @@ jobs:
           -DVCPKG_TARGET_TRIPLET="x64-windows" \
           -DOpenCV_DIR="C:/vcpkg/installed/x64-windows/share/opencv" \
           -DFFmpegPath="C:/vcpkg/installed/x64-windows/share/ffmpeg" \
-          -Dprotobuf_DIR="C:/vcpkg/installed/x64-windows/share/protobuf" \
           -DGUI=ON \
           -DPYTHON=OFF
 
@@ -126,7 +125,10 @@ jobs:
         DEPLOY_DIR=$GITHUB_WORKSPACE/PoMiDAQ-$PMD_VERSION
         VCPKG_BIN_DIR="C:/vcpkg/installed/x64-windows/bin"
 
-        windeployqt $DEPLOY_DIR/bin/pomidaq.exe
+        windeployqt \
+            --no-quick-import \
+            --no-translations \
+            $DEPLOY_DIR/bin/pomidaq.exe
 
         # FFmpeg
         cp $VCPKG_BIN_DIR/av*.dll $DEPLOY_DIR/bin/
@@ -135,12 +137,8 @@ jobs:
         # OpenCV
         cp $VCPKG_BIN_DIR/opencv*.dll $DEPLOY_DIR/bin/
 
-        # Common
-        cp $VCPKG_BIN_DIR/zlib*.dll $DEPLOY_DIR/bin/
-        cp $VCPKG_BIN_DIR/jpeg*.dll $DEPLOY_DIR/bin/
-        cp $VCPKG_BIN_DIR/libpng*.dll $DEPLOY_DIR/bin/
-        cp $VCPKG_BIN_DIR/webp.dll $DEPLOY_DIR/bin/
-        cp $VCPKG_BIN_DIR/tiff.dll $DEPLOY_DIR/bin/
+        # Install all DLLs, we assume all are needed
+        install $VCPKG_BIN_DIR/*.dll $DEPLOY_DIR/bin/
 
         # Misc
         cp LICENSE $DEPLOY_DIR/LICENSE.txt
