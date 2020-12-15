@@ -30,6 +30,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QHash>
+#include <QDateTime>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -1187,8 +1188,8 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
 inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
 {
     if (d->emulateTimestamps)
-        return milliseconds_t (QDateTime().currentMSecsSinceEpoch());
-    return milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+        return milliseconds_t(QDateTime().currentMSecsSinceEpoch());
+    return milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 }
 
 void Miniscope::captureThread(void* msPtr)
@@ -1265,9 +1266,9 @@ void Miniscope::captureThread(void* msPtr)
         auto status = d->cam.grab();
         auto masterRecvTimestamp = std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime)) / 2.0);
 #ifdef Q_OS_LINUX
-        const auto driverFrameTimestamp = milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+        const auto driverFrameTimestamp = milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 #else
-        const auto driverFrameTimestamp = self->getCurrentDriverTimestamp();
+        const auto driverFrameTimestamp = self->getCurrentFrameTimestamp();
 #endif
 
         if (reinitStartTime) {
