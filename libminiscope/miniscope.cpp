@@ -129,6 +129,7 @@ public:
     cv::Size resolution;
     bool supportsColor;
     QString sensorType;
+    double pixelClock;
 
     std::vector<ControlDefinition> controls;
     QHash<QString, ControlCommandRule> controlRules;
@@ -329,6 +330,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     d->resolution = cv::Size(d->deviceConfig["width"].toInt(-1), d->deviceConfig["height"].toInt(-1));
     d->supportsColor = d->deviceConfig["isColor"].toBool(false);
     d->sensorType = d->deviceConfig["sensor"].toString("unknown");
+    d->pixelClock = d->deviceConfig["pixelClock"].toDouble(-1);
 
     // load information about available controls
     d->controls.clear();
@@ -601,6 +603,72 @@ bool Miniscope::openCamera()
 
     // reset all packet parts to zero
     scopeDAQSendBytes(&d->cam, 0x00, 0x00 ,0x00);
+
+    // We need to make sure the MODE of the SERDES is correct
+    // This needs to be done before any other commands are sent over SERDES
+    // Currently this is for the 913/914 TI SERES
+    qCDebug(logMScope).noquote() << "Pixel Clock is" << d->pixelClock;
+    if (d->pixelClock > 0) {
+        std::vector<quint8> packet;
+
+        if (d->pixelClock <= 50) {
+            // Set to 12bit low frequency in this case
+
+            // DES
+            packet.clear();
+            packet.push_back(0xC0); // I2C Address
+            packet.push_back(0x1F); // reg
+            packet.push_back(0b00010000); // data
+            enqueueI2CCommand(0, packet);
+
+            // SER
+            packet.clear();
+            packet.push_back(0xB0); // I2C Address
+            packet.push_back(0x05); // reg
+            packet.push_back(0b00100000); // data
+            enqueueI2CCommand(1, packet);
+
+            sendCommandsToDevice();
+            std::this_thread::sleep_for(milliseconds_t(400));
+        }
+        else {
+            // Set to 10bit high frequency in this case
+
+            // DES
+            packet.clear();
+            packet.push_back(0xC0); // I2C Address
+            packet.push_back(0x1F); // reg
+            packet.push_back(0b00010001); // data
+            enqueueI2CCommand(0, packet);
+
+            // SER
+            packet.clear();
+            packet.push_back(0xB0); // I2C Address
+            packet.push_back(0x05); // reg
+            packet.push_back(0b00100001); // data
+            enqueueI2CCommand(1, packet);
+
+            sendCommandsToDevice();
+            std::this_thread::sleep_for(milliseconds_t(400));
+
+            // DES
+            packet.clear();
+            packet.push_back(0xC0); // I2C Address
+            packet.push_back(0x1F); // reg
+            packet.push_back(0b00010001); // data
+            enqueueI2CCommand(0,packet);
+
+            // SER
+            packet.clear();
+            packet.push_back(0xB0); // I2C Address
+            packet.push_back(0x05); // reg
+            packet.push_back(0b00100001); // data
+            enqueueI2CCommand(1,packet);
+
+            sendCommandsToDevice();
+            std::this_thread::sleep_for(milliseconds_t(400));
+        }
+    }
 
     // prepare all commands to initialize the Miniscope hardware
     const auto initCommands = msconfParseSendCommand(d->deviceConfig["initialize"].toArray());
