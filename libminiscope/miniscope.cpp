@@ -573,7 +573,7 @@ bool Miniscope::openCamera()
     bool ret;
 #ifdef Q_OS_LINUX
     apiPreference = cv::CAP_V4L2;
-#elif Q_OS_WIN
+#elif defined(Q_OS_WIN)
     apiPreference = cv::CAP_MSMF;
 #endif
     d->camAPI = apiPreference;
@@ -1124,7 +1124,7 @@ inline milliseconds_t Miniscope::getCurrentDriverTimestamp()
 {
 #ifdef Q_OS_LINUX
     return milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
-#elif Q_OS_WIN
+#elif defined(Q_OS_WIN)
     // we only get an accurate timestamp on Windows when using tze MSMF backend,
     // emulate a timestamp otherwise
     if (d->camAPI == cv::CAP_MSMF)
