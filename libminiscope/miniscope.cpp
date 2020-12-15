@@ -122,7 +122,7 @@ public:
 
     cv::VideoCapture cam;
     int scopeCamId;
-    int camAPI;
+    bool emulateTimestamps;
 
     QJsonObject deviceConfig;
     QString deviceType;
@@ -432,6 +432,7 @@ QString Miniscope::deviceType() const
 void Miniscope::startCaptureThread()
 {
     finishCaptureThread();
+    d->emulateTimestamps = false;
     d->running = true;
     d->thread = new std::thread(captureThread, this);
 }
@@ -576,16 +577,11 @@ bool Miniscope::openCamera()
 #elif defined(Q_OS_WIN)
     apiPreference = cv::CAP_MSMF;
 #endif
-    d->camAPI = apiPreference;
     ret = d->cam.open(d->scopeCamId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
         qCWarning(logMScope).noquote() << "Unable to use preferred camera backend, falling back to autodetection.";
-        d->camAPI = cv::CAP_ANY;
         ret = d->cam.open(d->scopeCamId);
-#ifdef Q_OS_WIN
-        qCWarning(logMScope).noquote() << "Unable to use MSMF backend on Windows. Timestamps may be less accurate due to timestamp emulation";
-#endif
     }
 
     if (!ret)
@@ -1120,17 +1116,11 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
         d->displayQueue.enqueue(frame);
 }
 
-inline milliseconds_t Miniscope::getCurrentDriverTimestamp()
+inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
 {
-#ifdef Q_OS_LINUX
+    if (d->emulateTimestamps)
+        return milliseconds_t (QDateTime().currentMSecsSinceEpoch());
     return milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
-#elif defined(Q_OS_WIN)
-    // we only get an accurate timestamp on Windows when using tze MSMF backend,
-    // emulate a timestamp otherwise
-    if (d->camAPI == cv::CAP_MSMF)
-        return milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
-    return milliseconds_t (QDateTime().currentMSecsSinceEpoch());
-#endif
 }
 
 void Miniscope::captureThread(void* msPtr)
@@ -1216,7 +1206,7 @@ void Miniscope::captureThread(void* msPtr)
             // perform timestamp sanity check - occasionally we get bad timestamps, and we must not
             // initialize our timer with those.
             if (driverFrameTimestamp.count() <= 0) {
-                msgInfo("Frame with timestamp of zero ignored for timer initialization.");
+                msgInfo("Frame with timestamp of <= 0 ignored for timer initialization.");
 
                 // We fail quickly here in case we actually failed to grab a falid frame (status == false),
                 // which may indicate issues in the DAQ board itself or connectivity problems.
@@ -1226,7 +1216,15 @@ void Miniscope::captureThread(void* msPtr)
                     if (!status) {
                         self->fail("Unable to grab valid frames for initialization. (You may try to power cycle the DAQ board to resolve this issue)");
                         break;
-                    } else if (d->droppedFramesCount >= (d->fps * 2)) {
+                    } else if (d->droppedFramesCount >= d->fps) {
+#ifdef Q_OS_WIN
+                        if (!d->emulateTimestamps) {
+                            d->emulateTimestamps = true;
+                            d->droppedFramesCount = 0;
+                            qCWarning(logMScope).noquote() << "Unable to get valid driver timestamps. Falling back to timestamp emulation.";
+                            continue;
+                        }
+#endif
                         self->fail("Unable to get valid timestamps for initialization.");
                         break;
                     }
