@@ -122,6 +122,7 @@ public:
 
     cv::VideoCapture cam;
     int scopeCamId;
+    int camAPI;
 
     QJsonObject deviceConfig;
     QString deviceType;
@@ -559,26 +560,37 @@ void Miniscope::sendCommandsToDevice()
 
 bool Miniscope::openCamera()
 {
-    if (d->connected)
+    if (d->connected) {
         qCWarning(logMScope).noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
+        disconnect();
+    }
 
-    // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen,
-    // has issues with some properties of the Miniscope camera and will refuse to
-    // grab any proper frame.
-    // On Windows on the other hand, the DirectShow backend seems to be the best option.
+    // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen, has issues
+    // with some properties of the Miniscope camera and will refuse to grab any proper frame.
+    // On Windows on the other hand, the MSMF backend seems to be the best and most complete option.
     // If any of them fail, just try the API autodetection in OpenCV.
     auto apiPreference = cv::CAP_ANY;
-#ifdef __linux__
+    bool ret;
+#ifdef Q_OS_LINUX
     apiPreference = cv::CAP_V4L2;
-#elif defined(_WIN64) || defined(_WIN32)
-    apiPreference = cv::CAP_DSHOW;
+#elif Q_OS_WIN
+    apiPreference = cv::CAP_MSMF;
 #endif
-    auto ret = d->cam.open(d->scopeCamId, apiPreference);
+    d->camAPI = apiPreference;
+    ret = d->cam.open(d->scopeCamId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
-        msgInfo("Unable to use preferred camera backend, falling back to autodetection.");
+        qCWarning(logMScope).noquote() << "Unable to use preferred camera backend, falling back to autodetection.";
+        d->camAPI = cv::CAP_ANY;
         ret = d->cam.open(d->scopeCamId);
+#ifdef Q_OS_WIN
+        qCWarning(logMScope).noquote() << "Unable to use MSMF backend on Windows. Timestamps may be less accurate due to timestamp emulation";
+#endif
     }
+
+    if (!ret)
+        return ret;
+    qCInfo(logMScope).noquote() << "Using backend API:" << QString::fromStdString(d->cam.getBackendName());
 
     // set height/width for new DAQ firmware versions which can support
     // multiple Miniscope device types
@@ -1108,6 +1120,19 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
         d->displayQueue.enqueue(frame);
 }
 
+inline milliseconds_t Miniscope::getCurrentDriverTimestamp()
+{
+#ifdef Q_OS_LINUX
+    return milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+#elif Q_OS_WIN
+    // we only get an accurate timestamp on Windows when using tze MSMF backend,
+    // emulate a timestamp otherwise
+    if (d->camAPI == cv::CAP_MSMF)
+        return milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+    return milliseconds_t (QDateTime().currentMSecsSinceEpoch());
+#endif
+}
+
 void Miniscope::captureThread(void* msPtr)
 {
     const auto self = static_cast<Miniscope*> (msPtr);
@@ -1181,7 +1206,11 @@ void Miniscope::captureThread(void* msPtr)
         const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime);
         auto status = d->cam.grab();
         auto masterRecvTimestamp = std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime)) / 2.0);
-        const auto driverFrameTimestamp = std::chrono::milliseconds (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+#ifdef Q_OS_LINUX
+        const auto driverFrameTimestamp = milliseconds_t (static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+#else
+        const auto driverFrameTimestamp = self->getCurrentDriverTimestamp();
+#endif
 
         if (reinitStartTime) {
             // perform timestamp sanity check - occasionally we get bad timestamps, and we must not

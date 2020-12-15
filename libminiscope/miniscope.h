@@ -225,6 +225,7 @@ private:
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();
+    milliseconds_t getCurrentDriverTimestamp();
     void statusMessage(const QString &msg);
     void fail(const QString &msg);
 };
