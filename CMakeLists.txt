@@ -65,7 +65,7 @@ find_package(Threads)
 find_package(Qt5Core 5.12 REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 
-find_package(OpenCV 4.1 REQUIRED)
+find_package(OpenCV 4.2 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
