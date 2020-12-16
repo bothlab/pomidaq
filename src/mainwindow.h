@@ -54,6 +54,7 @@ private slots:
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
+    void on_btnDispLimitsReset_clicked();
     void on_sliceIntervalSpinBox_valueChanged(int arg1);
 
     void on_actionAbout_triggered();

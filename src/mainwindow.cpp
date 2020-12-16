@@ -150,6 +150,14 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    // set icons with fallbacks
+    ui->btnOpenSaveDir->setIcon(QIcon::fromTheme(QStringLiteral("folder-open"),
+                                                 QIcon(":/icons/folder-open.svg")));
+    ui->actionSetDataLocation->setIcon(QIcon::fromTheme(QStringLiteral("folder-open"),
+                                                        QIcon(":/icons/folder-open.svg")));
+    ui->btnDispLimitsReset->setIcon(QIcon::fromTheme(QStringLiteral("edit-reset"),
+                                                     QIcon(":/icons/edit-reset.svg")));
+
     // Create status bar
     m_statusBarLabel = new QLabel("OK", this);
     statusBar()->addWidget(m_statusBarLabel, 1);
@@ -539,12 +547,22 @@ void MainWindow::on_cbExtRecTrigger_toggled(bool checked)
 void MainWindow::on_sbDisplayMin_valueChanged(int arg1)
 {
     m_mscope->setMinFluorDisplay(arg1);
+    ui->btnDispLimitsReset->setEnabled(true);
 }
 
 
 void MainWindow::on_sbDisplayMax_valueChanged(int arg1)
 {
     m_mscope->setMaxFluorDisplay(arg1);
+    ui->btnDispLimitsReset->setEnabled(true);
+
+}
+
+void MainWindow::on_btnDispLimitsReset_clicked()
+{
+    ui->sbDisplayMin->setValue(ui->sbDisplayMin->minimum());
+    ui->sbDisplayMax->setValue(ui->sbDisplayMax->maximum());
+    ui->btnDispLimitsReset->setEnabled(false);
 }
 
 void MainWindow::on_btnOpenSaveDir_clicked()

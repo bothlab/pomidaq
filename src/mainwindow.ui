@@ -630,6 +630,25 @@
                      </widget>
                     </item>
                     <item>
+                     <widget class="QPushButton" name="btnDispLimitsReset">
+                      <property name="enabled">
+                       <bool>false</bool>
+                      </property>
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="icon">
+                       <iconset theme="edit-reset"/>
+                      </property>
+                      <property name="flat">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
                      <spacer name="horizontalSpacer">
                       <property name="orientation">
                        <enum>Qt::Horizontal</enum>
@@ -867,8 +886,7 @@
                     <string>...</string>
                    </property>
                    <property name="icon">
-                    <iconset theme="folder-open" resource="../data/resources.qrc">
-                     <normaloff>:/icons/document-open.png</normaloff>:/icons/document-open.png</iconset>
+                    <iconset theme="folder-open"/>
                    </property>
                   </widget>
                  </item>
