@@ -1,3 +1,17 @@
+Version 0.4.1
+~~~~~~~~~~~~~~
+Released: 2020-12-16
+
+Features:
+ * ci: Switch to GitHub Actions for CI
+ * Build Win64 build with MSVC by default
+ * Add ability to hotplug Miniscopes to DAQ board
+ * Add reset button to display limits settings
+
+Bugfixes:
+ * Emulate timestamps on Windows if backend doesn't provide accurate ones
+ * Update Miniscope hardware definition from upstream
+
 Version 0.4.0
 ~~~~~~~~~~~~~~
 Released: 2020-08-08
