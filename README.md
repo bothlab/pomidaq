@@ -27,7 +27,7 @@ still a good chance to encounter strange behavior that was not previously tested
 
 ## Developers
 
-[![Build status](https://ci.appveyor.com/api/projects/status/qol41r02heuyifsw/branch/master?svg=true)](https://ci.appveyor.com/project/ximion/pomidaq/branch/master)
+![Build](https://github.com/bothlab/pomidaq/workflows/Build/badge.svg)
 
 ### Dependencies
 
