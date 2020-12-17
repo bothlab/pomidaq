@@ -598,6 +598,9 @@ bool Miniscope::openCamera()
     if (d->resolution.height > 0)
         d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->resolution.height);
 
+    // recording disabled, we are just running
+    d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
+
     // ensure the command queue isn't full with old packets that flood the
     // DAQ board immediately after it is connected
     d->commandQueue.clear();
@@ -1369,6 +1372,7 @@ void Miniscope::captureThread(void* msPtr)
         if (self->isRecording()) {
             if (!vwriter->initialized()) {
                 msgInfo("Recording enabled.");
+
                 // we want to record, but are not initialized yet
                 vwriter->setFileSliceInterval(d->recordingSliceInterval);
                 vwriter->setCodec(d->videoCodec);
@@ -1401,6 +1405,9 @@ void Miniscope::captureThread(void* msPtr)
                 }
                 frameTimestamp = driverFrameTimestamp - driverStartTimestamp;
                 vwriter->setCaptureStartTimestamp(frameTimestamp);
+
+                // tell DAQ hardware that we are recording now (enables sync trigger output)
+                d->cam.set(cv::CAP_PROP_SATURATION, 0x0001);
             }
         } else {
             // we are not recording or stopped recording
@@ -1413,6 +1420,9 @@ void Miniscope::captureThread(void* msPtr)
                 recordFrames = false;
                 msgInfo("Recording finalized.");
                 d->lastRecordedFrameTime = std::chrono::milliseconds(0);
+
+                // let DAQ board know that we aren#t recording (anymore)
+                d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
             }
         }
 
@@ -1481,4 +1491,7 @@ void Miniscope::captureThread(void* msPtr)
     // finalize recording (if there was any still ongoing)
     vwriter->finalize();
     d->lastRecordedFrameTime = std::chrono::milliseconds(0);
+
+    // any recording is finished at this point, let DAQ hardware know about that
+    d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 }
