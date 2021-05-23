@@ -230,8 +230,10 @@ MainWindow::MainWindow(QWidget *parent) :
         }
     }
 
-    // restore geometry, if any is saved
+    // restore window geometry and splitter position, if any is saved
     setGeometry(settings.value("ui/geometry", geometry()).toRect());
+    if (settings.contains("ui/splitterSizes"))
+        ui->splitter->setSizes(settings.value("ui/splitterSizes").value<QList<int>>());
 
     // restore previous data storage location, if it is still valid
     const auto savedDataDir = settings.value("recording/dataDir").toString();
@@ -255,14 +257,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
-    QSettings settings(qApp->organizationName(), qApp->applicationName());
-    settings.setValue("ui/geometry", this->geometry());
-    settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
-    settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
-    settings.setValue("device/type", ui->deviceTypeComboBox->currentText());
-    if (!m_dataDir.isEmpty())
-        settings.setValue("recording/dataDir", m_dataDir);
-
     // reset default message handler
     qInstallMessageHandler(nullptr);
     g_mainWin = nullptr;
@@ -274,6 +268,15 @@ MainWindow::~MainWindow()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     m_mscope->disconnect();
+
+    QSettings settings(qApp->organizationName(), qApp->applicationName());
+    settings.setValue("ui/geometry", geometry());
+    settings.setValue("ui/splitterSizes", QVariant::fromValue(ui->splitter->sizes()));
+    settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
+    settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
+    settings.setValue("device/type", ui->deviceTypeComboBox->currentText());
+    if (!m_dataDir.isEmpty())
+        settings.setValue("recording/dataDir", m_dataDir);
 
     QMainWindow::closeEvent(event);
 }
