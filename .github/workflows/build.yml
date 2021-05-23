@@ -16,12 +16,12 @@ jobs:
         fetch-depth: 0
 
     - name: Create Build Environment
-      run: cd contrib/ci/ && docker build -t pomidaq -f Dockerfile-debian .
+      run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-debian .
 
     - name: Build
       run: |
-        docker run --security-opt seccomp:unconfined \
-            -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+        podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+            -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de \
             -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
 
     - name: Upload Debian package artifact
@@ -41,12 +41,12 @@ jobs:
         fetch-depth: 0
 
     - name: Create Build Environment
-      run: cd contrib/ci/ && docker build -t pomidaq -f Dockerfile-ubuntu .
+      run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-ubuntu .
       
     - name: Build
       run: |
-        docker run --security-opt seccomp:unconfined \
-            -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+        podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+            -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de \
             -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
 
     - name: Upload Ubuntu package artifact
