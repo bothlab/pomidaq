@@ -424,6 +424,15 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
         d->controls.push_back(control);
     }
 
+    // create a preferred order for our controls
+    std::sort(d->controls.begin(), d->controls.end(),[](const ControlDefinition& lhs, const ControlDefinition& rhs) {
+        if (lhs.kind > rhs.kind)
+            return true;
+        if (lhs.kind < rhs.kind)
+            return false;
+        return lhs.name.compare(rhs.name, Qt::CaseInsensitive) > 0;
+    });
+
     return true;
 }
 
