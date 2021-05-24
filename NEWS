@@ -1,3 +1,16 @@
+Version 0.4.2
+~~~~~~~~~~~~~~
+Released: 2020-05-24
+
+Features:
+ * Add spin boxes for sliding values, in addition to slider widgets
+ * Start Miniscopes on highest framerate by default
+
+Bugfixes:
+ * Tell DAQ board when we are recording data
+ * Consistently sort Miniscope controls
+ * Save & restore main window splitter position
+
 Version 0.4.1
 ~~~~~~~~~~~~~~
 Released: 2020-12-16
