@@ -41,7 +41,7 @@
       </property>
       <widget class="QWidget" name="widget" native="true">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -337,7 +337,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1187</width>
+             <width>1124</width>
              <height>273</height>
             </rect>
            </property>
@@ -432,7 +432,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1187</width>
+             <width>1124</width>
              <height>273</height>
             </rect>
            </property>
@@ -641,7 +641,8 @@
                        </sizepolicy>
                       </property>
                       <property name="icon">
-                       <iconset theme="edit-reset"/>
+                       <iconset theme="edit-reset">
+                        <normaloff>.</normaloff>.</iconset>
                       </property>
                       <property name="flat">
                        <bool>true</bool>
@@ -728,7 +729,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1187</width>
+             <width>1124</width>
              <height>273</height>
             </rect>
            </property>
@@ -886,7 +887,8 @@
                     <string>...</string>
                    </property>
                    <property name="icon">
-                    <iconset theme="folder-open"/>
+                    <iconset theme="folder-open">
+                     <normaloff>.</normaloff>.</iconset>
                    </property>
                   </widget>
                  </item>
@@ -950,10 +952,16 @@
       </widget>
       <widget class="QWidget" name="videoDisplayWidget" native="true">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>0</height>
+        </size>
        </property>
        <layout class="QHBoxLayout" name="horizontalLayout_4">
         <property name="spacing">
