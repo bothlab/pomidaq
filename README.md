@@ -53,6 +53,7 @@ mkdir build && cd build
 cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 ninja
 sudo ninja install
+sudo ldconfig
 ```
 
 Pull-requests are very welcome! (Code should be valid C++14, use 4 spaces for indentation)
