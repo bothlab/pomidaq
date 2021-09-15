@@ -45,7 +45,7 @@ On Debian-based Linux systems, all dependencies can be installed from the packag
 ```bash
 sudo apt install cmake ninja-build qtbase5-dev libqt5opengl5-dev libkf5configwidgets-dev \
                  libopencv-dev libavcodec-dev libavformat-dev libswscale-dev \
-                 pybind11-dev python3-dev python3-numpy
+                 pybind11-dev python3-dev python3-numpy build-essential
 ```
 The software can then be built:
 ```bash
