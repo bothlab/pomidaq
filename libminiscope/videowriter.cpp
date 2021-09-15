@@ -545,6 +545,8 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp)
 {
     int ret;
+    bool success = false;
+    AVPacket *pkt = nullptr;
 
     if (!prepareFrame(frame)) {
         std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError.toStdString() << ")" << std::endl;
@@ -558,32 +560,33 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         return false;
     }
 
-    AVPacket pkt;
-    pkt.data = nullptr;
-    pkt.size = 0;
-    av_init_packet(&pkt);
-    ret = avcodec_receive_packet(d->cctx, &pkt);
+    pkt = av_packet_alloc();
+    if (!pkt) {
+        d->lastError = QStringLiteral("Unable to allocate packet.");
+        return false;
+    }
+
+    const auto tsMsec = timestamp.count();
+
+    ret = avcodec_receive_packet(d->cctx, pkt);
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
         if ((ret == AVERROR(EAGAIN)) &&
             ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
-            return true;
-        else
-            return false;
+            success = true;
+        goto out;
     }
 
     // rescale packet timestamp
-    pkt.duration = 1;
-    av_packet_rescale_ts(&pkt, d->cctx->time_base, d->vstrm->time_base);
+    pkt->duration = 1;
+    av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
 
     // write packet
-    av_write_frame(d->octx, &pkt);
+    av_write_frame(d->octx, pkt);
     d->frames_n++;
-    av_packet_unref(&pkt);
 
     // store timestamp (if necessary)
-    const auto tsMsec = timestamp.count();
     if (d->saveTimestamps)
         d->timestampFile << d->framePts << "; " << tsMsec << "\n";
 
@@ -606,7 +609,10 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         }
     }
 
-    return true;
+    success = true;
+ out:
+    av_packet_free(&pkt);
+    return success;
 }
 
 void VideoWriter::startEncodeThread()
