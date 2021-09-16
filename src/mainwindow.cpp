@@ -232,8 +232,14 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // restore window geometry and splitter position, if any is saved
     setGeometry(settings.value("ui/geometry", geometry()).toRect());
-    if (settings.contains("ui/splitterSizes"))
-        ui->splitter->setSizes(settings.value("ui/splitterSizes").value<QList<int>>());
+    if (settings.contains("ui/splitterSizes")) {
+        QList<int> splitSizes;
+        auto byteArray = settings.value("ui/splitterSizes").toByteArray();
+        QDataStream stream(&byteArray, QIODevice::ReadWrite);
+        stream >> splitSizes;
+        if (!splitSizes.isEmpty())
+            ui->splitter->setSizes(splitSizes);
+    }
 
     // restore previous data storage location, if it is still valid
     const auto savedDataDir = settings.value("recording/dataDir").toString();
@@ -269,9 +275,16 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     m_mscope->disconnect();
 
+    // transform splitter sizes list to byte array, a QVariant
+    // doesn't work in the Windows Registry
+    QByteArray splitterSizesBytes;
+    QDataStream ssizesStream(&splitterSizesBytes, QIODevice::WriteOnly);
+    ssizesStream << ui->splitter->sizes();
+
+    // save settings
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("ui/geometry", geometry());
-    settings.setValue("ui/splitterSizes", QVariant::fromValue(ui->splitter->sizes()));
+    settings.setValue("ui/splitterSizes", splitterSizesBytes);
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
     settings.setValue("device/type", ui->deviceTypeComboBox->currentText());
