@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(PoMiDAQ
     DESCRIPTION "Portable Miniscope data acquisition"
-    VERSION 0.4.3
+    VERSION 0.4.4
 )
 
 set(CMAKE_CXX_STANDARD 17)
