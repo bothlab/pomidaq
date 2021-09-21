@@ -1,3 +1,15 @@
+Version 0.4.3
+~~~~~~~~~~~~~~
+Released: 2021-09-21
+
+Features:
+ * Make build instructions a bit more beginner-friendly
+
+Bugfixes:
+ * Give video display container a minimum width
+ * Don't use deprecated FFmpeg API
+ * Save view splitter sizes as byte array, instead of variant
+
 Version 0.4.2
 ~~~~~~~~~~~~~~
 Released: 2021-05-24
