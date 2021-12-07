@@ -339,7 +339,7 @@ void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)
 void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
 {
     // clear previous controls
-    for (const auto &control : m_controls)
+    for (const auto &control : qAsConst(m_controls))
         delete control;
     m_controls.clear();
 
@@ -356,7 +356,7 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
     for (const auto &ctl : m_mscope->controls()) {
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
-        connect(w, &MSControlWidget::valueChanged, [&](const QString ctlId, double value) {
+        connect(w, &MSControlWidget::valueChanged, this, [&](const QString ctlId, double value) {
             m_mscope->setControlValue(ctlId, value);
         });
         m_controls.append(w);
@@ -392,7 +392,7 @@ void MainWindow::on_btnDevConnect_clicked()
     m_mscope->setUseUnixTimestamps(m_useUnixTimestamps);
 
     // reflect currently active control values in the UI
-    for (const auto &w : m_controls)
+    for (const auto &w : qAsConst(m_controls))
         w->setValue(m_mscope->controlValue(w->controlId()));
 
     // run and display images
