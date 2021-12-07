@@ -62,8 +62,9 @@ endif()
 #
 include(GNUInstallDirs)
 find_package(Threads)
-find_package(Qt5Core 5.12 REQUIRED)
-find_package(Qt5Widgets REQUIRED)
+find_package(Qt5Core 5.15 REQUIRED)
+find_package(Qt5Widgets 5.15 REQUIRED)
+find_package(Qt5Concurrent 5.15 REQUIRED)
 
 find_package(OpenCV 4.2 REQUIRED)
 find_package(OpenGL REQUIRED)
