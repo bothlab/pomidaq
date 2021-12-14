@@ -39,6 +39,7 @@
 
 #include "scopeintf.h"
 #include "videowriter.h"
+#include "zstackcapture.h"
 
 void initLibraryResources()
 {
@@ -114,7 +115,8 @@ public:
     }
 
     std::thread *thread;
-    std::mutex frameMutex;
+    std::mutex dispFrameMutex;
+    std::mutex rawFrameMutex;
     std::mutex timeMutex;
     std::mutex cmdMutex;
 
@@ -156,12 +158,16 @@ public:
     bool connected;
     std::atomic_bool running;
     std::atomic_bool recording;
+    std::atomic_bool recordingZStack;
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
 
     std::atomic<size_t> droppedFramesCount;
     std::atomic_uint currentFPS;
     std::atomic<milliseconds_t> lastRecordedFrameTime;
+
+    cv::Mat lastRawFrame;
+    bool rawFrameRetrieved;
 
     QQueue<cv::Mat> displayQueue;
     std::pair<RawFrameCallback, void*> frameCallback;
@@ -935,6 +941,16 @@ void Miniscope::stopRecording()
     statusMessage("Video recording stopped.");
 }
 
+QFuture<void> Miniscope::acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
+{
+    return launchZStackCapture(this,
+                               fromEWL,
+                               toEWL,
+                               step,
+                               averageCount,
+                               outFilename);
+}
+
 bool Miniscope::isConnected() const
 {
     return d->connected;
@@ -999,12 +1015,22 @@ void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback, void *udata)
 
 cv::Mat Miniscope::currentDisplayFrame()
 {
-    std::lock_guard<std::mutex> lock(d->frameMutex);
+    std::lock_guard<std::mutex> lock(d->dispFrameMutex);
     cv::Mat frame;
     const auto queueSize = d->displayQueue.size();
     if (queueSize == 0)
         return frame;
     return d->displayQueue.dequeue();
+}
+
+bool Miniscope::fetchLastRawFrame(cv::Mat &output)
+{
+    std::lock_guard<std::mutex> lock(d->rawFrameMutex);
+    d->lastRawFrame.copyTo(output);
+    if (d->rawFrameRetrieved)
+        return false;
+    d->rawFrameRetrieved = true;
+    return true;
 }
 
 uint Miniscope::currentFps() const
@@ -1190,11 +1216,18 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
         displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
 
     // the display frame queue is protected
-    std::lock_guard<std::mutex> lock(d->frameMutex);
+    std::lock_guard<std::mutex> lock(d->dispFrameMutex);
 
     // drop frames if we are displaying too slowly, otherwise add new stuff to queue
-    if (d->displayQueue.size() < 28)
+    if (d->displayQueue.size() < 48)
         d->displayQueue.enqueue(frame);
+}
+
+void Miniscope::setLastRawFrame(const cv::Mat &frame)
+{
+    std::lock_guard<std::mutex> lock(d->rawFrameMutex);
+    d->rawFrameRetrieved = false;
+    d->lastRawFrame = frame;
 }
 
 inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
@@ -1348,6 +1381,10 @@ void Miniscope::captureThread(void* msPtr)
         auto frameTimestamp = frameDeviceTimestamp;
         if (frameCB != nullptr)
             frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, frameCB_udata);
+
+        // set last acquired frame (for other modules that don't care about timing accuracy,
+        // e.g. the zstack capture module)
+        self->setLastRawFrame(frame);
 
         if (!status) {
             // terminate recording

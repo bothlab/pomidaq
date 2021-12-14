@@ -3,11 +3,13 @@ set(LIBMINISCOPE_SRC
     miniscope.cpp
     videowriter.cpp
     mediatypes.cpp
+    zstackcapture.cpp
 )
 
 set(LIBMINISCOPE_PRIV_HEADERS
     scopeintf.h
     videowriter.h
+    zstackcapture.h
 )
 
 set(LIBMINISCOPE_HEADERS
@@ -39,6 +41,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miniscope.pc DESTINATION "${CMAKE_INST
 target_link_libraries(miniscope
     ${CMAKE_THREAD_LIBS_INIT}
     Qt5::Core
+    Qt5::Concurrent
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${FFMPEG_LIBRARIES}

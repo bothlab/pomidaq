@@ -1,0 +1,129 @@
+/*
+ * Copyright (C) 2020-2021 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * Licensed under the GNU Lesser General Public License Version 3
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the license, or
+ * (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this software.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <QtConcurrent>
+#include <thread>
+#include <opencv2/imgcodecs.hpp>
+
+#include "zstackcapture.h"
+
+class ZStackException : public QException
+{
+public:
+    ZStackException(const QString &message) : msg(message) {}
+    ZStackException(const char *message) : msg(QString::fromUtf8(message)) {}
+
+    void raise() const override { throw *this; }
+    QException* clone() const override { return new ZStackException(*this); }
+    const char *what() const noexcept override { return qPrintable(msg); }
+private:
+    QString msg;
+};
+
+static void captureZStack(Miniscope *mscope,
+                          int fromEWL,
+                          int toEWL,
+                          uint step,
+                          uint averageCount,
+                          const QString &outFilename)
+{
+    ControlDefinition ewlControl;
+    const auto controls = mscope->controls();
+    for (const auto& ctl : controls) {
+        if (ctl.name.toLower().contains("ewl")) {
+            ewlControl = ctl;
+            break;
+        }
+    }
+
+    if (ewlControl.name.isEmpty())
+        throw ZStackException("Could not find EWL controller to acquire Z-Stack!");
+    if (!mscope->isRunning())
+        throw ZStackException("Can not acquire Z-Stack while Miniscope is not running.");
+    if (fromEWL - toEWL == 0)
+        throw ZStackException("EWL start and end positions must be different.");
+    if (step == 0)
+        throw ZStackException("Step size can not be zero.");
+
+    if (fromEWL < ewlControl.valueMin || fromEWL > ewlControl.valueMax)
+        throw ZStackException("First EWL position value is out of range.");
+    if (toEWL < ewlControl.valueMin || toEWL > ewlControl.valueMax)
+        throw ZStackException("Second EWL position value is out of range.");
+
+    if (averageCount == 0)
+        throw ZStackException("Image average count must not be zero.");
+    if (averageCount > 36000)
+        throw ZStackException("Image average count is too large.");
+
+    int stepSigned;
+    if (fromEWL - toEWL < 0)
+        stepSigned = step;
+    else
+        stepSigned = step * -1;
+
+    std::vector<cv::Mat> stack;
+    for (int currentPos = fromEWL; currentPos != toEWL; currentPos += stepSigned) {
+        std::vector<cv::Mat> currentMats;
+
+        mscope->setControlValue(ewlControl.id, currentPos);
+        std::this_thread::sleep_for(milliseconds_t(64));
+
+        // FIXME: We should verify that the device has actually adjusted the EWL,
+        // but this feature is not yet iplemented in the library (we currently always
+        // return the initial value)
+
+        for (uint i = 0; i < averageCount; i++) {
+            cv::Mat raw;
+            while (true) {
+                if (mscope->fetchLastRawFrame(raw))
+                    break;
+                // wait a bit of time (~1frame @ 30fps)
+                std::this_thread::sleep_for(milliseconds_t(34));
+            }
+            currentMats.push_back(raw);
+        }
+
+        // calculate image average
+        cv::Mat accMat(currentMats[0].rows, currentMats[0].cols, CV_32F);
+        accMat.setTo(cv::Scalar(0,0,0));
+
+        for (const cv::Mat &raw : currentMats) {
+            cv::Mat mat32;
+            raw.convertTo(mat32, CV_32F);
+            accMat += mat32;
+        }
+
+        accMat.convertTo(accMat, CV_8U, 1. / currentMats.size());
+        stack.push_back(accMat);
+    }
+
+    cv::imwrite(outFilename.toStdString(), stack);
+}
+
+QFuture<void> launchZStackCapture(Miniscope *mscope, int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
+{
+    return QtConcurrent::run([=]() {
+        captureZStack(mscope,
+                      fromEWL,
+                      toEWL,
+                      step,
+                      averageCount,
+                      outFilename);
+    });
+}

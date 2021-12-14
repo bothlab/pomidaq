@@ -22,6 +22,7 @@
 
 #include <QMetaObject>
 #include <QLoggingCategory>
+#include <QFuture>
 #include <opencv2/core.hpp>
 
 #include "mediatypes.h"
@@ -112,6 +113,7 @@ public:
     void stop();
     bool startRecording(const QString &fname = "");
     void stopRecording();
+    QFuture<void> acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename);
 
     bool isConnected() const;
     bool isRunning() const;
@@ -163,7 +165,23 @@ public:
      */
     void setOnDisplayFrame(DisplayFrameCallback callback, void *udata = nullptr);
 
+    /**
+     * @brief Retrieve the current display frame from the display queue.
+     */
     cv::Mat currentDisplayFrame();
+
+    /**
+     * @brief Retrieve the raw frame that was acquired last.
+     *
+     * This function is *not* suitable to store the acquired image to disk,
+     * as it is not guaranteed that all frames will be obtained even if the
+     * function is called frequently. Use the callback set via  setOnFrame()
+     * to retrieve all raw frames as they are received.
+     *
+     * @return true if the frame was new, false if the frame has been retrived already.
+     */
+    bool fetchLastRawFrame(cv::Mat &output);
+
     uint currentFps() const;
     size_t droppedFramesCount() const;
 
@@ -222,6 +240,7 @@ private:
     void enqueueI2CCommand(long preambleKey, std::vector<quint8> packet);
     void sendCommandsToDevice();
     void addDisplayFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
+    void setLastRawFrame(const cv::Mat& frame);
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();

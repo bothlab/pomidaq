@@ -411,6 +411,19 @@ void MainWindow::on_btnDevConnect_clicked()
     // switch to controls page, the user will likely need to use that next
     ui->toolBox->setCurrentIndex(1);
 
+    // set z-stack range limits
+    ControlDefinition ewlControl;
+    for (const auto& ctl : m_mscope->controls()) {
+        if (ctl.name.toLower().contains("ewl")) {
+            ewlControl = ctl;
+            break;
+        }
+    }
+    ui->sbStackFrom->setMinimum(ewlControl.valueMin);
+    ui->sbStackTo->setMinimum(ewlControl.valueMin);
+    ui->sbStackFrom->setMaximum(ewlControl.valueMax);
+    ui->sbStackTo->setMaximum(ewlControl.valueMax);
+
     while (m_mscope->isRunning()) {
         auto frame = m_mscope->currentDisplayFrame();
         if (!frame.empty()) {
@@ -480,11 +493,13 @@ void MainWindow::on_btnRecord_toggled(bool checked)
         } else {
             ui->btnRecord->setChecked(false);
         }
+        ui->btnAcquireZStack->setEnabled(false);
 
     } else {
         m_mscope->stopRecording();
         ui->pageRecord->setEnabled(true);
         ui->btnDevConnect->setEnabled(true);
+        ui->btnAcquireZStack->setEnabled(true);
         ui->btnRecord->setText("Record");
     }
 }
@@ -599,6 +614,43 @@ void MainWindow::on_actionSetDataLocation_triggered()
 void MainWindow::on_actionQuit_triggered()
 {
     this->close();
+}
+
+void MainWindow::on_btnAcquireZStack_clicked()
+{
+    QString fileName = QFileDialog::getSaveFileName(this,
+                                                    QStringLiteral("Save Z-Stack File"),
+                                                    QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+                                                    QStringLiteral("TIFF Files (*.tiff *.tif)"));
+    if (fileName.isEmpty())
+        return;
+
+    const auto prevRecordState = ui->btnRecord->isEnabled();
+    const auto prevConnectState = ui->btnDevConnect->isEnabled();
+    ui->btnAcquireZStack->setEnabled(false);
+    ui->btnRecord->setEnabled(false);
+    ui->btnDevConnect->setEnabled(false);
+    setStatusText("Acquiring z-stack...");
+    auto future = m_mscope->acquireZStack(ui->sbStackFrom->value(),
+                                          ui->sbStackTo->value(),
+                                          ui->sbStackStepSize->value(),
+                                          ui->sbStackAverage->value(),
+                                          fileName);
+    while (!future.isFinished())
+        QApplication::processEvents();
+    try {
+        future.waitForFinished();
+        setStatusText("OK");
+    }  catch (const QException &e) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Unable to acquite stack"),
+                              e.what());
+        setStatusText("Z-stack failed.");
+
+    }
+    ui->btnAcquireZStack->setEnabled(true);
+    ui->btnRecord->setEnabled(prevRecordState);
+    ui->btnDevConnect->setEnabled(prevConnectState);
 }
 
 void MainWindow::on_actionAboutVideoFormats_triggered()
