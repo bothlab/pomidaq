@@ -28,6 +28,7 @@ class ZStackException : public QException
 public:
     ZStackException(const QString &message) : msg(message) {}
     ZStackException(const char *message) : msg(QString::fromUtf8(message)) {}
+    ZStackException(const std::exception &error) : msg(QString::fromUtf8(error.what())) {}
 
     void raise() const override { throw *this; }
     QException* clone() const override { return new ZStackException(*this); }
@@ -51,6 +52,10 @@ static void captureZStack(Miniscope *mscope,
             break;
         }
     }
+
+    QString outFilenameReal = outFilename;
+    if (!outFilename.endsWith(".tiff") && !outFilename.endsWith(".tif"))
+        outFilenameReal = QStringLiteral("%1.tiff").arg(outFilename);
 
     if (ewlControl.name.isEmpty())
         throw ZStackException("Could not find EWL controller to acquire Z-Stack!");
@@ -113,7 +118,11 @@ static void captureZStack(Miniscope *mscope,
         stack.push_back(accMat);
     }
 
-    cv::imwrite(outFilename.toStdString(), stack);
+    try {
+        cv::imwrite(outFilenameReal.toStdString(), stack);
+    }  catch (const std::exception &e) {
+        throw ZStackException(e);
+    }
 }
 
 QFuture<void> launchZStackCapture(Miniscope *mscope, int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
