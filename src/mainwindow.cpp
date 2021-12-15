@@ -30,6 +30,7 @@
 #include <QDateTime>
 #include <QSettings>
 #include <QInputDialog>
+#include <QTimer>
 #include <miniscope.h>
 
 #include "imageviewwidget.h"
@@ -146,7 +147,8 @@ void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const Q
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    m_msTimer(new QTimer(this))
 {
     ui->setupUi(this);
 
@@ -254,6 +256,10 @@ MainWindow::MainWindow(QWidget *parent) :
                                  .arg(savedDataDir));
         }
     }
+
+    // set up display timer
+    m_msTimer->setInterval(0);
+    connect(m_msTimer, &QTimer::timeout, this, &MainWindow::processMiniscopeDisplay);
 
     // install new message handler so output can also be redirected to the GUI
     // log display (Windows users like this...)
@@ -363,6 +369,55 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
     }
 }
 
+void MainWindow::processMiniscopeDisplay()
+{
+    // display images while we are running
+    if (m_mscope->isRunning()) {
+        auto frame = m_mscope->currentDisplayFrame();
+        if (!frame.empty()) {
+            m_scopeView->showImage(frame);
+
+            ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFps()));
+            ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
+
+            ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
+            ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
+
+            auto recMsecTimestamp = static_cast<int>(m_mscope->lastRecordedFrameTime().count());
+            if (recMsecTimestamp > 0) {
+                if (m_useUnixTimestamps) {
+                    recMsecTimestamp = recMsecTimestamp - m_mscope->unixCaptureStartTime().count();
+                }
+
+                ui->labelRecordingTime->setText(QTime::fromMSecsSinceStartOfDay(recMsecTimestamp).toString("hh:mm:ss"));
+            }
+        }
+        return;
+    }
+
+    // recording has stopped, reset UI elements and stop timer
+    m_msTimer->stop();
+    ui->btnDevConnect->setText("Connect");
+    ui->btnDevConnect->setChecked(false);
+    ui->btnRecord->setText("Record");
+
+    ui->containerScopeControls->setEnabled(false);
+    ui->groupBoxDisplay->setEnabled(false);
+    ui->btnRecord->setEnabled(false);
+    ui->btnDevConnect->setEnabled(true);
+    ui->labelCurrentFPS->setText(QStringLiteral("???"));
+    ui->sbCamId->setEnabled(true);
+    ui->deviceTypeComboBox->setEnabled(true);
+    ui->actionSetTimestampStyle->setEnabled(true);
+
+    if (!m_mscope->lastError().isEmpty())
+        QMessageBox::critical(this, "Error", m_mscope->lastError());
+
+    // switch back to connect page, as this is the
+    // only useful page when no scope is connected
+    ui->toolBox->setCurrentIndex(0);
+}
+
 void MainWindow::on_btnDevConnect_clicked()
 {
     if (m_mscope->isRunning()) {
@@ -424,50 +479,8 @@ void MainWindow::on_btnDevConnect_clicked()
     ui->sbStackFrom->setMaximum(ewlControl.valueMax);
     ui->sbStackTo->setMaximum(ewlControl.valueMax);
 
-    while (m_mscope->isRunning()) {
-        auto frame = m_mscope->currentDisplayFrame();
-        if (!frame.empty()) {
-            m_scopeView->showImage(frame);
-
-            ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFps()));
-            ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
-
-            ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
-            ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
-
-            auto recMsecTimestamp = static_cast<int>(m_mscope->lastRecordedFrameTime().count());
-            if (recMsecTimestamp > 0) {
-                if (m_useUnixTimestamps) {
-                    recMsecTimestamp = recMsecTimestamp - m_mscope->unixCaptureStartTime().count();
-                }
-
-                ui->labelRecordingTime->setText(QTime::fromMSecsSinceStartOfDay(recMsecTimestamp).toString("hh:mm:ss"));
-            }
-        }
-
-        QApplication::processEvents();
-    }
-
-    // reset UI elements
-    ui->btnDevConnect->setText("Connect");
-    ui->btnDevConnect->setChecked(false);
-    ui->btnRecord->setText("Record");
-
-    ui->containerScopeControls->setEnabled(false);
-    ui->groupBoxDisplay->setEnabled(false);
-    ui->btnRecord->setEnabled(false);
-    ui->btnDevConnect->setEnabled(true);
-    ui->labelCurrentFPS->setText(QStringLiteral("???"));
-    ui->sbCamId->setEnabled(true);
-    ui->deviceTypeComboBox->setEnabled(true);
-    ui->actionSetTimestampStyle->setEnabled(true);
-
-    if (!m_mscope->lastError().isEmpty())
-        QMessageBox::critical(this, "Error", m_mscope->lastError());
-
-    // switch back to connect page, as this is the
-    // only useful page when no scope is connected
-    ui->toolBox->setCurrentIndex(0);
+    // start displaying things
+    m_msTimer->start();
 }
 
 void MainWindow::on_btnRecord_toggled(bool checked)
@@ -630,6 +643,7 @@ void MainWindow::on_btnAcquireZStack_clicked()
     ui->btnAcquireZStack->setEnabled(false);
     ui->btnRecord->setEnabled(false);
     ui->btnDevConnect->setEnabled(false);
+    ui->pageSettings->setEnabled(false);
     setStatusText("Acquiring z-stack...");
     auto future = m_mscope->acquireZStack(ui->sbStackFrom->value(),
                                           ui->sbStackTo->value(),
@@ -649,6 +663,7 @@ void MainWindow::on_btnAcquireZStack_clicked()
 
     }
     ui->btnAcquireZStack->setEnabled(true);
+    ui->pageSettings->setEnabled(true);
     ui->btnRecord->setEnabled(prevRecordState);
     ui->btnDevConnect->setEnabled(prevConnectState);
 }

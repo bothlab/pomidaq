@@ -118,6 +118,7 @@ static void captureZStack(Miniscope *mscope,
 
 QFuture<void> launchZStackCapture(Miniscope *mscope, int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
 {
+    // TODO: Make use of QPromise when we can switch to Qt6
     return QtConcurrent::run([=]() {
         captureZStack(mscope,
                       fromEWL,

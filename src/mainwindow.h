@@ -83,6 +83,7 @@ private:
     QList<MSControlWidget*> m_controls;
     QVBoxLayout *m_controlsLayout;
     ImageViewWidget *m_scopeView;
+    QTimer *m_msTimer;
 
     QString m_dataDir;
     bool m_useUnixTimestamps;
@@ -90,6 +91,7 @@ private:
 
     int m_messageCount;
 
+    void processMiniscopeDisplay();
     void writeLogMessage(const QString &msg);
     void setStatusText(const QString& msg);
     void setDataExportDir(const QString& dir);
