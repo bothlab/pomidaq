@@ -722,7 +722,7 @@ void MainWindow::on_actionAbout_triggered()
 {
     const auto text = QStringLiteral(
                 "PoMiDAQ Version " PROJECT_VERSION " \n\n"
-                "(c) 2019-2020 Matthias Klumpp\n\n"
+                "(c) 2019-2022 Matthias Klumpp\n\n"
                 "PoMiDAQ is free software: you can redistribute it and/or modify "
                 "it under the terms of the GNU Lesser General Public License as published by "
                 "the Free Software Foundation, either version 3 of the License, or "
