@@ -190,6 +190,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->containerScopeControls->setEnabled(false);
     ui->groupBoxDisplay->setEnabled(false);
     ui->btnRecord->setEnabled(false);
+    ui->btnAcquireZStack->setEnabled(false);
 
     // ensure codecs and container UI is aligned with the MiniScope settings
     ui->codecComboBox->setCurrentIndex(0);
@@ -427,6 +428,8 @@ void MainWindow::on_btnDevConnect_clicked()
         ui->btnDevConnect->setEnabled(true);
         ui->sbCamId->setEnabled(true);
         ui->deviceTypeComboBox->setEnabled(true);
+        ui->btnAcquireZStack->setEnabled(false);
+        ui->btnRecord->setEnabled(false);
         return;
     }
 
@@ -474,10 +477,16 @@ void MainWindow::on_btnDevConnect_clicked()
             break;
         }
     }
-    ui->sbStackFrom->setMinimum(ewlControl.valueMin);
-    ui->sbStackTo->setMinimum(ewlControl.valueMin);
-    ui->sbStackFrom->setMaximum(ewlControl.valueMax);
-    ui->sbStackTo->setMaximum(ewlControl.valueMax);
+    ui->btnAcquireZStack->setEnabled(true);
+    if (ewlControl.id.isEmpty()) {
+        ui->pageZStack->setEnabled(false);
+    } else {
+        ui->pageZStack->setEnabled(true);
+        ui->sbStackFrom->setMinimum(ewlControl.valueMin);
+        ui->sbStackTo->setMinimum(ewlControl.valueMin);
+        ui->sbStackFrom->setMaximum(ewlControl.valueMax);
+        ui->sbStackTo->setMaximum(ewlControl.valueMax);
+    }
 
     // start displaying things
     m_msTimer->start();
