@@ -1,3 +1,14 @@
+Version 0.4.4
+~~~~~~~~~~~~~~
+Released: 2021-12-16
+
+Features:
+ * Implement z-stack capture feature for Miniscopes with an EWL
+ * Run display image rendering as event loop callback
+
+Bugfixes:
+ * Resolve a few compiler warnings
+
 Version 0.4.3
 ~~~~~~~~~~~~~~
 Released: 2021-09-21
