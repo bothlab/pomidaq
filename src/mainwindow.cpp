@@ -30,6 +30,7 @@
 #include <QDateTime>
 #include <QSettings>
 #include <QInputDialog>
+#include <QProgressDialog>
 #include <QTimer>
 #include <miniscope.h>
 
@@ -659,11 +660,17 @@ void MainWindow::on_btnAcquireZStack_clicked()
                                           ui->sbStackStepSize->value(),
                                           ui->sbStackAverage->value(),
                                           fileName);
+
+    QProgressDialog progressDlg("Acquiring images...", QString(), 0, 0, this);
+    progressDlg.setWindowModality(Qt::WindowModal);
+    progressDlg.show();
+
     while (!future.isFinished())
         QApplication::processEvents();
     try {
         future.waitForFinished();
         setStatusText("OK");
+        progressDlg.close();
     }  catch (const QException &e) {
         QMessageBox::critical(this,
                               QStringLiteral("Unable to acquite stack"),
