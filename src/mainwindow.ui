@@ -973,10 +973,13 @@
                     <string>Minimum grayscale pixel value</string>
                    </property>
                    <property name="minimum">
-                    <number>-128</number>
+                    <number>-127</number>
                    </property>
                    <property name="maximum">
-                    <number>128</number>
+                    <number>127</number>
+                   </property>
+                   <property name="value">
+                    <number>-127</number>
                    </property>
                   </widget>
                  </item>
@@ -993,13 +996,13 @@
                     <string>Maximum grayscale pixel value</string>
                    </property>
                    <property name="minimum">
-                    <number>-128</number>
+                    <number>-127</number>
                    </property>
                    <property name="maximum">
-                    <number>128</number>
+                    <number>127</number>
                    </property>
                    <property name="value">
-                    <number>128</number>
+                    <number>127</number>
                    </property>
                   </widget>
                  </item>
