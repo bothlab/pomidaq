@@ -44,6 +44,7 @@ extern "C" {
  */
 static const uint FRAME_QUEUE_MAX_COUNT = 512;
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class VideoWriter::Private
 {
