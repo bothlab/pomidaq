@@ -73,7 +73,8 @@ jobs:
 
     - name: Build
       run: |
-        podman run -t -v `pwd`:/build pomidaq-flatpak ./contrib/flatpak/build-bundle.sh
+        podman run --privileged -t -v `pwd`:/build pomidaq-flatpak \
+            ./contrib/flatpak/build-bundle.sh
 
     - name: Upload Flatpak bundle
       uses: actions/upload-artifact@v2
