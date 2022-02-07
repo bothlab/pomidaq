@@ -1,0 +1,82 @@
+name: Linux Release Builds
+
+on:
+  create:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 10 * * 1'
+
+jobs:
+  build-debian:
+    name: Debian
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-debian .
+
+    - name: Build
+      run: |
+        podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+            -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de \
+            -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
+
+    - name: Upload Debian package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Debian Package
+        path: |
+          *.deb
+          *.build*
+
+  build-ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-ubuntu .
+
+    - name: Build
+      run: |
+        podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
+            -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de \
+            -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
+
+    - name: Upload Ubuntu package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Ubuntu Package
+        path: |
+          *.deb
+          *.build*
+
+  build-flatpak:
+    name: Flatpak
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd contrib/flatpak/ && podman build -t pomidaq-flatpak -f Dockerfile .
+
+    - name: Build
+      run: |
+        podman run -t -v `pwd`:/build pomidaq-flatpak ./contrib/flatpak/build-bundle.sh
+
+    - name: Upload Flatpak bundle
+      uses: actions/upload-artifact@v2
+      with:
+        name: Flatpak Bundle
+        path: '*.flatpak'

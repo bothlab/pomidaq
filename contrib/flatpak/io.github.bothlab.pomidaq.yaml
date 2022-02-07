@@ -1,0 +1,55 @@
+id: io.github.bothlab.pomidaq
+runtime: org.kde.Platform
+runtime-version: 5.15-21.08
+sdk: org.kde.Sdk
+command: pomidaq
+finish-args:
+  - '--share=ipc'
+  - '--socket=x11'
+  - '--socket=wayland'
+  - '--device=all'
+  - '--filesystem=host'
+add-extensions:
+  org.freedesktop.Platform.ffmpeg-full:
+    directory: lib/ffmpeg
+    add-ld-path: '.'
+    version: '20.08'
+    autodelete: false
+modules:
+
+- name: opencv
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    - -DOPENCV_GENERATE_PKGCONFIG=ON
+    - -DWITH_OPENCL=ON
+    - -DWITH_OPENGL=ON
+    - -DWITH_TBB=ON
+    - -DWITH_VULKAN=ON
+    - -DBUILD_WITH_DEBUG_INFO=OFF
+    - -DBUILD_TESTS=OFF
+    - -DBUILD_PERF_TESTS=OFF
+    - -DBUILD_EXAMPLES=OFF
+    - -DINSTALL_C_EXAMPLES=OFF
+    - -DINSTALL_PYTHON_EXAMPLES=OFF
+    # - -DOPENCV_EXTRA_MODULES_PATH="contrib/modules"
+    - -DWITH_1394=OFF
+    - -DWITH_PROTOBUF=ON
+    - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,java_bindings_generator,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
+  sources:
+    - type: archive
+      url: https://github.com/opencv/opencv/archive/4.2.0.tar.gz
+      sha256: 9ccb2192d7e8c03c58fee07051364d94ed7599363f3b0dce1c5e6cc11c1bb0ec
+    - type: archive
+      url: https://github.com/opencv/opencv_contrib/archive/4.2.0.tar.gz
+      sha256: 8a6b5661611d89baa59a26eb7ccf4abb3e55d73f99bb52d8f7c32265c8a43020
+
+- name: pomidaq
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DPYTHON=OFF
+  sources:
+    - type: dir
+      path: ../..
