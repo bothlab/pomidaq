@@ -7,6 +7,9 @@ set -e
 #
 set -x
 
+FLATPAK_REMOTE_URL="https://flathub.org/repo/flathub.flatpakrepo"
+FLATPAK_REMOTE_NAME="flathub"
+
 #
 # Build Flatpak Bundle
 #
@@ -19,13 +22,15 @@ upstream_version="$upstream_version+git$git_commit_no"
 
 cd contrib/flatpak
 
-flatpak-builder --force-clean \
+flatpak-builder -y \
+		--force-clean \
 		--repo=tmp-repo \
+		--install-deps-from=$FLATPAK_REMOTE_NAME \
 		build-dir \
 		io.github.bothlab.pomidaq.yaml
 
 flatpak build-bundle \
-		--runtime-repo=https://flathub.org/repo/flathub.flatpakrepo \
+		--runtime-repo=$FLATPAK_REMOTE_URL \
 		tmp-repo/ \
 		pomidaq_${upstream_version}_amd64.flatpak \
 		io.github.bothlab.pomidaq
