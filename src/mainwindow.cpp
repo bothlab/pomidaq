@@ -201,8 +201,11 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->losslessCheckBox->setChecked(true);
     on_sliceIntervalSpinBox_valueChanged(ui->sliceIntervalSpinBox->value());
 
-    // set export directory, default to /tmp
-    setDataExportDir(QStandardPaths::writableLocation(QStandardPaths::StandardLocation::TempLocation));
+    // set export directory, default to a subdirectory in the default Movies location
+    auto defaultExportDir = QStandardPaths::writableLocation(QStandardPaths::StandardLocation::MoviesLocation);
+    if (defaultExportDir.isEmpty())
+        defaultExportDir = QStandardPaths::writableLocation(QStandardPaths::StandardLocation::HomeLocation);
+    setDataExportDir(defaultExportDir);
     if (m_dataDir.isEmpty())
         setDataExportDir("/tmp");
 
@@ -254,7 +257,7 @@ MainWindow::MainWindow(QWidget *parent) :
         } else {
             QMessageBox::warning(this,
                                  "Data directory changed",
-                                 QStringLiteral("The previous data storage location ('%1') does no longer exist or is not writable. Falling back to default, temporary directory.")
+                                 QStringLiteral("The previous data storage location ('%1') does no longer exist or is not writable. Falling back to default location.")
                                  .arg(savedDataDir));
         }
     }
