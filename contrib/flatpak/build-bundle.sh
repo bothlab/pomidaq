@@ -5,6 +5,12 @@ set -e
 # This script is supposed to run inside the PoMiDAQ Docker container
 # on the CI system.
 #
+build_shell=""
+if [ ! -z "$1" ]
+then
+	echo "Interactive shell at step: $1"
+	build_shell="--build-shell=$1"
+fi
 set -x
 
 FLATPAK_REMOTE_URL="https://flathub.org/repo/flathub.flatpakrepo"
@@ -26,6 +32,7 @@ flatpak-builder -y \
 		--force-clean \
 		--repo=tmp-repo \
 		--install-deps-from=$FLATPAK_REMOTE_NAME \
+		$build_shell \
 		build-dir \
 		io.github.bothlab.pomidaq.yaml
 

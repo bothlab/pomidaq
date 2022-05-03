@@ -3,19 +3,32 @@ runtime: org.kde.Platform
 runtime-version: 5.15-21.08
 sdk: org.kde.Sdk
 command: pomidaq
+
 finish-args:
   - '--share=ipc'
-  - '--socket=x11'
   - '--socket=wayland'
+  - '--socket=fallback-x11'
   - '--device=all'
   - '--filesystem=host'
+
 add-extensions:
   org.freedesktop.Platform.ffmpeg-full:
+    version: '21.08'
     directory: lib/ffmpeg
     add-ld-path: '.'
-    version: '20.08'
     autodelete: false
+
+cleanup:
+ - /include
+ - /lib/pkgconfig
+ - /lib/*.a
+ - /lib/*.la
+
 modules:
+- name: essential-dirs
+  buildsystem: simple
+  build-commands:
+    - mkdir -p /app/lib/ffmpeg
 
 - name: opencv
   buildsystem: cmake-ninja
@@ -33,10 +46,9 @@ modules:
     - -DBUILD_EXAMPLES=OFF
     - -DINSTALL_C_EXAMPLES=OFF
     - -DINSTALL_PYTHON_EXAMPLES=OFF
-    # - -DOPENCV_EXTRA_MODULES_PATH="contrib/modules"
     - -DWITH_1394=OFF
     - -DWITH_PROTOBUF=ON
-    - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,java_bindings_generator,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
+    - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,stitching,video,videoio
   sources:
     - type: archive
       url: https://github.com/opencv/opencv/archive/4.2.0.tar.gz
