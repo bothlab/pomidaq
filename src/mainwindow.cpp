@@ -267,6 +267,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // log display (Windows users like this...)
     g_mainWin = this;
     qInstallMessageHandler(messageOutputHandler);
+
+    // read current device info, if we can
+    ui->camInfoLabel->setText("");
+    on_sbCamId_valueChanged(ui->sbCamId->value());
 }
 
 MainWindow::~MainWindow()
@@ -418,6 +422,17 @@ void MainWindow::processMiniscopeDisplay()
     // switch back to connect page, as this is the
     // only useful page when no scope is connected
     ui->toolBox->setCurrentIndex(0);
+}
+
+void MainWindow::on_sbCamId_valueChanged(int arg1)
+{
+#ifdef Q_OS_LINUX
+    const auto devName = videoDeviceNameFromId(arg1);
+    if (devName.isEmpty())
+        ui->camInfoLabel->setText("➞ unknown or unavailable");
+    else
+        ui->camInfoLabel->setText(QStringLiteral("➞ %1").arg(devName));
+#endif
 }
 
 void MainWindow::on_btnDevConnect_clicked()

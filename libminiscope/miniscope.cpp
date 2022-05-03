@@ -1541,3 +1541,19 @@ void Miniscope::captureThread(void* msPtr)
     // any recording is finished at this point, let DAQ hardware know about that
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 }
+
+QString MScope::videoDeviceNameFromId(int id)
+{
+#ifndef Q_OS_LINUX
+    // we only support this feature on Linux, currently
+    return QString();
+#endif
+    if (id < 0)
+        return QString();
+    QFile v4lName(QStringLiteral("/sys/class/video4linux/video%1/name").arg(id));
+    if (!v4lName.open(QIODevice::ReadOnly)) {
+        qCWarning(logMScope).noquote() << "Unable to read V4L device name for ID" << id;
+        return QString();
+    }
+    return QString::fromUtf8(v4lName.readAll()).trimmed();
+}

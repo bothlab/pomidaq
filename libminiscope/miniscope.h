@@ -249,6 +249,13 @@ private:
     void fail(const QString &msg);
 };
 
+/**
+ * @brief Return a device name for an integer ID
+ * This function is only supported on some operating systems, currently only on Linux.
+ */
+MS_LIB_EXPORT
+QString videoDeviceNameFromId(int id);
+
 } // end of MiniScope namespace
 
 /**

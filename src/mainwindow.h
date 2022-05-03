@@ -46,6 +46,7 @@ public:
 
 private slots:
     void on_deviceTypeComboBox_currentIndexChanged(const QString &arg1);
+    void on_sbCamId_valueChanged(int arg1);
     void on_btnDevConnect_clicked();
     void on_btnRecord_toggled(bool checked);
     void on_losslessCheckBox_toggled(bool checked);
