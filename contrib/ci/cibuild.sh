@@ -14,15 +14,16 @@ $CC --version
 
 # configure PoMiDAQ build with all flags enabled
 mkdir build && cd build
-cmake -DMAINTAINER=ON \
+cmake -G Ninja \
+      -DMAINTAINER=ON \
       -DPYTHON=ON \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       ..
 
 # Build, Test & Install
-make -j4
-#make test
-DESTDIR=/tmp/install_root/ make install
+ninja
+ninja test
+DESTDIR=/tmp/install_root/ ninja install
 cd ..
 rm -rf build/
 
