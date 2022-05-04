@@ -20,10 +20,10 @@
 #pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions_3_2_Core>
+#include <QOpenGLFunctions_3_0>
 #include <opencv2/core/core.hpp>
 
-class ImageViewWidget: public QOpenGLWidget, protected QOpenGLFunctions_3_2_Core
+class ImageViewWidget: public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
     Q_OBJECT
 public:

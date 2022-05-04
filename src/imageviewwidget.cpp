@@ -61,11 +61,11 @@ void ImageViewWidget::initializeGL()
     if (!initializeOpenGLFunctions()) {
         QMessageBox::critical(this,
                               QStringLiteral("Unable to initialize OpenGL"),
-                              QStringLiteral("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.2 to run this application. "
+                              QStringLiteral("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application. "
                                              "You may want to try to upgrade your graphics drivers.\n"
                                              "Can not continue."),
                               QMessageBox::Ok);
-        qFatal("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.2 to run this application.");
+        qFatal("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application.");
         QCoreApplication::exit(6);
     }
 
