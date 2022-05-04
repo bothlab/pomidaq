@@ -20,10 +20,17 @@
 #pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions_3_0>
 #include <opencv2/core/core.hpp>
 
-class ImageViewWidget: public QOpenGLWidget, protected QOpenGLFunctions_3_0
+#if QT_CONFIG(opengles2)
+#include <QOpenGLFunctions_ES2>
+#define IVWOpenGLFunctions QOpenGLFunctions_ES2
+#else
+#include <QOpenGLFunctions_3_2_Core>
+#define IVWOpenGLFunctions QOpenGLFunctions_3_2_Core
+#endif
+
+class ImageViewWidget: public QOpenGLWidget, protected IVWOpenGLFunctions
 {
     Q_OBJECT
 public:
