@@ -3,7 +3,7 @@ PoMiDAQ
 
 [![PoMiDAQ Screenshot](contrib/screenshots/v0.2.0_recording_sample.png "PoMiDAQ on Linux")](https://github.com/bothlab/pomidaq/tree/master/contrib/screenshots)
 
-![Build](https://github.com/bothlab/pomidaq/workflows/Build/badge.svg)
+[![Build](https://github.com/bothlab/pomidaq/actions/workflows/build.yml/badge.svg)](https://github.com/bothlab/pomidaq/actions/workflows/build.yml)
 
 PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/index.php/Main_Page).
 Unlike the [preexisting](https://github.com/daharoni/Miniscope_DAQ_Software) Miniscope software, this program
@@ -25,6 +25,9 @@ has been attempted.
 The CI system provides up-to-date builds for PoMiDAQ for the **Windows** (64-bit), **Debian** 11 and **Ubuntu** 20.04 (amd64) platforms.
 You can fetch builds from there or download prebuilt binaries from the [Github releases](https://github.com/bothlab/pomidaq/releases).
 Don't hesitate to file issues if you notice anything unusual.
+
+On Linux, you can also just install the software from your software center when Flathub is configured:
+<a href="https://flathub.org/apps/details/io.github.bothlab.pomidaq"><img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/></a>
 
 ### Notes
 #### On Linux
