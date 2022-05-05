@@ -3,6 +3,8 @@ runtime: org.kde.Platform
 runtime-version: 5.15-21.08
 sdk: org.kde.Sdk
 command: pomidaq
+rename-icon: pomidaq
+rename-desktop-file: pomidaq.desktop
 
 finish-args:
   - '--share=ipc'
@@ -48,6 +50,7 @@ modules:
     - -DINSTALL_PYTHON_EXAMPLES=OFF
     - -DWITH_1394=OFF
     - -DWITH_PROTOBUF=ON
+    - -DWITH_CAROTENE=OFF # fails on Flathub ARM builders and is only relevant for ARM
     - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,stitching,video,videoio
   sources:
     - type: archive
