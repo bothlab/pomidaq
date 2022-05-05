@@ -25,6 +25,7 @@
 #if QT_CONFIG(opengles2)
 #include <QOpenGLFunctions_ES2>
 #define IVWOpenGLFunctions QOpenGLFunctions_ES2
+#error This project can currently not be compiled against GLES and needs OpenGL 3.2+. GLES porting patches are welcome!
 #else
 #include <QOpenGLFunctions_3_2_Core>
 #define IVWOpenGLFunctions QOpenGLFunctions_3_2_Core
