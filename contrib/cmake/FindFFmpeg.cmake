@@ -100,12 +100,20 @@ function(find_ffmpeg_library component header)
         "unknown"
         PARENT_SCOPE)
     set(_vfile "${FFMPEG_${component}_INCLUDE_DIR}/lib${component}/version.h")
+    set(_vfile_mj "${FFMPEG_${component}_INCLUDE_DIR}/lib${component}/version_major.h")
 
     if(EXISTS "${_vfile}")
       file(STRINGS "${_vfile}" _version_parse
            REGEX "^.*VERSION_(MAJOR|MINOR|MICRO)[ \t]+[0-9]+[ \t]*$")
-      string(REGEX REPLACE ".*VERSION_MAJOR[ \t]+([0-9]+).*" "\\1" _major
-                           "${_version_parse}")
+      if(EXISTS "${_vfile_mj}")
+           file(STRINGS "${_vfile_mj}" _version_parse_mj
+           REGEX "^.*VERSION_MAJOR[ \t]+[0-9]+[ \t]*$")
+           string(REGEX REPLACE ".*VERSION_MAJOR[ \t]+([0-9]+).*" "\\1" _major
+                                "${_version_parse_mj}")
+      else()
+        string(REGEX REPLACE ".*VERSION_MAJOR[ \t]+([0-9]+).*" "\\1" _major
+                             "${_version_parse}")
+      endif()
       string(REGEX REPLACE ".*VERSION_MINOR[ \t]+([0-9]+).*" "\\1" _minor
                            "${_version_parse}")
       string(REGEX REPLACE ".*VERSION_MICRO[ \t]+([0-9]+).*" "\\1" _micro
