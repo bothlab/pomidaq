@@ -1,7 +1,7 @@
 PoMiDAQ
 =======
 
-[![PoMiDAQ Screenshot](contrib/screenshots/v0.2.0_recording_sample.png "PoMiDAQ on Linux")](https://github.com/bothlab/pomidaq/tree/master/contrib/screenshots)
+[![PoMiDAQ Screenshot](contrib/screenshots/v0.4.4_diffdisplay_tiny.png "PoMiDAQ on Linux")](https://github.com/bothlab/pomidaq/tree/master/contrib/screenshots)
 
 [![Build](https://github.com/bothlab/pomidaq/actions/workflows/build.yml/badge.svg)](https://github.com/bothlab/pomidaq/actions/workflows/build.yml)
 
