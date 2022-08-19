@@ -41,6 +41,8 @@ modules:
     - -DWITH_OPENCL=ON
     - -DWITH_OPENGL=ON
     - -DWITH_TBB=ON
+    - -DWITH_OPENMP=ON
+    - -DWITH_IPP=ON
     - -DWITH_VULKAN=ON
     - -DBUILD_WITH_DEBUG_INFO=OFF
     - -DBUILD_TESTS=OFF
@@ -49,16 +51,21 @@ modules:
     - -DINSTALL_C_EXAMPLES=OFF
     - -DINSTALL_PYTHON_EXAMPLES=OFF
     - -DWITH_1394=OFF
+    - -DWITH_V4L=ON
     - -DWITH_PROTOBUF=ON
+    - -DWITH_GTK=OFF
     - -DWITH_CAROTENE=OFF # fails on Flathub ARM builders and is only relevant for ARM
-    - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,stitching,video,videoio
+    - -DBUILD_LIST=core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,stitching,video,videoio
+  cleanup:
+    - /lib/cmake
+    - /bin/*
   sources:
     - type: archive
-      url: https://github.com/opencv/opencv/archive/4.2.0.tar.gz
-      sha256: 9ccb2192d7e8c03c58fee07051364d94ed7599363f3b0dce1c5e6cc11c1bb0ec
+      url: https://github.com/opencv/opencv/archive/refs/tags/4.6.0.tar.gz
+      sha256: 1ec1cba65f9f20fe5a41fda1586e01c70ea0c9a6d7b67c9e13edf0cfe2239277
     - type: archive
-      url: https://github.com/opencv/opencv_contrib/archive/4.2.0.tar.gz
-      sha256: 8a6b5661611d89baa59a26eb7ccf4abb3e55d73f99bb52d8f7c32265c8a43020
+      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.6.0.tar.gz
+      sha256: 1777d5fd2b59029cf537e5fd6f8aa68d707075822f90bde683fcde086f85f7a7
 
 - modules/appstream.yaml
 
