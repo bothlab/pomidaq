@@ -9,6 +9,7 @@
 
   <metadata_license>FSFAP</metadata_license>
   <project_license>LGPL-3.0+</project_license>
+  <developer_name translate="no">Matthias Klumpp</developer_name>
 
   <description>
     <p>
@@ -29,7 +30,12 @@
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/bothlab/pomidaq/master/contrib/screenshots/v0.2.0_recording.png</image>
+      <image>https://raw.githubusercontent.com/bothlab/pomidaq/master/contrib/screenshots/v0.4.4_diffdisplay.png</image>
+      <caption>Recording a raw video of calcium activity while displaying the difference to the average background</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/bothlab/pomidaq/master/contrib/screenshots/v0.4.4_rawdisplay.png</image>
+      <caption>Displaying the raw image data recorded from a GRIN lens in CA1 of a mouse hippocampus</caption>
     </screenshot>
   </screenshots>
 
