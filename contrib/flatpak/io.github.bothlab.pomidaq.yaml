@@ -60,6 +60,8 @@ modules:
       url: https://github.com/opencv/opencv_contrib/archive/4.2.0.tar.gz
       sha256: 8a6b5661611d89baa59a26eb7ccf4abb3e55d73f99bb52d8f7c32265c8a43020
 
+- modules/appstream.yaml
+
 - name: pomidaq
   buildsystem: cmake-ninja
   builddir: true
