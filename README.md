@@ -5,11 +5,16 @@ PoMiDAQ
 
 [![Build](https://github.com/bothlab/pomidaq/actions/workflows/build.yml/badge.svg)](https://github.com/bothlab/pomidaq/actions/workflows/build.yml)
 
-PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/index.php/Main_Page).
+PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/) for neuroscientific research.
 Unlike the [preexisting](https://github.com/daharoni/Miniscope_DAQ_Software) Miniscope software, this program
 is written to be portable, so it will run on Windows, Linux and (likely) macOS.
-It is designed to work with the latest OpenCV libraries and provides a shared library, so Miniscope recording
-features can easily be embedded into other programs and pipelines.
+PoMiDAQ provides an easy way to record videos from Miniscopes, create Z-stacks to give an overview of visible
+cells or tissue features and provides an online background subtraction feature to gain an initial insight into
+cellular calcium activity while data is recorded.
+
+The software is designed to work with the latest OpenCV libraries and provides a shared library, so Miniscope
+recording features can easily be embedded into other programs and pipelines.
+PoMiDAQ will work with Miniscope V3, V4 and the Siminiscope hardware using the standard DAQ box v3.2.
 Recorded data is encoded with the [FFV1](https://en.wikipedia.org/wiki/FFV1) codec by default, to allow for
 smaller video files at lossless quality that are safe to archive.
 
