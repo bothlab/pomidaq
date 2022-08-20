@@ -80,4 +80,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Flatpak Bundle
-        path: '*.flatpak'
+        path: contrib/flatpak/*.flatpak
