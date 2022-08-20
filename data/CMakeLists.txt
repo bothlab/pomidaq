@@ -15,7 +15,7 @@ if (GUI)
     set(REL_METAINFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_METAINFO_FILENAME}")
     add_custom_command(OUTPUT ${REL_METAINFO_FILE}
       COMMAND ${ASCLI_EXE}
-              news-to-metainfo --limit=4
+              news-to-metainfo --limit=4 --format=text
               "${CMAKE_SOURCE_DIR}/NEWS"
               ${SRC_METAINFO_FILENAME}
               ${REL_METAINFO_FILE}
