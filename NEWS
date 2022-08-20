@@ -1,3 +1,19 @@
+Version 0.4.5
+~~~~~~~~~~~~~
+Released: 2022-08-20
+
+Features:
+ * Display device name for camera ID on Linux
+ * Don't store data in temporary location by default
+ * Update screenshots
+ * Add Flatpak bundle build recipe
+ * Validate & augment metainfo file using appstreamcli
+
+Bugfixes:
+ * Prevent in-tree builds
+ * Give a better error when trying to build against GLES instead of OpenGL
+ * cmake: Find more recent FFmpeg versions as well
+
 Version 0.4.4
 ~~~~~~~~~~~~~
 Released: 2021-12-16
