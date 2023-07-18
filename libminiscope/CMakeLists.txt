@@ -17,7 +17,7 @@ set(LIBMINISCOPE_HEADERS
     mediatypes.h
 )
 
-qt5_add_resources(LIBMINISCOPE_RES_SRC mscoperes.qrc)
+qt5_add_resources(LIBMINISCOPE_RES_SRC mscopelr.qrc)
 
 add_library(miniscope
     ${LIBMINISCOPE_SRC}

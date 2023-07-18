@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/config">
-        <file>miniscopes.json</file>
-    </qresource>
-</RCC>

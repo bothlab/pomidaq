@@ -43,7 +43,7 @@
 
 void initLibraryResources()
 {
-    Q_INIT_RESOURCE(mscoperes);
+    Q_INIT_RESOURCE(mscopelr);
 }
 
 namespace MScope
@@ -85,6 +85,7 @@ public:
           checkRecTrigger(false),
           droppedFramesCount(0),
           useColor(false),
+          hasHeadOrientation(true),
           printExtraDebug(true)
     {
         fps = 30;
@@ -170,13 +171,14 @@ public:
     bool rawFrameRetrieved;
 
     QQueue<cv::Mat> displayQueue;
-    std::pair<RawFrameCallback, void*> frameCallback;
+    std::pair<RawDataCallback, void*> frameCallback;
     std::pair<DisplayFrameCallback, void*> displayFrameCallback;
 
     bool useColor;
     bool showRed;
     bool showGreen;
     bool showBlue;
+    bool hasHeadOrientation;
 
     VideoCodec videoCodec;
     VideoContainer videoContainer;
@@ -338,6 +340,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     d->supportsColor = d->deviceConfig["isColor"].toBool(false);
     d->sensorType = d->deviceConfig["sensor"].toString("unknown");
     d->pixelClock = d->deviceConfig["pixelClock"].toDouble(-1);
+    d->hasHeadOrientation = d->deviceConfig["headOrientation"].toBool(false);
 
     // load information about available controls
     d->controls.clear();
@@ -1003,7 +1006,7 @@ void Miniscope::setOnControlValueChange(ControlChangeCallback callback, void *ud
     d->controlChangeCallback = std::make_pair(callback, udata);
 }
 
-void Miniscope::setOnFrame(MScope::RawFrameCallback callback, void *udata)
+void Miniscope::setOnFrame(MScope::RawDataCallback callback, void *udata)
 {
     d->frameCallback = std::make_pair(callback, udata);
 }
@@ -1171,6 +1174,11 @@ void Miniscope::setDisplayMode(DisplayMode mode)
     d->displayMode = mode;
 }
 
+bool Miniscope::hasHeadOrientationSupport() const
+{
+    return d->hasHeadOrientation;
+}
+
 double Miniscope::bgAccumulateAlpha() const
 {
     return d->bgAccumulateAlpha;
@@ -1237,6 +1245,30 @@ inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
     return milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 }
 
+static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point& location)
+{
+    for (int y = std::max(location.y, 0); y < src->rows; ++y) {
+        int fY = y - location.y;
+
+        if (fY >= overlay->rows)
+            break;
+
+        for (int x = std::max(location.x, 0); x < src->cols; ++x) {
+            int fX = x - location.x;
+
+            if (fX >= overlay->cols)
+                break;
+
+            double opacity = ((double)overlay->data[fY * overlay->step + fX * overlay->channels() + 3]) / 255;
+            for (int c = 0; opacity > 0 && c < src->channels(); ++c) {
+                uchar overlayPx = overlay->data[fY * overlay->step + fX * overlay->channels() + c];
+                uchar srcPx = src->data[y * src->step + x * src->channels() + c];
+                src->data[y * src->step + src->channels() * x + c] = srcPx * (1. - opacity) + overlayPx * opacity;
+            }
+        }
+    }
+}
+
 void Miniscope::captureThread(void* msPtr)
 {
     const auto self = static_cast<Miniscope*> (msPtr);
@@ -1259,6 +1291,27 @@ void Miniscope::captureThread(void* msPtr)
     d->droppedFramesCount = 0;
     d->currentFPS = static_cast<uint>(d->fps);
 
+    // load orientation sensor indicator images
+    cv::Mat bnoIndGood;
+    cv::Mat bnoIndBad;
+    {
+        QFile oiGoodFile(QStringLiteral(":/graphics/orientation-indicator-good.png"));
+        if (oiGoodFile.open(QIODevice::ReadOnly)) {
+            const auto pngBytes = oiGoodFile.readAll();
+            bnoIndGood = cv::imdecode(cv::Mat(1, pngBytes.size(), CV_8UC1, (void*) pngBytes.data()), cv::IMREAD_UNCHANGED);
+        } else {
+            qCWarning(logMScope).noquote() << "Unable to find BNO indicator image resource 1:" << oiGoodFile.errorString();
+        }
+
+        QFile oiBadFile(QStringLiteral(":/graphics/orientation-indicator-bad.png"));
+        if (oiBadFile.open(QIODevice::ReadOnly)) {
+            const auto pngBytes = oiBadFile.readAll();
+            bnoIndBad = cv::imdecode(cv::Mat(1, pngBytes.size(), CV_8UC1, (void*) pngBytes.data()), cv::IMREAD_UNCHANGED);
+        } else {
+            qCWarning(logMScope).noquote() << "Unable to find BNO indicator image resource 2:" << oiBadFile.errorString();
+        }
+    }
+
     // reset errors
     d->failed = false;
     d->lastError.clear();
@@ -1270,6 +1323,7 @@ void Miniscope::captureThread(void* msPtr)
     d->cam.set(cv::CAP_PROP_FPS, d->fps);
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
+    auto hasHeadOrientationSupport = self->hasHeadOrientationSupport();
 
     // use custom timepoint as start time, in case we have one set - use current time otherwise
     auto threadStartTime = std::chrono::steady_clock::now();
@@ -1375,12 +1429,29 @@ void Miniscope::captureThread(void* msPtr)
         if (!status)
             frame = cv::Mat();
 
+        // determine device position in space
+        std::vector<float> bnoVec(5);
+        if (hasHeadOrientationSupport) {
+            // BNO output is a unit quaternion after 2^14 division
+            double w = static_cast<qint16>(d->cam.get(cv::CAP_PROP_SATURATION));
+            double x = static_cast<qint16>(d->cam.get(cv::CAP_PROP_HUE));
+            double y = static_cast<qint16>(d->cam.get(cv::CAP_PROP_GAIN));
+            double z = static_cast<qint16>(d->cam.get(cv::CAP_PROP_BRIGHTNESS));
+
+            double norm = sqrt(w*w + x*x + y*y + z*z);
+            bnoVec[0] = w / 16384.0;
+            bnoVec[1] = x / 16384.0;
+            bnoVec[2] = y / 16384.0;
+            bnoVec[3] = z / 16384.0;
+            bnoVec[4] = abs((norm / 16384.0) - 1);
+        }
+
         // call frame callback, so the callee can also adjust the frame
         // timestamp (if it wants to) before we save any data to disk or
         // process it further.
         auto frameTimestamp = frameDeviceTimestamp;
         if (frameCB != nullptr)
-            frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, frameCB_udata);
+            frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, bnoVec, frameCB_udata);
 
         // set last acquired frame (for other modules that don't care about timing accuracy,
         // e.g. the zstack capture module)
@@ -1515,6 +1586,33 @@ void Miniscope::captureThread(void* msPtr)
             d->maxFluor = static_cast<int>(maxF);
 
             displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (d->maxFluorDisplay - d->minFluorDisplay), -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
+        }
+
+        if (hasHeadOrientationSupport) {
+            auto qw = bnoVec[0];
+            auto qx = bnoVec[1];
+            auto qy = bnoVec[2];
+            auto qz = bnoVec[3];
+            auto qnorm = bnoVec[4];
+
+            // check if norm of quat differs from 1 by 0.05, to filter out bad data
+            cv::Mat bnoIndMat;
+            if (qnorm < 0.05) {
+                cv::Mat transformationMatrix = (cv::Mat_<double>(3, 3) <<
+                                                1.0 - 2.0*qy*qy - 2.0*qz*qz, 2.0*qx*qy - 2.0*qz*qw, 2.0*qx*qz + 2.0*qy*qw,
+                                                2.0*qx*qy + 2.0*qz*qw, 1 - 2.0*qx*qx - 2.0*qz*qz, 2.0*qy*qz - 2.0*qx*qw,
+                                                2.0*qx*qz - 2.0*qy*qw, 2.0*qy*qz + 2.0*qx*qw, 1.0 - 2.0*qx*qx - 2.0*qy*qy);
+
+                cv::warpPerspective(bnoIndGood, bnoIndMat, transformationMatrix, bnoIndGood.size());
+            } else {
+                bnoIndMat = bnoIndBad;
+            }
+
+            cv::cvtColor(displayFrame, displayFrame, cv::COLOR_GRAY2BGR);
+            int x = displayFrame.cols - bnoIndMat.cols - 5;
+            int y = displayFrame.rows - bnoIndMat.rows - 5;
+
+            overlayAlphaImage(&displayFrame, &bnoIndMat, cv::Point(x, y));
         }
 
         // add display frame to ringbuffer, and record the raw

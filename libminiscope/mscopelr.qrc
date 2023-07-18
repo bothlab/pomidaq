@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/config">
+        <file>miniscopes.json</file>
+    </qresource>
+    <qresource prefix="/graphics">
+        <file alias="orientation-indicator-good.png">../data/png/orientation-indicator-good.png</file>
+        <file alias="orientation-indicator-bad.png">../data/png/orientation-indicator-bad.png</file>
+    </qresource>
+</RCC>

@@ -49,7 +49,12 @@ using milliseconds_t = std::chrono::milliseconds;
 
 using StatusMessageCallback = std::function<void(const QString&, void *)>;
 using ControlChangeCallback = std::function<void(const QString&, double, double, void *)>;
-using RawFrameCallback = std::function<void(const cv::Mat &, milliseconds_t &, const milliseconds_t &, const milliseconds_t &, void *)>;
+using RawDataCallback = std::function<void(const cv::Mat &,
+                                            milliseconds_t &,
+                                            const milliseconds_t &,
+                                            const milliseconds_t &,
+                                            const std::vector<float> &orientation,
+                                            void *)>;
 using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
 
 enum class DisplayMode {
@@ -155,7 +160,7 @@ public:
      * Please note that this function will also be called in case we are dropping frames. In this case, the
      * frame data matrix will be empty.
      */
-    void setOnFrame(RawFrameCallback callback, void *udata = nullptr);
+    void setOnFrame(RawDataCallback callback, void *udata = nullptr);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired on the edited frame.
@@ -219,6 +224,8 @@ public:
     DisplayMode displayMode() const;
     void setDisplayMode(DisplayMode mode);
 
+    bool hasHeadOrientationSupport() const;
+
     double bgAccumulateAlpha() const;
     void setBgAccumulateAlpha(double value);
 
@@ -262,6 +269,6 @@ QString videoDeviceNameFromId(int id);
  * \brief Call this in main() to initialize resources. Only needed when using static linking.
  */
 #define MSCOPE_RES_INIT	\
-  Q_INIT_RESOURCE(mscoperes)
+  Q_INIT_RESOURCE(mscopelr)
 
 #endif // MINISCOPE_H
