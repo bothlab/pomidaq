@@ -1432,12 +1432,16 @@ void Miniscope::captureThread(void* msPtr)
         // determine device position in space
         std::vector<float> bnoVec(5);
         if (hasHeadOrientationSupport) {
-            // BNO output is a unit quaternion after 2^14 division
-            double w = static_cast<qint16>(d->cam.get(cv::CAP_PROP_SATURATION));
-            double x = static_cast<qint16>(d->cam.get(cv::CAP_PROP_HUE));
-            double y = static_cast<qint16>(d->cam.get(cv::CAP_PROP_GAIN));
-            double z = static_cast<qint16>(d->cam.get(cv::CAP_PROP_BRIGHTNESS));
+            // unpack BNO quaternions
+            auto wx = static_cast<quint32>(d->cam.get(cv::CAP_PROP_PAN));
+            auto yz = static_cast<quint32>(d->cam.get(cv::CAP_PROP_TILT));
 
+            double w = (qint16)(wx & 0xFFFF);
+            double x = (qint16)((wx >> 16) & 0xFFFF);
+            double y = (qint16)(yz & 0xFFFF);
+            double z = (qint16)((yz >> 16) & 0xFFFF);
+
+            // BNO output is a unit quaternion after 2^14 division
             double norm = sqrt(w*w + x*x + y*y + z*z);
             bnoVec[0] = w / 16384.0;
             bnoVec[1] = x / 16384.0;
@@ -1538,7 +1542,7 @@ void Miniscope::captureThread(void* msPtr)
                 msgInfo("Recording finalized.");
                 d->lastRecordedFrameTime = std::chrono::milliseconds(0);
 
-                // let DAQ board know that we aren#t recording (anymore)
+                // let DAQ board know that we aren't recording (anymore)
                 d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
             }
         }
