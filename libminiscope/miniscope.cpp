@@ -85,7 +85,8 @@ public:
           checkRecTrigger(false),
           droppedFramesCount(0),
           useColor(false),
-          hasHeadOrientation(true),
+          hasHeadOrientation(false),
+          bnoIndicatorVisible(true),
           printExtraDebug(true)
     {
         fps = 30;
@@ -179,6 +180,7 @@ public:
     bool showGreen;
     bool showBlue;
     bool hasHeadOrientation;
+    bool bnoIndicatorVisible;
 
     VideoCodec videoCodec;
     VideoContainer videoContainer;
@@ -1179,6 +1181,16 @@ bool Miniscope::hasHeadOrientationSupport() const
     return d->hasHeadOrientation;
 }
 
+bool Miniscope::isBnoIndicatorVisible() const
+{
+    return d->bnoIndicatorVisible;
+}
+
+void Miniscope::setBnoIndicatorVisible(bool visible)
+{
+    d->bnoIndicatorVisible = visible;
+}
+
 double Miniscope::bgAccumulateAlpha() const
 {
     return d->bgAccumulateAlpha;
@@ -1414,6 +1426,7 @@ void Miniscope::captureThread(void* msPtr)
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
     auto hasHeadOrientationSupport = self->hasHeadOrientationSupport();
+    auto bnoIndicatorVisible = self->isBnoIndicatorVisible();
 
     // use custom timepoint as start time, in case we have one set - use current time otherwise
     auto threadStartTime = std::chrono::steady_clock::now();
@@ -1518,6 +1531,9 @@ void Miniscope::captureThread(void* msPtr)
         }
         if (!status)
             frame = cv::Mat();
+
+        // update BNO indicator visibility setting
+        bnoIndicatorVisible = self->isBnoIndicatorVisible();
 
         // determine device position in space
         std::vector<float> bnoVec(5);
@@ -1682,7 +1698,7 @@ void Miniscope::captureThread(void* msPtr)
             displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (d->maxFluorDisplay - d->minFluorDisplay), -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
         }
 
-        if (hasHeadOrientationSupport) {
+        if (hasHeadOrientationSupport && bnoIndicatorVisible) {
             auto qw = bnoVec[0];
             auto qx = bnoVec[1];
             auto qy = bnoVec[2];

@@ -225,6 +225,8 @@ public:
     void setDisplayMode(DisplayMode mode);
 
     bool hasHeadOrientationSupport() const;
+    bool isBnoIndicatorVisible() const;
+    void setBnoIndicatorVisible(bool visible);
 
     double bgAccumulateAlpha() const;
     void setBgAccumulateAlpha(double value);

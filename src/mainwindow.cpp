@@ -507,6 +507,11 @@ void MainWindow::on_btnDevConnect_clicked()
         ui->sbStackTo->setMaximum(ewlControl.valueMax);
     }
 
+    // enable/disable BNO specific settings
+    ui->showBNOIndicatorLabel->setEnabled(m_mscope->hasHeadOrientationSupport());
+    ui->showBNOIndicatorCheckBox->setEnabled(m_mscope->hasHeadOrientationSupport());
+    ui->showBNOIndicatorCheckBox->setChecked(m_mscope->hasHeadOrientationSupport()? m_mscope->isBnoIndicatorVisible() : false);
+
     // start displaying things
     m_msTimer->start();
 }
@@ -806,3 +811,9 @@ void MainWindow::on_actionSetTimestampStyle_triggered()
             setUseUnixTimestamps(true);
     }
 }
+
+void MainWindow::on_showBNOIndicatorCheckBox_toggled(bool checked)
+{
+    m_mscope->setBnoIndicatorVisible(checked);
+}
+

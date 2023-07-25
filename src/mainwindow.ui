@@ -114,7 +114,6 @@
                 </property>
                 <property name="font">
                  <font>
-                  <weight>75</weight>
                   <bold>true</bold>
                  </font>
                 </property>
@@ -167,7 +166,6 @@
                 </property>
                 <property name="font">
                  <font>
-                  <weight>75</weight>
                   <bold>true</bold>
                  </font>
                 </property>
@@ -214,7 +212,6 @@
                 </property>
                 <property name="font">
                  <font>
-                  <weight>75</weight>
                   <bold>true</bold>
                  </font>
                 </property>
@@ -261,7 +258,6 @@
                 </property>
                 <property name="font">
                  <font>
-                  <weight>75</weight>
                   <bold>true</bold>
                  </font>
                 </property>
@@ -338,7 +334,7 @@
              <x>0</x>
              <y>0</y>
              <width>1032</width>
-             <height>244</height>
+             <height>252</height>
             </rect>
            </property>
            <attribute name="label">
@@ -477,7 +473,7 @@
              <x>0</x>
              <y>0</y>
              <width>1032</width>
-             <height>244</height>
+             <height>252</height>
             </rect>
            </property>
            <attribute name="label">
@@ -748,6 +744,16 @@
                    </property>
                   </widget>
                  </item>
+                 <item row="4" column="0">
+                  <widget class="QLabel" name="showBNOIndicatorLabel">
+                   <property name="text">
+                    <string>Show BNO Indicator</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="4" column="1">
+                  <widget class="QCheckBox" name="showBNOIndicatorCheckBox"/>
+                 </item>
                 </layout>
                </item>
               </layout>
@@ -774,7 +780,7 @@
              <x>0</x>
              <y>0</y>
              <width>1032</width>
-             <height>244</height>
+             <height>252</height>
             </rect>
            </property>
            <attribute name="label">
@@ -959,7 +965,7 @@
              <x>0</x>
              <y>0</y>
              <width>1032</width>
-             <height>246</height>
+             <height>252</height>
             </rect>
            </property>
            <attribute name="label">
@@ -1303,7 +1309,7 @@
      <x>0</x>
      <y>0</y>
      <width>1148</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuInfo">

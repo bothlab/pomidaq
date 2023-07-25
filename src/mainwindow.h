@@ -73,6 +73,8 @@ private slots:
     void on_actionUseDarkTheme_toggled(bool arg1);
     void on_actionSetTimestampStyle_triggered();
 
+    void on_showBNOIndicatorCheckBox_toggled(bool checked);
+
 protected:
     void closeEvent(QCloseEvent *event) override;
 
