@@ -1245,7 +1245,7 @@ inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
     return milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 }
 
-static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point& location)
+static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point &location)
 {
     for (int y = std::max(location.y, 0); y < src->rows; ++y) {
         int fY = y - location.y;
@@ -1267,6 +1267,96 @@ static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point& l
             }
         }
     }
+}
+
+static cv::Mat makeWarpMatrix(cv::Size sz, double theta, double phi, double gamma, double scale, double fovy)
+{
+    // See https://stackoverflow.com/questions/17087446/how-to-calculate-perspective-transform-for-opencv-from-rotation-angles
+    // for original code.
+
+    double st = sin(theta);
+    double ct = cos(theta);
+    double sp = sin(phi);
+    double cp = cos(phi);
+    double sg = sin(gamma);
+    double cg = cos(gamma);
+
+    double halfFovy = fovy * 0.5;
+    double d = hypot(sz.width, sz.height);
+    double sideLength = scale * d / cos(halfFovy);
+    double h = d / (2.0 * sin(halfFovy));
+    double n = h - (d / 2.0);
+    double f = h + (d / 2.0);
+
+    cv::Mat F = cv::Mat(4, 4, CV_64FC1); // Allocate 4x4 transformation matrix F
+    cv::Mat Rtheta = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 rotation matrix around Z-axis by theta degrees
+    cv::Mat Rphi = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 rotation matrix around X-axis by phi degrees
+    cv::Mat Rgamma = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 rotation matrix around Y-axis by gamma degrees
+
+    cv::Mat T = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 translation matrix along Z-axis by -h units
+    cv::Mat P = cv::Mat::zeros(4, 4, CV_64FC1); // Allocate 4x4 projection matrix
+
+    // Rtheta
+    Rtheta.at<double>(0,0) = Rtheta.at<double>(1,1) = ct;
+    Rtheta.at<double>(0,1) = -st;Rtheta.at<double>(1,0) = st;
+    // Rphi
+    Rphi.at<double>(1,1) = Rphi.at<double>(2,2) = cp;
+    Rphi.at<double>(1,2) = -sp;Rphi.at<double>(2,1) = sp;
+    // Rgamma
+    Rgamma.at<double>(0,0) = Rgamma.at<double>(2,2) = cg;
+    Rgamma.at<double>(0,2) = -sg;Rgamma.at<double>(2,0) = sg;
+
+    // T
+    T.at<double>(2,3) = -h;
+
+    // P
+    P.at<double>(0,0) = P.at<double>(1,1) = 1.0 / tan(halfFovy);
+    P.at<double>(2,2) = -(f + n) / (f - n);
+    P.at<double>(2,3) = -(2.0 * f * n) / (f - n);
+    P.at<double>(3,2) = -1.0;
+
+    // Compose transformations
+    F = P * T * Rphi * Rtheta * Rgamma; // Matrix-multiply to produce master matrix
+
+    // Transform 4x4 points
+    double ptsIn [4*3];
+    double ptsOut[4*3];
+    double halfW = sz.width / 2, halfH = sz.height / 2;
+
+    ptsIn[0] = -halfW;ptsIn[ 1] = halfH;
+    ptsIn[3] = halfW;ptsIn[ 4] = halfH;
+    ptsIn[6] = halfW;ptsIn[ 7] = -halfH;
+    ptsIn[9] = -halfW;ptsIn[10] = -halfH;
+    ptsIn[2] = ptsIn[5]=ptsIn[8] = ptsIn[11]=0; // Set Z component to zero for all 4 components
+
+    cv::Mat ptsInMat(1, 4, CV_64FC3, ptsIn);
+    cv::Mat ptsOutMat(1, 4, CV_64FC3, ptsOut);
+
+    cv::perspectiveTransform(ptsInMat, ptsOutMat, F); // Transform points
+
+    // Get 3x3 transform and warp image
+    cv::Point2f ptsInPt2f[4];
+    cv::Point2f ptsOutPt2f[4];
+
+    for (int i = 0; i < 4; i++) {
+        cv::Point2f ptIn (ptsIn [i*3+0], ptsIn [i*3+1]);
+        cv::Point2f ptOut(ptsOut[i*3+0], ptsOut[i*3+1]);
+        ptsInPt2f[i]  = ptIn + cv::Point2f(halfW, halfH);
+        ptsOutPt2f[i] = (ptOut + cv::Point2f(1, 1)) * (sideLength * 0.5);
+    }
+
+    return cv::getPerspectiveTransform(ptsInPt2f,ptsOutPt2f);
+}
+
+static cv::Mat perspectiveWarpImage(const cv::Mat &src, double theta, double phi, double gamma, double scale, double fovy)
+{
+    double d = hypot(src.cols, src.rows);
+    double sideLength = scale * d / cos(fovy * 0.5);
+
+    cv::Mat M = makeWarpMatrix(src.size(), theta, phi, gamma, scale, fovy);
+    cv::Mat dst;
+    warpPerspective(src, dst, M, cv::Size(sideLength,sideLength));
+    return dst;
 }
 
 void Miniscope::captureThread(void* msPtr)
@@ -1602,12 +1692,20 @@ void Miniscope::captureThread(void* msPtr)
             // check if norm of quat differs from 1 by 0.05, to filter out bad data
             cv::Mat bnoIndMat;
             if (qnorm < 0.05) {
-                cv::Mat transformationMatrix = (cv::Mat_<double>(3, 3) <<
-                                                1.0 - 2.0*qy*qy - 2.0*qz*qz, 2.0*qx*qy - 2.0*qz*qw, 2.0*qx*qz + 2.0*qy*qw,
-                                                2.0*qx*qy + 2.0*qz*qw, 1 - 2.0*qx*qx - 2.0*qz*qz, 2.0*qy*qz - 2.0*qx*qw,
-                                                2.0*qx*qz - 2.0*qy*qw, 2.0*qy*qz + 2.0*qx*qw, 1.0 - 2.0*qx*qx - 2.0*qy*qy);
 
-                cv::warpPerspective(bnoIndGood, bnoIndMat, transformationMatrix, bnoIndGood.size());
+                double phi = atan2(2.0 * (qw * qx + qy * qz), 1.0 - 2.0 * (qx * qx + qy * qy));
+                double sinTheta = 2.0 * (qw * qy - qz * qx);
+
+                // Avoiding gimbal lock at +/- 90 degrees pitch
+                double theta;
+                if (fabs(sinTheta) >= 1.0)
+                    theta = copysign(M_PI / 2.0, sinTheta);
+                else
+                    theta = asin(sinTheta);
+
+                double gamma = atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz));
+
+                bnoIndMat = perspectiveWarpImage(bnoIndGood, theta, phi, gamma, 1, 0.5);
             } else {
                 bnoIndMat = bnoIndBad;
             }
