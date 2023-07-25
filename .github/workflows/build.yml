@@ -66,9 +66,9 @@ jobs:
         fetch-depth: 0
 
     - name: Install Qt
-      uses: jurplel/install-qt-action@v2.11.1
+      uses: jurplel/install-qt-action@v3
       with:
-        version: 5.15.2
+        version: 5.15.*
 
     - name: Make vcpkg only build release builds
       run: |
