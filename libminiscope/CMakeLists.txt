@@ -1,14 +1,16 @@
 
 set(LIBMINISCOPE_SRC
     miniscope.cpp
-    videowriter.cpp
     mediatypes.cpp
+    videowriter.cpp
+    csvwriter.cpp
     zstackcapture.cpp
 )
 
 set(LIBMINISCOPE_PRIV_HEADERS
     scopeintf.h
     videowriter.h
+    csvwriter.h
     zstackcapture.h
 )
 

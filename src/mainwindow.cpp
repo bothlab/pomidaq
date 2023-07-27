@@ -216,7 +216,7 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->actionUseDarkTheme->setChecked(settings.value("ui/useDarkStyle", true).toBool());
     }
     setUseUnixTimestamps(settings.value("recording/useUnixTimestamps", false).toBool());
-    ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 5).toInt());
+    ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 20).toInt());
 
     // set display modes
     ui->displayModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
@@ -508,9 +508,13 @@ void MainWindow::on_btnDevConnect_clicked()
     }
 
     // enable/disable BNO specific settings
-    ui->showBNOIndicatorLabel->setEnabled(m_mscope->hasHeadOrientationSupport());
-    ui->showBNOIndicatorCheckBox->setEnabled(m_mscope->hasHeadOrientationSupport());
-    ui->showBNOIndicatorCheckBox->setChecked(m_mscope->hasHeadOrientationSupport()? m_mscope->isBnoIndicatorVisible() : false);
+    bool hasBNO = m_mscope->hasHeadOrientationSupport();
+    ui->showBNOIndicatorLabel->setEnabled(hasBNO);
+    ui->showBNOIndicatorCheckBox->setEnabled(hasBNO);
+    ui->saveOrientationCheckBox->setEnabled(hasBNO);
+    ui->saveOrientationLabel->setEnabled(hasBNO);
+    ui->showBNOIndicatorCheckBox->setChecked(hasBNO? m_mscope->isBNOIndicatorVisible() : false);
+    ui->saveOrientationCheckBox->setChecked(hasBNO? m_mscope->saveOrientationData() : false);
 
     // start displaying things
     m_msTimer->start();
@@ -814,6 +818,12 @@ void MainWindow::on_actionSetTimestampStyle_triggered()
 
 void MainWindow::on_showBNOIndicatorCheckBox_toggled(bool checked)
 {
-    m_mscope->setBnoIndicatorVisible(checked);
+    m_mscope->setBNOIndicatorVisible(checked);
+}
+
+
+void MainWindow::on_saveOrientationCheckBox_toggled(bool checked)
+{
+    m_mscope->setSaveOrientationdata(checked);
 }
 

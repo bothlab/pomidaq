@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -225,8 +225,11 @@ public:
     void setDisplayMode(DisplayMode mode);
 
     bool hasHeadOrientationSupport() const;
-    bool isBnoIndicatorVisible() const;
-    void setBnoIndicatorVisible(bool visible);
+    bool isBNOIndicatorVisible() const;
+    void setBNOIndicatorVisible(bool visible);
+
+    bool saveOrientationData() const;
+    void setSaveOrientationdata(bool save);
 
     double bgAccumulateAlpha() const;
     void setBgAccumulateAlpha(double value);

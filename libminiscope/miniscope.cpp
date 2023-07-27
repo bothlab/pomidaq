@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -39,6 +39,7 @@
 
 #include "scopeintf.h"
 #include "videowriter.h"
+#include "csvwriter.h"
 #include "zstackcapture.h"
 
 void initLibraryResources()
@@ -87,6 +88,7 @@ public:
           useColor(false),
           hasHeadOrientation(false),
           bnoIndicatorVisible(true),
+          saveOrientationData(true),
           printExtraDebug(true)
     {
         fps = 30;
@@ -181,6 +183,7 @@ public:
     bool showBlue;
     bool hasHeadOrientation;
     bool bnoIndicatorVisible;
+    bool saveOrientationData;
 
     VideoCodec videoCodec;
     VideoContainer videoContainer;
@@ -1181,14 +1184,24 @@ bool Miniscope::hasHeadOrientationSupport() const
     return d->hasHeadOrientation;
 }
 
-bool Miniscope::isBnoIndicatorVisible() const
+bool Miniscope::isBNOIndicatorVisible() const
 {
     return d->bnoIndicatorVisible;
 }
 
-void Miniscope::setBnoIndicatorVisible(bool visible)
+void Miniscope::setBNOIndicatorVisible(bool visible)
 {
     d->bnoIndicatorVisible = visible;
+}
+
+bool Miniscope::saveOrientationData() const
+{
+    return d->saveOrientationData;
+}
+
+void Miniscope::setSaveOrientationdata(bool save)
+{
+    d->saveOrientationData = save;
 }
 
 double Miniscope::bgAccumulateAlpha() const
@@ -1426,7 +1439,14 @@ void Miniscope::captureThread(void* msPtr)
     std::unique_ptr<VideoWriter> vwriter(new VideoWriter());
     auto recordFrames = false;
     auto hasHeadOrientationSupport = self->hasHeadOrientationSupport();
-    auto bnoIndicatorVisible = self->isBnoIndicatorVisible();
+    auto bnoIndicatorVisible = hasHeadOrientationSupport && self->isBNOIndicatorVisible();
+    auto saveOrientationData = hasHeadOrientationSupport && self->saveOrientationData();
+
+    qCDebug(logMScope) << "Save HOD:" << saveOrientationData;
+
+    // save BNO data in a CSV table, if needed
+    std::unique_ptr<CSVWriter> bnoWriter;
+    std::vector<float> prevBnoVec(5);
 
     // use custom timepoint as start time, in case we have one set - use current time otherwise
     auto threadStartTime = std::chrono::steady_clock::now();
@@ -1533,7 +1553,7 @@ void Miniscope::captureThread(void* msPtr)
             frame = cv::Mat();
 
         // update BNO indicator visibility setting
-        bnoIndicatorVisible = self->isBnoIndicatorVisible();
+        bnoIndicatorVisible = hasHeadOrientationSupport && self->isBNOIndicatorVisible();
 
         // determine device position in space
         std::vector<float> bnoVec(5);
@@ -1606,8 +1626,12 @@ void Miniscope::captureThread(void* msPtr)
                 vwriter->setContainer(d->videoContainer);
                 vwriter->setLossless(d->recordLossless);
 
+                auto vidFnameBase = d->videoFname;
+                if (vidFnameBase.mid(vidFnameBase.lastIndexOf(".") + 1).length() == 3)
+                    vidFnameBase = vidFnameBase.left(vidFnameBase.length() - 4); // remove 3-char suffix from filename
+
                 try {
-                    vwriter->initialize(d->videoFname,
+                    vwriter->initialize(vidFnameBase,
                                         frame.cols,
                                         frame.rows,
                                         static_cast<int>(d->fps),
@@ -1615,6 +1639,17 @@ void Miniscope::captureThread(void* msPtr)
                 } catch (const std::runtime_error& e) {
                     self->fail(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
                     break;
+                }
+
+                saveOrientationData = hasHeadOrientationSupport && self->saveOrientationData();
+                if (saveOrientationData) {
+                    qCDebug(logMScope) << "Will save orientation data.";
+                    bnoWriter = std::make_unique<CSVWriter>(vidFnameBase + "_orientation.csv");
+                    QObject::connect(bnoWriter.get(), &CSVWriter::error, [&](const QString& errorMessage) {
+                        self->fail(QStringLiteral("Unable to write orientation data: %1").arg(errorMessage));
+                    });
+                    bnoWriter->start();
+                    bnoWriter->addRow(QStringList() << "Time [ms]" << "qw" << "qx" << "qy" << "qz");
                 }
 
                 // we are set for recording and initialized the video writer,
@@ -1647,6 +1682,13 @@ void Miniscope::captureThread(void* msPtr)
                 recordFrames = false;
                 msgInfo("Recording finalized.");
                 d->lastRecordedFrameTime = std::chrono::milliseconds(0);
+
+                // finalize BNO data
+                if (saveOrientationData) {
+                    if (bnoWriter.get() != nullptr)
+                        bnoWriter->stop();
+                    bnoWriter.reset();
+                }
 
                 // let DAQ board know that we aren't recording (anymore)
                 d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
@@ -1698,7 +1740,7 @@ void Miniscope::captureThread(void* msPtr)
             displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (d->maxFluorDisplay - d->minFluorDisplay), -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
         }
 
-        if (hasHeadOrientationSupport && bnoIndicatorVisible) {
+        if (bnoIndicatorVisible) {
             auto qw = bnoVec[0];
             auto qx = bnoVec[1];
             auto qy = bnoVec[2];
@@ -1739,6 +1781,11 @@ void Miniscope::captureThread(void* msPtr)
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
                 self->fail(QStringLiteral("Unable to send frames to encoder: %1").arg(vwriter->lastError()));
+            if (saveOrientationData) {
+                if (prevBnoVec != bnoVec)
+                    bnoWriter->addRow(frameTimestamp, bnoVec);
+                prevBnoVec = bnoVec;
+            }
             d->lastRecordedFrameTime = frameTimestamp;
         }
 
@@ -1753,6 +1800,12 @@ void Miniscope::captureThread(void* msPtr)
     // finalize recording (if there was any still ongoing)
     vwriter->finalize();
     d->lastRecordedFrameTime = std::chrono::milliseconds(0);
+
+    // finalize BNO writer, just in case
+    if (saveOrientationData) {
+        if (bnoWriter.get() != nullptr)
+            bnoWriter->stop();
+    }
 
     // any recording is finished at this point, let DAQ hardware know about that
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);

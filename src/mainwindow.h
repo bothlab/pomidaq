@@ -74,6 +74,7 @@ private slots:
     void on_actionSetTimestampStyle_triggered();
 
     void on_showBNOIndicatorCheckBox_toggled(bool checked);
+    void on_saveOrientationCheckBox_toggled(bool checked);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
