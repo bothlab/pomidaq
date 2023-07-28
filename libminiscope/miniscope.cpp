@@ -19,10 +19,12 @@
 
 #include "miniscope.h"
 
+#define _USE_MATH_DEFINES
 #include <chrono>
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <cmath>
 #include <QDebug>
 #include <QQueue>
 #include <QFile>
