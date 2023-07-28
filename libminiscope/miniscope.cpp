@@ -621,6 +621,19 @@ bool Miniscope::openCamera()
     if (d->resolution.height > 0)
         d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->resolution.height);
 
+    // query firmware ABI version
+    d->cam.set(cv::CAP_PROP_SATURATION, 0x0002);
+    int fwABIVersion = 0;
+    for (int i = 0; i < 5; i++) {
+        if (fwABIVersion != 0)
+            break;
+        QThread::msleep(50);
+        fwABIVersion = static_cast<quint16>(d->cam.get(cv::CAP_PROP_HUE));
+    }
+    msgInfo(QStringLiteral("DAQ firmware ABI version: %1").arg(fwABIVersion));
+    if (fwABIVersion < 2)
+        qCWarning(logMScope).noquote() << "Firmware version is too low, some features may be unavailable.";
+
     // recording disabled, we are just running
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 
