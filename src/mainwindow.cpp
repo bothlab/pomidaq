@@ -539,7 +539,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
         if (m_mscope->startRecording(videoFname)) {
             ui->pageRecord->setEnabled(false);
             ui->btnDevConnect->setEnabled(false);
-            ui->btnRecord->setText("Recording...");
+            ui->btnRecord->setText("Stop recording");
         } else {
             ui->btnRecord->setChecked(false);
         }
