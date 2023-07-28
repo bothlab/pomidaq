@@ -229,7 +229,7 @@ public:
     void setBNOIndicatorVisible(bool visible);
 
     bool saveOrientationData() const;
-    void setSaveOrientationdata(bool save);
+    void setSaveOrientationData(bool save);
 
     double bgAccumulateAlpha() const;
     void setBgAccumulateAlpha(double value);

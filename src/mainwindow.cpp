@@ -302,6 +302,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     settings.setValue("ui/splitterSizes", splitterSizesBytes);
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
+    settings.setValue("recording/saveOrientationData", ui->saveOrientationCheckBox->isChecked());
     settings.setValue("device/type", ui->deviceTypeComboBox->currentText());
     if (!m_dataDir.isEmpty())
         settings.setValue("recording/dataDir", m_dataDir);
@@ -514,7 +515,10 @@ void MainWindow::on_btnDevConnect_clicked()
     ui->saveOrientationCheckBox->setEnabled(hasBNO);
     ui->saveOrientationLabel->setEnabled(hasBNO);
     ui->showBNOIndicatorCheckBox->setChecked(hasBNO? m_mscope->isBNOIndicatorVisible() : false);
-    ui->saveOrientationCheckBox->setChecked(hasBNO? m_mscope->saveOrientationData() : false);
+
+    QSettings settings(qApp->organizationName(), qApp->applicationName());
+    ui->saveOrientationCheckBox->setChecked(hasBNO? settings.value("recording/saveOrientationData", m_mscope->saveOrientationData()).toBool() : false);
+    m_mscope->setSaveOrientationData(ui->saveOrientationCheckBox->isChecked());
 
     // start displaying things
     m_msTimer->start();
@@ -824,6 +828,8 @@ void MainWindow::on_showBNOIndicatorCheckBox_toggled(bool checked)
 
 void MainWindow::on_saveOrientationCheckBox_toggled(bool checked)
 {
-    m_mscope->setSaveOrientationdata(checked);
+    m_mscope->setSaveOrientationData(checked);
+    QSettings settings(qApp->organizationName(), qApp->applicationName());
+    settings.setValue("recording/saveOrientationData", checked);
 }
 

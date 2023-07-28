@@ -1212,7 +1212,7 @@ bool Miniscope::saveOrientationData() const
     return d->saveOrientationData;
 }
 
-void Miniscope::setSaveOrientationdata(bool save)
+void Miniscope::setSaveOrientationData(bool save)
 {
     d->saveOrientationData = save;
 }
@@ -1795,7 +1795,7 @@ void Miniscope::captureThread(void* msPtr)
             if (!vwriter->pushFrame(frame, frameTimestamp))
                 self->fail(QStringLiteral("Unable to send frames to encoder: %1").arg(vwriter->lastError()));
             if (saveOrientationData) {
-                if (prevBnoVec != bnoVec)
+                if (prevBnoVec != bnoVec && bnoVec[4] < 0.05)
                     bnoWriter->addRow(frameTimestamp, bnoVec);
                 prevBnoVec = bnoVec;
             }

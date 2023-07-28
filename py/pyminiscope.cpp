@@ -135,7 +135,7 @@ PYBIND11_MODULE(miniscope, m)
 
         .def_property_readonly("has_orientation_support", &Miniscope::hasHeadOrientationSupport, "Check whether head orientation support from a BNO sensor is available")
         .def_property("bno_indicator_visible", &Miniscope::isBNOIndicatorVisible, &Miniscope::setBNOIndicatorVisible, "Whether an indicator for the BNO orientation should be rendered")
-        .def_property("save_orientation_data", &Miniscope::saveOrientationData, &Miniscope::setSaveOrientationdata, "Whether orientation data from the BNO should be saved as CSV file")
+        .def_property("save_orientation_data", &Miniscope::saveOrientationData, &Miniscope::setSaveOrientationData, "Whether orientation data from the BNO should be saved as CSV file")
 
         .def("set_print_extra_debug", &Miniscope::setPrintExtraDebug, "Set whether protocol transmission debug messages should be printed to stdout")
         .def_property_readonly("last_error", &Miniscope::lastError, "Message of the last error, if there was one")
