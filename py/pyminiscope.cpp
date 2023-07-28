@@ -49,27 +49,23 @@ PYBIND11_MODULE(miniscope, m)
             .value("VP9", VideoCodec::VP9)
             .value("HEVC", VideoCodec::HEVC)
             .value("MPEG4", VideoCodec::MPEG4)
-            .export_values()
     ;
 
     py::enum_<VideoContainer>(m, "VideoContainer", py::arithmetic())
             .value("UNKNOWN", VideoContainer::Unknown)
             .value("MATROSKA", VideoContainer::Matroska)
             .value("AVI", VideoContainer::AVI)
-            .export_values()
     ;
 
     py::enum_<DisplayMode>(m, "DisplayMode", py::arithmetic())
             .value("RAW_FRAMES", DisplayMode::RawFrames)
             .value("BACKGROUND_DIFF", DisplayMode::BackgroundDiff)
-            .export_values()
     ;
 
     py::enum_<ControlKind>(m, "ControlKind", py::arithmetic())
             .value("UNKNOWN", ControlKind::Unknown)
             .value("SELECTOR", ControlKind::Selector)
             .value("SLIDER", ControlKind::Slider)
-            .export_values()
     ;
 
     py::class_<ControlDefinition>(m, "ControlDefinition")
@@ -136,6 +132,10 @@ PYBIND11_MODULE(miniscope, m)
         .def_property("bg_accumulate_alpha", &Miniscope::bgAccumulateAlpha, &Miniscope::setBgAccumulateAlpha)
 
         .def_property("recording_slice_interval", &Miniscope::recordingSliceInterval, &Miniscope::setRecordingSliceInterval, "The interval at which new video files should be started when recording, in minutes")
+
+        .def_property_readonly("has_orientation_support", &Miniscope::hasHeadOrientationSupport, "Check whether head orientation support from a BNO sensor is available")
+        .def_property("bno_indicator_visible", &Miniscope::isBNOIndicatorVisible, &Miniscope::setBNOIndicatorVisible, "Whether an indicator for the BNO orientation should be rendered")
+        .def_property("save_orientation_data", &Miniscope::saveOrientationData, &Miniscope::setSaveOrientationdata, "Whether orientation data from the BNO should be saved as CSV file")
 
         .def("set_print_extra_debug", &Miniscope::setPrintExtraDebug, "Set whether protocol transmission debug messages should be printed to stdout")
         .def_property_readonly("last_error", &Miniscope::lastError, "Message of the last error, if there was one")
