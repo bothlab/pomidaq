@@ -31,7 +31,7 @@ with Miniscopes and a variety of cameras, or try
 
 ## Users
 
-The CI system provides up-to-date builds for PoMiDAQ for the **Windows** (64-bit), **Debian** 11 and **Ubuntu** 20.04 (amd64) platforms.
+The CI system provides up-to-date builds for PoMiDAQ for the **Windows** (64-bit), **Debian** and **Ubuntu** (amd64) platforms.
 You can fetch builds from there or download prebuilt binaries from the [Github releases](https://github.com/bothlab/pomidaq/releases).
 Don't hesitate to file issues if you notice anything unusual.
 
@@ -40,7 +40,7 @@ On Linux, you can also just install the software from your software center when 
 
 ### Notes
 #### On Linux
- * The released binaries were built on Ubuntu 20.04 or Debian 11 respectively. They may work on other Debian-based distributions as well,
+ * The released binaries were built on Ubuntu 22.04 or Debian 12 respectively. They may work on other Debian-based distributions as well,
    but in case they don't, compiling the application from source is pretty easy to do (for short instructions see below).
  * You need at least an OpenGL 3.0-capable graphics driver on your system to run this application.
 
