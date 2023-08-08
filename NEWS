@@ -1,3 +1,18 @@
+Version 0.5.0
+~~~~~~~~~~~~~
+Released: 2023-08-08
+
+Features:
+ * Implement BNO read support (if DAQ firmware version is high enough)
+ * Perspective-warp BNO indicator according to received BNO data
+ * Check firmware ABI when connecting to device
+ * python: Update API to include the new BNO settings
+ * zstack: Speed up acquisition by waiting for frame counts, not durations
+
+Bugfixes:
+ * Optimize PoMiDAQ SVG
+ * Make "Stop recording" button more obviously clickable
+
 Version 0.4.5
 ~~~~~~~~~~~~~
 Released: 2022-08-20
