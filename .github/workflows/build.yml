@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -25,7 +25,7 @@ jobs:
             -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
 
     - name: Upload Debian package artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: Debian Package
         path: pomidaq_*.deb
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -50,7 +50,7 @@ jobs:
             -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
 
     - name: Upload Ubuntu package artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: Ubuntu Package
         path: pomidaq_*.deb
@@ -61,7 +61,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -150,7 +150,7 @@ jobs:
         mv $DEPLOY_DIR $GITHUB_WORKSPACE/win64-deploy/
 
     - name: Upload Windows build
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: PoMiDAQ-${{env.PMD_VERSION}}_win64
         path: win64-deploy/
