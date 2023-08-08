@@ -4,6 +4,7 @@ PoMiDAQ
 [![PoMiDAQ Screenshot](contrib/screenshots/v0.4.4_diffdisplay_tiny.png "PoMiDAQ on Linux")](https://github.com/bothlab/pomidaq/tree/master/contrib/screenshots)
 
 [![Build](https://github.com/bothlab/pomidaq/actions/workflows/build.yml/badge.svg)](https://github.com/bothlab/pomidaq/actions/workflows/build.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8225049.svg)](https://doi.org/10.5281/zenodo.8225049)
 
 PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/) for neuroscientific research.
 Unlike the [preexisting](https://github.com/daharoni/Miniscope_DAQ_Software) Miniscope software, this program
@@ -24,6 +25,7 @@ currently only been tested on Linux (and may stay Linux-only) and is still consi
 Some features the original Miniscope DAQ software has, like the behavior recording, are intentionally left out.
 This software is developed on Linux, but has also been successfully tested on Windows. As of now, no macOS build
 has been attempted.
+
 
 ## Users
 
@@ -47,6 +49,13 @@ On Linux, you can also just install the software from your software center when 
    you will need to install the [Mediafeaturepack from Microsoft](https://www.microsoft.com/en-us/software-download/mediafeaturepack)
    for your Windows version to resolve the problem. Sometimes enabling this feature via Windows' "Additional Features" selection
    (in the "Apps" page of "Settings") will work better than a manual installation.
+
+### Citing
+
+If you want to cite PoMiDAQ, please use its Zenodo DOI:
+
+> Klumpp, Matthias. (2023). PoMiDAQ. Zenodo. https://doi.org/10.5281/zenodo.8225049
+
 
 ## Developers
 
