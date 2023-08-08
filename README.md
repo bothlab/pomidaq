@@ -6,25 +6,27 @@ PoMiDAQ
 [![Build](https://github.com/bothlab/pomidaq/actions/workflows/build.yml/badge.svg)](https://github.com/bothlab/pomidaq/actions/workflows/build.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8225049.svg)](https://doi.org/10.5281/zenodo.8225049)
 
-PoMiDAQ is a recording software for [UCLA Miniscopes](http://miniscope.org/) for neuroscientific research.
-Unlike the [preexisting](https://github.com/daharoni/Miniscope_DAQ_Software) Miniscope software, this program
-is written to be portable, so it will run on Windows, Linux and (likely) macOS.
-PoMiDAQ provides an easy way to record videos from Miniscopes, create Z-stacks to give an overview of visible
-cells or tissue features and provides an online background subtraction feature to gain an initial insight into
+PoMiDAQ is a recording software for UCLA Miniscopes for neuroscientific research.
+It provides an easy way to record videos from Miniscopes, create Z-stacks to give an overview of visible cells
+or tissue features and provides an online background subtraction feature to gain an initial insight into
 cellular calcium activity while data is recorded.
 
-The software is designed to work with the latest OpenCV libraries and provides a shared library, so Miniscope
-recording features can easily be embedded into other programs and pipelines.
+PoMiDAQ was written from the start to be portable, and runs on Linux and Windows
+(and could likely be ported to macOS too).
+
+The software provides all Miniscope functions as a shared library, so Miniscope recording features can easily
+be embedded into other programs and pipelines.
 PoMiDAQ will work with Miniscope V3, V4 and the Siminiscope hardware using the standard DAQ box v3.2.
 Recorded data is encoded with the [FFV1](https://en.wikipedia.org/wiki/FFV1) codec by default, to allow for
 smaller video files at lossless quality that are safe to archive.
 
-It also provides an experimental Python module to access a Miniscope easily from Python. This feature has
+PoMiDAQ also provides an experimental Python module to access a Miniscope easily from Python. This feature has
 currently only been tested on Linux (and may stay Linux-only) and is still considered a bit experimental.
 
-Some features the original Miniscope DAQ software has, like the behavior recording, are intentionally left out.
-This software is developed on Linux, but has also been successfully tested on Windows. As of now, no macOS build
-has been attempted.
+Some features like parallel behavior recording, are intentionally left out of PoMiDAQ.
+You may like to use [Syntalos](https://github.com/bothlab/syntalos) for advanced multimodal data acquisition
+with Miniscopes and a variety of cameras, or try
+[Miniscope-DAQ-QT-Software](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software) instead.
 
 
 ## Users
@@ -49,6 +51,14 @@ On Linux, you can also just install the software from your software center when 
    you will need to install the [Mediafeaturepack from Microsoft](https://www.microsoft.com/en-us/software-download/mediafeaturepack)
    for your Windows version to resolve the problem. Sometimes enabling this feature via Windows' "Additional Features" selection
    (in the "Apps" page of "Settings") will work better than a manual installation.
+
+#### No BNO orientation information
+If you can't record any valid data from the Miniscope's BNO sensor, your firmware version may be too old.
+You can test for that by showing the Minscope log (Info → Show Miniscope Log) and check for a warning mentioning
+a bad firmware version. If that is the case, please download the latest `Miniscope_DAQ_256K_EEPROM.img` firmware
+from [the Miniscope firmware site](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware) and flash
+it to your DAQ box.
+
 
 ### Citing
 
