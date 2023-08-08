@@ -1256,6 +1256,41 @@ milliseconds_t Miniscope::lastRecordedFrameTime() const
     return d->lastRecordedFrameTime;
 }
 
+long Miniscope::acquiredFrameCount() const
+{
+    if (!d->running)
+        return 0;
+    return static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
+}
+
+bool Miniscope::waitForAcquiredFrameCount(uint count)
+{
+    if (!d->running) {
+        d->lastError = QStringLiteral("Miniscope was not running.");
+        return false;
+    }
+    if (count == 0)
+        return true;
+
+    const auto initialFrameCount = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
+    milliseconds_t waitTimeMsec = milliseconds_t((1000 / (int)d->currentFPS) / 2);
+    if (waitTimeMsec.count() < 10)
+        waitTimeMsec = milliseconds_t(10);
+
+    // we either wait for the selected amount of frames *or* a maximum time, because
+    // older Miniscope firmware will not give us reliable frame counts.
+    const auto maxIterations = count * 2.2;
+    for (uint i = 0; i < maxIterations; i++) {
+        auto framesCounted = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE)) - initialFrameCount;
+        if (framesCounted >= count)
+            break;
+
+        std::this_thread::sleep_for(milliseconds_t(waitTimeMsec));
+    }
+
+    return true;
+}
+
 void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     // call potential callback on this possibly edited "to be displayed" frame

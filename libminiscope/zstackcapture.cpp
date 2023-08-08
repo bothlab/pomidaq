@@ -18,7 +18,6 @@
  */
 
 #include <QtConcurrent>
-#include <thread>
 #include <opencv2/imgcodecs.hpp>
 
 #include "zstackcapture.h"
@@ -86,8 +85,14 @@ static void captureZStack(Miniscope *mscope,
     for (int currentPos = fromEWL; currentPos != toEWL; currentPos += stepSigned) {
         std::vector<cv::Mat> currentMats;
 
+        // sanity check
+        if (currentPos < ewlControl.valueMin || currentPos > ewlControl.valueMax)
+            break;
+
+        // adjust
         mscope->setControlValue(ewlControl.id, currentPos);
-        std::this_thread::sleep_for(milliseconds_t(64));
+        // wait for ~4 frames to give the EWL time to adjust
+        mscope->waitForAcquiredFrameCount(4);
 
         // FIXME: We should verify that the device has actually adjusted the EWL,
         // but this feature is not yet iplemented in the library (we currently always
@@ -98,8 +103,8 @@ static void captureZStack(Miniscope *mscope,
             while (true) {
                 if (mscope->fetchLastRawFrame(raw))
                     break;
-                // wait a bit of time (~1frame @ 30fps)
-                std::this_thread::sleep_for(milliseconds_t(34));
+                // wait a bit of time (~1 frame)
+                mscope->waitForAcquiredFrameCount(1);
             }
             currentMats.push_back(raw);
         }

@@ -243,6 +243,16 @@ public:
 
     milliseconds_t lastRecordedFrameTime() const;
 
+    long acquiredFrameCount() const;
+
+    /**
+     * @brief Wait for an amount of frames to be acquired.
+     * @param The amount of frames to wait for.
+     * @return True if we waited for the appropriate amount of frames,
+     *         False in case of an error.
+     */
+    bool waitForAcquiredFrameCount(uint count);
+
 private:
     class Private;
     Q_DISABLE_COPY(Miniscope)
