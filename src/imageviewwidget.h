@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2021 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,18 +20,10 @@
 #pragma once
 
 #include <QOpenGLWidget>
+#include <QOpenGLFunctions>
 #include <opencv2/core/core.hpp>
 
-#if QT_CONFIG(opengles2)
-#include <QOpenGLFunctions_ES2>
-#define IVWOpenGLFunctions QOpenGLFunctions_ES2
-#error This project can currently not be compiled against GLES and needs OpenGL 3.2+. GLES porting patches are welcome!
-#else
-#include <QOpenGLFunctions_3_2_Core>
-#define IVWOpenGLFunctions QOpenGLFunctions_3_2_Core
-#endif
-
-class ImageViewWidget : public QOpenGLWidget, protected IVWOpenGLFunctions
+class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
@@ -46,15 +38,10 @@ public slots:
 protected:
     void initializeGL() override;
     void paintGL() override;
-    void resizeGL(int width, int height) override;
-
     void renderImage();
 
 private:
     class Private;
     Q_DISABLE_COPY(ImageViewWidget)
     QScopedPointer<Private> d;
-
-    void recalculatePosition();
-    GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter);
 };
