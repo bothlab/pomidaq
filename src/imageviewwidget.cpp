@@ -52,19 +52,19 @@ ImageViewWidget::ImageViewWidget(QWidget *parent)
     setMinimumSize(QSize(320, 256));
 }
 
-ImageViewWidget::~ImageViewWidget()
-{
-}
+ImageViewWidget::~ImageViewWidget() {}
 
 void ImageViewWidget::initializeGL()
 {
     if (!initializeOpenGLFunctions()) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Unable to initialize OpenGL"),
-                              QStringLiteral("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.2 to run this application. "
-                                             "You may want to try to upgrade your graphics drivers.\n"
-                                             "Can not continue."),
-                              QMessageBox::Ok);
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Unable to initialize OpenGL"),
+            QStringLiteral(
+                "Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.2 to run this application. "
+                "You may want to try to upgrade your graphics drivers.\n"
+                "Can not continue."),
+            QMessageBox::Ok);
         qFatal("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.2 to run this application.");
         QCoreApplication::exit(6);
     }
@@ -85,10 +85,8 @@ GLuint ImageViewWidget::matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magF
     glBindTexture(GL_TEXTURE_2D, textureID);
 
     // Catch silly-mistake texture interpolation method for magnification
-    if (magFilter == GL_LINEAR_MIPMAP_LINEAR  ||
-        magFilter == GL_LINEAR_MIPMAP_NEAREST ||
-        magFilter == GL_NEAREST_MIPMAP_LINEAR ||
-        magFilter == GL_NEAREST_MIPMAP_NEAREST) {
+    if (magFilter == GL_LINEAR_MIPMAP_LINEAR || magFilter == GL_LINEAR_MIPMAP_NEAREST
+        || magFilter == GL_NEAREST_MIPMAP_LINEAR || magFilter == GL_NEAREST_MIPMAP_NEAREST) {
         qWarning().noquote() << "Cannot use MIPMAPs for magnification, resetting filter to GL_LINEAR";
         magFilter = GL_LINEAR;
     }
@@ -111,21 +109,20 @@ GLuint ImageViewWidget::matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magF
     }
 
     // Create the texture
-    glTexImage2D(GL_TEXTURE_2D,     // Type of texture
-                 0,                 // Pyramid level (for mip-mapping) - 0 is the top level
-                 GL_RGB,            // Internal colour format to convert to
-                 mat.cols,          // Image width  i.e. 640 for Kinect in standard mode
-                 mat.rows,          // Image height i.e. 480 for Kinect in standard mode
-                 0,                 // Border width in pixels (can either be 1 or 0)
-                 inputColourFormat, // Input image format (i.e. GL_RGB, GL_RGBA, GL_BGR etc.)
-                 GL_UNSIGNED_BYTE,  // Image data type
-                 mat.ptr());        // The actual image data itself
+    glTexImage2D(
+        GL_TEXTURE_2D,     // Type of texture
+        0,                 // Pyramid level (for mip-mapping) - 0 is the top level
+        GL_RGB,            // Internal colour format to convert to
+        mat.cols,          // Image width  i.e. 640 for Kinect in standard mode
+        mat.rows,          // Image height i.e. 480 for Kinect in standard mode
+        0,                 // Border width in pixels (can either be 1 or 0)
+        inputColourFormat, // Input image format (i.e. GL_RGB, GL_RGBA, GL_BGR etc.)
+        GL_UNSIGNED_BYTE,  // Image data type
+        mat.ptr());        // The actual image data itself
 
     // If we're using mipmaps then generate them.
-    if (minFilter == GL_LINEAR_MIPMAP_LINEAR  ||
-            minFilter == GL_LINEAR_MIPMAP_NEAREST ||
-            minFilter == GL_NEAREST_MIPMAP_LINEAR ||
-            minFilter == GL_NEAREST_MIPMAP_NEAREST) {
+    if (minFilter == GL_LINEAR_MIPMAP_LINEAR || minFilter == GL_LINEAR_MIPMAP_NEAREST
+        || minFilter == GL_NEAREST_MIPMAP_LINEAR || minFilter == GL_NEAREST_MIPMAP_NEAREST) {
         glGenerateMipmap(GL_TEXTURE_2D);
     }
 
@@ -168,14 +165,14 @@ void ImageViewWidget::renderImage()
 
     glBindTexture(GL_TEXTURE_2D, tex);
     glBegin(GL_QUADS);
-        glTexCoord2i(0, 1);
-        glVertex2i(d->renderPosX, d->renderHeight - d->renderPosY);
-        glTexCoord2i(0, 0);
-        glVertex2i(d->renderPosX, -d->renderPosY);
-        glTexCoord2i(1, 0);
-        glVertex2i(d->renderWidth + d->renderPosX, -d->renderPosY);
-        glTexCoord2i(1,1);
-        glVertex2i(d->renderWidth + d->renderPosX, d->renderHeight - d->renderPosY);
+    glTexCoord2i(0, 1);
+    glVertex2i(d->renderPosX, d->renderHeight - d->renderPosY);
+    glTexCoord2i(0, 0);
+    glVertex2i(d->renderPosX, -d->renderPosY);
+    glTexCoord2i(1, 0);
+    glVertex2i(d->renderWidth + d->renderPosX, -d->renderPosY);
+    glTexCoord2i(1, 1);
+    glVertex2i(d->renderWidth + d->renderPosX, d->renderHeight - d->renderPosY);
     glEnd();
 
     glDeleteTextures(1, &tex);
@@ -200,7 +197,7 @@ void ImageViewWidget::recalculatePosition()
     d->renderPosY = -floor((this->size().height() - d->renderHeight) / 2.0);
 }
 
-bool ImageViewWidget::showImage(const cv::Mat& image)
+bool ImageViewWidget::showImage(const cv::Mat &image)
 {
     auto channels = image.channels();
     if (channels == 1)
@@ -216,7 +213,7 @@ bool ImageViewWidget::showImage(const cv::Mat& image)
     return true;
 }
 
-void ImageViewWidget::setMinimumSize(const QSize& size)
+void ImageViewWidget::setMinimumSize(const QSize &size)
 {
     setMinimumWidth(size.width());
     setMinimumHeight(size.height());

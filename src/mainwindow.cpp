@@ -71,36 +71,36 @@ static void changeColorScheme(const QString &filename, bool darkColors = false)
     auto config = KSharedConfig::openConfig(filename);
 
     QPalette palette = qApp->palette();
-    QPalette::ColorGroup states[3] = { QPalette::Active, QPalette::Inactive, QPalette::Disabled };
+    QPalette::ColorGroup states[3] = {QPalette::Active, QPalette::Inactive, QPalette::Disabled};
     KColorScheme schemeTooltip(QPalette::Active, KColorScheme::Tooltip, config);
 
-    for (int i = 0; i < 3 ; ++i) {
+    for (int i = 0; i < 3; ++i) {
         QPalette::ColorGroup state = states[i];
-        KColorScheme schemeView(state,      KColorScheme::View,      config);
-        KColorScheme schemeWindow(state,    KColorScheme::Window,    config);
-        KColorScheme schemeButton(state,    KColorScheme::Button,    config);
+        KColorScheme schemeView(state, KColorScheme::View, config);
+        KColorScheme schemeWindow(state, KColorScheme::Window, config);
+        KColorScheme schemeButton(state, KColorScheme::Button, config);
         KColorScheme schemeSelection(state, KColorScheme::Selection, config);
 
-        palette.setBrush(state, QPalette::WindowText,      schemeWindow.foreground());
-        palette.setBrush(state, QPalette::Window,          schemeWindow.background());
-        palette.setBrush(state, QPalette::Base,            schemeView.background());
-        palette.setBrush(state, QPalette::Text,            schemeView.foreground());
-        palette.setBrush(state, QPalette::Button,          schemeButton.background());
-        palette.setBrush(state, QPalette::ButtonText,      schemeButton.foreground());
-        palette.setBrush(state, QPalette::Highlight,       schemeSelection.background());
+        palette.setBrush(state, QPalette::WindowText, schemeWindow.foreground());
+        palette.setBrush(state, QPalette::Window, schemeWindow.background());
+        palette.setBrush(state, QPalette::Base, schemeView.background());
+        palette.setBrush(state, QPalette::Text, schemeView.foreground());
+        palette.setBrush(state, QPalette::Button, schemeButton.background());
+        palette.setBrush(state, QPalette::ButtonText, schemeButton.foreground());
+        palette.setBrush(state, QPalette::Highlight, schemeSelection.background());
         palette.setBrush(state, QPalette::HighlightedText, schemeSelection.foreground());
-        palette.setBrush(state, QPalette::ToolTipBase,     schemeTooltip.background());
-        palette.setBrush(state, QPalette::ToolTipText,     schemeTooltip.foreground());
+        palette.setBrush(state, QPalette::ToolTipBase, schemeTooltip.background());
+        palette.setBrush(state, QPalette::ToolTipText, schemeTooltip.foreground());
 
-        palette.setColor(state, QPalette::Light,           schemeWindow.shade(KColorScheme::LightShade));
-        palette.setColor(state, QPalette::Midlight,        schemeWindow.shade(KColorScheme::MidlightShade));
-        palette.setColor(state, QPalette::Mid,             schemeWindow.shade(KColorScheme::MidShade));
-        palette.setColor(state, QPalette::Dark,            schemeWindow.shade(KColorScheme::DarkShade));
-        palette.setColor(state, QPalette::Shadow,          schemeWindow.shade(KColorScheme::ShadowShade));
+        palette.setColor(state, QPalette::Light, schemeWindow.shade(KColorScheme::LightShade));
+        palette.setColor(state, QPalette::Midlight, schemeWindow.shade(KColorScheme::MidlightShade));
+        palette.setColor(state, QPalette::Mid, schemeWindow.shade(KColorScheme::MidShade));
+        palette.setColor(state, QPalette::Dark, schemeWindow.shade(KColorScheme::DarkShade));
+        palette.setColor(state, QPalette::Shadow, schemeWindow.shade(KColorScheme::ShadowShade));
 
-        palette.setBrush(state, QPalette::AlternateBase,   schemeView.background(KColorScheme::AlternateBackground));
-        palette.setBrush(state, QPalette::Link,            schemeView.foreground(KColorScheme::LinkText));
-        palette.setBrush(state, QPalette::LinkVisited,     schemeView.foreground(KColorScheme::VisitedText));
+        palette.setBrush(state, QPalette::AlternateBase, schemeView.background(KColorScheme::AlternateBackground));
+        palette.setBrush(state, QPalette::Link, schemeView.foreground(KColorScheme::LinkText));
+        palette.setBrush(state, QPalette::LinkVisited, schemeView.foreground(KColorScheme::VisitedText));
     }
 
     qApp->setProperty("KDE_COLOR_SCHEME_PATH", filename);
@@ -129,37 +129,39 @@ void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const Q
         break;
     case QtInfoMsg:
         fprintf(stdout, "%s: %s\n", ctx.category, localMsg.constData());
-        if (g_mainWin) g_mainWin->queueLogMessage(msg);
+        if (g_mainWin)
+            g_mainWin->queueLogMessage(msg);
         break;
     case QtWarningMsg:
         fprintf(stderr, "W: %s: %s\n", ctx.category, localMsg.constData());
-        if (g_mainWin) g_mainWin->queueLogMessage(QStringLiteral("W: %1").arg(msg));
+        if (g_mainWin)
+            g_mainWin->queueLogMessage(QStringLiteral("W: %1").arg(msg));
         break;
     case QtCriticalMsg:
         fprintf(stderr, "E: %s: %s\n", ctx.category, localMsg.constData());
-        if (g_mainWin) g_mainWin->queueLogMessage(QStringLiteral("E: %1").arg(msg));
+        if (g_mainWin)
+            g_mainWin->queueLogMessage(QStringLiteral("E: %1").arg(msg));
         break;
     case QtFatalMsg:
         fprintf(stderr, "FATAL: %s: %s\n", ctx.category, localMsg.constData());
-        if (g_mainWin) g_mainWin->queueLogMessage(QStringLiteral("FATAL: %1").arg(msg));
+        if (g_mainWin)
+            g_mainWin->queueLogMessage(QStringLiteral("FATAL: %1").arg(msg));
         break;
     }
 }
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    m_msTimer(new QTimer(this))
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent),
+      ui(new Ui::MainWindow),
+      m_msTimer(new QTimer(this))
 {
     ui->setupUi(this);
 
     // set icons with fallbacks
-    ui->btnOpenSaveDir->setIcon(QIcon::fromTheme(QStringLiteral("folder-open"),
-                                                 QIcon(":/icons/folder-open.svg")));
-    ui->actionSetDataLocation->setIcon(QIcon::fromTheme(QStringLiteral("folder-open"),
-                                                        QIcon(":/icons/folder-open.svg")));
-    ui->btnDispLimitsReset->setIcon(QIcon::fromTheme(QStringLiteral("edit-reset"),
-                                                     QIcon(":/icons/edit-reset.svg")));
+    ui->btnOpenSaveDir->setIcon(QIcon::fromTheme(QStringLiteral("folder-open"), QIcon(":/icons/folder-open.svg")));
+    ui->actionSetDataLocation->setIcon(
+        QIcon::fromTheme(QStringLiteral("folder-open"), QIcon(":/icons/folder-open.svg")));
+    ui->btnDispLimitsReset->setIcon(QIcon::fromTheme(QStringLiteral("edit-reset"), QIcon(":/icons/edit-reset.svg")));
 
     // Create status bar
     m_statusBarLabel = new QLabel("OK", this);
@@ -173,7 +175,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
     m_mscope = new Miniscope();
-    m_mscope->setOnStatusMessage([&](const QString &msg, void*) {
+    m_mscope->setOnStatusMessage([&](const QString &msg, void *) {
         setStatusText(msg);
     });
 
@@ -255,10 +257,12 @@ MainWindow::MainWindow(QWidget *parent) :
         if (fi.isDir()) {
             setDataExportDir(savedDataDir);
         } else {
-            QMessageBox::warning(this,
-                                 "Data directory changed",
-                                 QStringLiteral("The previous data storage location ('%1') does no longer exist or is not writable. Falling back to default location.")
-                                 .arg(savedDataDir));
+            QMessageBox::warning(
+                this,
+                "Data directory changed",
+                QStringLiteral("The previous data storage location ('%1') does no longer exist or is not writable. "
+                               "Falling back to default location.")
+                    .arg(savedDataDir));
         }
     }
 
@@ -324,12 +328,15 @@ void MainWindow::writeLogMessage(const QString &msg)
 
 void MainWindow::queueLogMessage(const QString &msg)
 {
-    QMetaObject::invokeMethod(this, [=](){
-        writeLogMessage(msg);
-    }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        this,
+        [=]() {
+            writeLogMessage(msg);
+        },
+        Qt::QueuedConnection);
 }
 
-void MainWindow::setStatusText(const QString& msg)
+void MainWindow::setStatusText(const QString &msg)
 {
     m_statusBarLabel->setText(msg);
     QApplication::processEvents();
@@ -361,10 +368,10 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
 
     // load new controls
     if (!m_mscope->loadDeviceConfig(arg1)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Error"),
-                              QStringLiteral("Unable to load device configuration: %1")
-                              .arg(m_mscope->lastError()));
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Error"),
+            QStringLiteral("Unable to load device configuration: %1").arg(m_mscope->lastError()));
         return;
     }
 
@@ -456,10 +463,11 @@ void MainWindow::on_btnDevConnect_clicked()
     ui->btnDevConnect->setEnabled(false);
     m_mscope->setScopeCamId(ui->sbCamId->value());
     if (!m_mscope->connect()) {
-        QMessageBox::critical(this,
-                              "Error",
-                              QStringLiteral("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")
-                                             .arg(ui->sbCamId->value()));
+        QMessageBox::critical(
+            this,
+            "Error",
+            QStringLiteral("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")
+                .arg(ui->sbCamId->value()));
         setStatusText("Connection error.");
         ui->btnDevConnect->setEnabled(true);
         return;
@@ -491,7 +499,7 @@ void MainWindow::on_btnDevConnect_clicked()
 
     // set z-stack range limits
     ControlDefinition ewlControl;
-    for (const auto& ctl : m_mscope->controls()) {
+    for (const auto &ctl : m_mscope->controls()) {
         if (ctl.name.toLower().contains("ewl")) {
             ewlControl = ctl;
             break;
@@ -514,10 +522,11 @@ void MainWindow::on_btnDevConnect_clicked()
     ui->showBNOIndicatorCheckBox->setEnabled(hasBNO);
     ui->saveOrientationCheckBox->setEnabled(hasBNO);
     ui->saveOrientationLabel->setEnabled(hasBNO);
-    ui->showBNOIndicatorCheckBox->setChecked(hasBNO? m_mscope->isBNOIndicatorVisible() : false);
+    ui->showBNOIndicatorCheckBox->setChecked(hasBNO ? m_mscope->isBNOIndicatorVisible() : false);
 
     QSettings settings(qApp->organizationName(), qApp->applicationName());
-    ui->saveOrientationCheckBox->setChecked(hasBNO? settings.value("recording/saveOrientationData", m_mscope->saveOrientationData()).toBool() : false);
+    ui->saveOrientationCheckBox->setChecked(
+        hasBNO ? settings.value("recording/saveOrientationData", m_mscope->saveOrientationData()).toBool() : false);
     m_mscope->setSaveOrientationData(ui->saveOrientationCheckBox->isChecked());
 
     // start displaying things
@@ -532,14 +541,16 @@ void MainWindow::on_btnRecord_toggled(bool checked)
 
     QFileInfo dataLocation(m_dataDir);
     if (!dataLocation.isDir() || !dataLocation.isWritable() || m_dataDir.isEmpty()) {
-        QMessageBox::critical(this,
-                              "Recording Error",
-                              QStringLiteral("Data location '%1' is not a directory or not writable.").arg(m_dataDir));
+        QMessageBox::critical(
+            this,
+            "Recording Error",
+            QStringLiteral("Data location '%1' is not a directory or not writable.").arg(m_dataDir));
         return;
     }
 
     if (checked) {
-        const auto videoFname = QDir(m_dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
+        const auto videoFname = QDir(m_dataDir).filePath(
+            QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
         if (m_mscope->startRecording(videoFname)) {
             ui->pageRecord->setEnabled(false);
             ui->btnDevConnect->setEnabled(false);
@@ -635,12 +646,10 @@ void MainWindow::on_sbDisplayMin_valueChanged(int arg1)
     ui->btnDispLimitsReset->setEnabled(true);
 }
 
-
 void MainWindow::on_sbDisplayMax_valueChanged(int arg1)
 {
     m_mscope->setMaxFluorDisplay(arg1);
     ui->btnDispLimitsReset->setEnabled(true);
-
 }
 
 void MainWindow::on_btnDispLimitsReset_clicked()
@@ -657,10 +666,11 @@ void MainWindow::on_btnOpenSaveDir_clicked()
 
 void MainWindow::on_actionSetDataLocation_triggered()
 {
-    auto dir = QFileDialog::getExistingDirectory(this,
-                                                 "Select Directory",
-                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 QFileDialog::ShowDirsOnly);
+    auto dir = QFileDialog::getExistingDirectory(
+        this,
+        "Select Directory",
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        QFileDialog::ShowDirsOnly);
     if (!dir.isEmpty())
         setDataExportDir(dir);
 }
@@ -672,10 +682,11 @@ void MainWindow::on_actionQuit_triggered()
 
 void MainWindow::on_btnAcquireZStack_clicked()
 {
-    QString fileName = QFileDialog::getSaveFileName(this,
-                                                    QStringLiteral("Save Z-Stack File"),
-                                                    QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                    QStringLiteral("TIFF Files (*.tiff *.tif)"));
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Save Z-Stack File"),
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        QStringLiteral("TIFF Files (*.tiff *.tif)"));
     if (fileName.isEmpty())
         return;
 
@@ -686,11 +697,12 @@ void MainWindow::on_btnAcquireZStack_clicked()
     ui->btnDevConnect->setEnabled(false);
     ui->pageSettings->setEnabled(false);
     setStatusText("Acquiring z-stack...");
-    auto future = m_mscope->acquireZStack(ui->sbStackFrom->value(),
-                                          ui->sbStackTo->value(),
-                                          ui->sbStackStepSize->value(),
-                                          ui->sbStackAverage->value(),
-                                          fileName);
+    auto future = m_mscope->acquireZStack(
+        ui->sbStackFrom->value(),
+        ui->sbStackTo->value(),
+        ui->sbStackStepSize->value(),
+        ui->sbStackAverage->value(),
+        fileName);
 
     QProgressDialog progressDlg("Acquiring images...", QString(), 0, 0, this);
     progressDlg.setWindowModality(Qt::WindowModal);
@@ -702,12 +714,9 @@ void MainWindow::on_btnAcquireZStack_clicked()
         future.waitForFinished();
         setStatusText("OK");
         progressDlg.close();
-    }  catch (const QException &e) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Unable to acquite stack"),
-                              e.what());
+    } catch (const QException &e) {
+        QMessageBox::critical(this, QStringLiteral("Unable to acquite stack"), e.what());
         setStatusText("Z-stack failed.");
-
     }
     ui->btnAcquireZStack->setEnabled(true);
     ui->pageSettings->setEnabled(true);
@@ -718,29 +727,39 @@ void MainWindow::on_btnAcquireZStack_clicked()
 void MainWindow::on_actionAboutVideoFormats_triggered()
 {
     const auto infoText = QStringLiteral(
-                "<html>"
-                "<h3>Which video codec/container should I use?</h3>"
-                "<p>PoMiDAQ allows the selction of a few different containers and codecs to store recorded videos. "
-                "This brief information may help you decide which format is best suited for your application.</p>"
-                "<h4>Matroska (MKV) Container</h4>"
-                "<p>This is the most flexible container format. It is fully open-source and patent-free and suitable for long-term storage of "
-                "videos. However, some tools such as MATLAB do not natively support it, so if you use MKV you may need to use 3rd-party toolboxes.</p>"
-                "<h4>Audio Video Interleave (AVI) Container</h4>"
-                "<p>AVI is an old and less flexible container format, which lacks a few features such as standardized ways to store timestamps and aspect ratios. "
-                "Due to its age it is very well supported in many tools and may be your first choice if you are aiming for maximum compatibility.</p>"
-                "<h4>FFV1 Codec</h4>"
-                "<p>This lossless codec is designed for archivability of data and relatively good compression while preserving all information that was present in "
-                "the uncompressed image. It is used by many institutions and broadcasting companies and widely supported. Yet, a few tools (such as MATLAB again) may "
-                "not natively support it, so you may need to use 3rd-party tools to read the generated data.</p>"
-                "<h4>No Codec</h4>"
-                "<p>No compression is used to store the images. This will yield very large files, but reading the generated data is relatively easy and supported by many tools.</p>"
-                "<h4>Any Other Selectable Codec</h4>"
-                "<p>The AV1 codec may become very useful in future, as it is high-quality and open-source and patent-free and an industry standard. However, it is currently too slow "
-                "for real-time data acquisition. The same applies to the VP9 codec, unless you record with lower framerates.</p>"
-                "<p>H.265 is a popular codec for video compression. It is widely supported and already has fast encoders, but is patent encumbered. You may decide to use it if you need "
-                "better compression than FFV1 can offer you and you can read the generated movies.</p>"
-                "<p>MPEG-4 is an older video compression standard. You pretty much never want to use it (except for testing), as it is inferior to the other supported codecs.</p>"
-                );
+        "<html>"
+        "<h3>Which video codec/container should I use?</h3>"
+        "<p>PoMiDAQ allows the selction of a few different containers and codecs to store recorded videos. "
+        "This brief information may help you decide which format is best suited for your application.</p>"
+        "<h4>Matroska (MKV) Container</h4>"
+        "<p>This is the most flexible container format. It is fully open-source and patent-free and suitable for "
+        "long-term storage of "
+        "videos. However, some tools such as MATLAB do not natively support it, so if you use MKV you may need to use "
+        "3rd-party toolboxes.</p>"
+        "<h4>Audio Video Interleave (AVI) Container</h4>"
+        "<p>AVI is an old and less flexible container format, which lacks a few features such as standardized ways to "
+        "store timestamps and aspect ratios. "
+        "Due to its age it is very well supported in many tools and may be your first choice if you are aiming for "
+        "maximum compatibility.</p>"
+        "<h4>FFV1 Codec</h4>"
+        "<p>This lossless codec is designed for archivability of data and relatively good compression while preserving "
+        "all information that was present in "
+        "the uncompressed image. It is used by many institutions and broadcasting companies and widely supported. Yet, "
+        "a few tools (such as MATLAB again) may "
+        "not natively support it, so you may need to use 3rd-party tools to read the generated data.</p>"
+        "<h4>No Codec</h4>"
+        "<p>No compression is used to store the images. This will yield very large files, but reading the generated "
+        "data is relatively easy and supported by many tools.</p>"
+        "<h4>Any Other Selectable Codec</h4>"
+        "<p>The AV1 codec may become very useful in future, as it is high-quality and open-source and patent-free and "
+        "an industry standard. However, it is currently too slow "
+        "for real-time data acquisition. The same applies to the VP9 codec, unless you record with lower "
+        "framerates.</p>"
+        "<p>H.265 is a popular codec for video compression. It is widely supported and already has fast encoders, but "
+        "is patent encumbered. You may decide to use it if you need "
+        "better compression than FFV1 can offer you and you can read the generated movies.</p>"
+        "<p>MPEG-4 is an older video compression standard. You pretty much never want to use it (except for testing), "
+        "as it is inferior to the other supported codecs.</p>");
 
     QMessageBox dialog(this);
     dialog.setWindowTitle(QStringLiteral("Video format help"));
@@ -751,18 +770,18 @@ void MainWindow::on_actionAboutVideoFormats_triggered()
 
 void MainWindow::on_actionAbout_triggered()
 {
-    const auto text = QStringLiteral(
-                "PoMiDAQ Version " PROJECT_VERSION " \n\n"
-                "© 2019-2023 Matthias Klumpp\n\n"
-                "PoMiDAQ is free software: you can redistribute it and/or modify "
-                "it under the terms of the GNU Lesser General Public License as published by "
-                "the Free Software Foundation, either version 3 of the License, or "
-                "(at your option) any later version.\n"
-                "\n"
-                "PoMiDAQ is distributed in the hope that it will be useful, "
-                "but WITHOUT ANY WARRANTY; without even the implied warranty of "
-                "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
-                "GNU Lesser General Public License for more details.");
+    const auto text = QStringLiteral("PoMiDAQ Version " PROJECT_VERSION
+                                     " \n\n"
+                                     "© 2019-2023 Matthias Klumpp\n\n"
+                                     "PoMiDAQ is free software: you can redistribute it and/or modify "
+                                     "it under the terms of the GNU Lesser General Public License as published by "
+                                     "the Free Software Foundation, either version 3 of the License, or "
+                                     "(at your option) any later version.\n"
+                                     "\n"
+                                     "PoMiDAQ is distributed in the hope that it will be useful, "
+                                     "but WITHOUT ANY WARRANTY; without even the implied warranty of "
+                                     "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
+                                     "GNU Lesser General Public License for more details.");
     QMessageBox::about(this, QStringLiteral("About this tool"), text);
 }
 
@@ -807,11 +826,14 @@ void MainWindow::on_actionSetTimestampStyle_triggered()
     items << QStringLiteral("Start at Zero") << QStringLiteral("Use UNIX timestamps");
 
     bool ok;
-    auto item = QInputDialog::getItem(this,
-                                      QStringLiteral("Set a timestamp style"),
-                                      QStringLiteral("Style:"),
-                                      items, m_useUnixTimestamps? 1 : 0, false,
-                                      &ok);
+    auto item = QInputDialog::getItem(
+        this,
+        QStringLiteral("Set a timestamp style"),
+        QStringLiteral("Style:"),
+        items,
+        m_useUnixTimestamps ? 1 : 0,
+        false,
+        &ok);
     if (ok && !item.isEmpty()) {
         if (item.startsWith(QStringLiteral("Start at Zero"), Qt::CaseInsensitive))
             setUseUnixTimestamps(false);
@@ -825,11 +847,9 @@ void MainWindow::on_showBNOIndicatorCheckBox_toggled(bool checked)
     m_mscope->setBNOIndicatorVisible(checked);
 }
 
-
 void MainWindow::on_saveOrientationCheckBox_toggled(bool checked)
 {
     m_mscope->setSaveOrientationData(checked);
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("recording/saveOrientationData", checked);
 }
-

@@ -46,9 +46,9 @@ public:
     bool initialized() const;
 
     std::chrono::milliseconds captureStartTimestamp() const;
-    void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);
+    void setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp);
 
-    bool pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time);
+    bool pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time);
 
     VideoCodec codec() const;
     void setCodec(VideoCodec codec);
@@ -75,10 +75,10 @@ private:
 
     void initializeInternal();
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
-    static void encodeThread(void* vwPtr);
+    static void encodeThread(void *vwPtr);
     bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
     bool prepareFrame(const cv::Mat &inImage);
-    bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
+    bool encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp);
     void startEncodeThread();
     void stopEncodeThread();
 };

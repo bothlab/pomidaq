@@ -10,9 +10,9 @@ ElidedLabel::ElidedLabel(QWidget *parent)
 }
 
 ElidedLabel::ElidedLabel(const QString &text, QWidget *parent)
-    : QFrame(parent)
-    , elided(false)
-    , content(text)
+    : QFrame(parent),
+      elided(false),
+      content(text)
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 }

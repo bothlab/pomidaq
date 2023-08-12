@@ -55,8 +55,9 @@ public:
         initialized = false;
         codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
-        fileSliceIntervalMin = 0;  // never slice our recording by default
-        captureStartTimestamp = std::chrono::milliseconds(0); //by default we assume the first frame was recorded at timepoint 0
+        fileSliceIntervalMin = 0; // never slice our recording by default
+        captureStartTimestamp = std::chrono::milliseconds(
+            0); // by default we assume the first frame was recorded at timepoint 0
 
         frame = nullptr;
         inputFrame = nullptr;
@@ -136,12 +137,13 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
 
     auto size = av_image_get_buffer_size(static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     if (allocate) {
-        aframe_buf = static_cast<uint8_t*>(malloc(static_cast<size_t>(size)));
+        aframe_buf = static_cast<uint8_t *>(malloc(static_cast<size_t>(size)));
         if (!aframe_buf) {
             av_free(aframe);
             return nullptr;
         }
-        av_image_fill_arrays(aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
+        av_image_fill_arrays(
+            aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     }
 
     return aframe;
@@ -152,9 +154,10 @@ void VideoWriter::initializeInternal()
     // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
     if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
-        std::cerr << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format." << std::endl;
+        std::cerr
+            << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format."
+            << std::endl;
         d->container = VideoContainer::AVI;
-
     }
 
     // if file slicing is used, give our new file the appropriate name
@@ -244,9 +247,10 @@ void VideoWriter::initializeInternal()
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
     if (d->codec == VideoCodec::Raw)
-        d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
-                           d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
-                           d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
+        d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE
+                                   || d->inputPixFormat == AV_PIX_FMT_GRAY16BE
+                               ? d->inputPixFormat
+                               : AV_PIX_FMT_YUV420P;
 
     // enable experimental mode to encode AV1
     if (d->codec == VideoCodec::AV1)
@@ -279,7 +283,8 @@ void VideoWriter::initializeInternal()
             std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
             d->lossless = false;
             break;
-        default: break;
+        default:
+            break;
         }
     }
 
@@ -305,8 +310,8 @@ void VideoWriter::initializeInternal()
     }
 
     if (d->codec == VideoCodec::FFV1) {
-        d->lossless = true; // this codec is always lossless
-        d->cctx->level = 3; // Ensure we use FFV1 v3
+        d->lossless = true;                            // this codec is always lossless
+        d->cctx->level = 3;                            // Ensure we use FFV1 v3
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
         // NOTE: For archival use, GOP-size should be 1, but that also increases the file size quite a bit.
         // Keeping a good balance between recording space/performance/integrity is difficult sometimes.
@@ -318,7 +323,8 @@ void VideoWriter::initializeInternal()
         if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
             d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
         break;
-    default: break;
+    default:
+        break;
     }
 
     // open video encoder
@@ -334,17 +340,18 @@ void VideoWriter::initializeInternal()
     d->vstrm->r_frame_rate = d->vstrm->avg_frame_rate = d->fps;
 
     // initialize sample scaler
-    d->swsctx = sws_getCachedContext(nullptr,
-                                     d->width,
-                                     d->height,
-                                     d->inputPixFormat,
-                                     d->width,
-                                     d->height,
-                                     d->cctx->pix_fmt,
-                                     SWS_BICUBIC,
-                                     nullptr,
-                                     nullptr,
-                                     nullptr);
+    d->swsctx = sws_getCachedContext(
+        nullptr,
+        d->width,
+        d->height,
+        d->inputPixFormat,
+        d->width,
+        d->height,
+        d->cctx->pix_fmt,
+        SWS_BICUBIC,
+        nullptr,
+        nullptr,
+        nullptr);
 
     if (!d->swsctx) {
         finalizeInternal(false);
@@ -369,7 +376,8 @@ void VideoWriter::initializeInternal()
         d->timestampFile.close(); // ensure file is closed
         d->timestampFile.clear();
         d->timestampFile.open(timestampFname.toStdString());
-        d->timestampFile << "frame; timestamp" << "\n";
+        d->timestampFile << "frame; timestamp"
+                         << "\n";
         d->timestampFile.flush();
     }
 
@@ -443,7 +451,7 @@ void VideoWriter::initialize(const QString &fname, int width, int height, int fp
         d->fnameBase = fname;
 
     // select FFMpeg pixel format of OpenCV matrixes
-    d->inputPixFormat = hasColor? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
+    d->inputPixFormat = hasColor ? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
 
     // initialize encoder
     initializeInternal();
@@ -493,12 +501,16 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead %3x%4)").arg(width).arg(height).arg(d->width).arg(d->height).toStdString());
+        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead %3x%4)")
+                                     .arg(width)
+                                     .arg(height)
+                                     .arg(d->width)
+                                     .arg(d->height)
+                                     .toStdString());
     if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
         d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels").arg(channels);
         return false;
-    }
-    else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
+    } else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
         d->lastError = QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels);
         return false;
     }
@@ -512,10 +524,10 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         auto aligned_step = (step + STEP_ALIGNMENT - 1) & -STEP_ALIGNMENT;
 
         if (d->alignedInput == nullptr)
-            d->alignedInput = static_cast<uchar*>(av_mallocz(aligned_step * static_cast<size_t>(height)));
+            d->alignedInput = static_cast<uchar *>(av_mallocz(aligned_step * static_cast<size_t>(height)));
 
         for (size_t y = 0; y < static_cast<size_t>(height); y++)
-            memcpy(d->alignedInput + y*aligned_step, image.ptr() + y*step, step);
+            memcpy(d->alignedInput + y * aligned_step, image.ptr() + y * step, step);
 
         data = d->alignedInput;
         step = aligned_step;
@@ -523,19 +535,38 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     if (d->cctx->pix_fmt != d->inputPixFormat) {
         // let input_picture point to the raw data buffer of 'image'
-        av_image_fill_arrays(d->inputFrame->data, d->inputFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
+        av_image_fill_arrays(
+            d->inputFrame->data,
+            d->inputFrame->linesize,
+            static_cast<const uint8_t *>(data),
+            d->inputPixFormat,
+            width,
+            height,
+            1);
         d->inputFrame->linesize[0] = static_cast<int>(step);
 
-        if (sws_scale(d->swsctx, d->inputFrame->data,
-                               d->inputFrame->linesize, 0,
-                               d->height,
-                               d->frame->data, d->frame->linesize) < 0) {
+        if (sws_scale(
+                d->swsctx,
+                d->inputFrame->data,
+                d->inputFrame->linesize,
+                0,
+                d->height,
+                d->frame->data,
+                d->frame->linesize)
+            < 0) {
             d->lastError = "Unable to scale image in pixel format comnversion.";
             return false;
         }
 
     } else {
-        av_image_fill_arrays(d->frame->data, d->frame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
+        av_image_fill_arrays(
+            d->frame->data,
+            d->frame->linesize,
+            static_cast<const uint8_t *>(data),
+            d->inputPixFormat,
+            width,
+            height,
+            1);
         d->frame->linesize[0] = static_cast<int>(step);
     }
 
@@ -550,7 +581,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     AVPacket *pkt = nullptr;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError.toStdString() << ")" << std::endl;
+        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError.toStdString() << ")"
+                  << std::endl;
         return false;
     }
 
@@ -573,8 +605,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
-        if ((ret == AVERROR(EAGAIN)) &&
-            ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
+        if ((ret == AVERROR(EAGAIN))
+            && ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
             success = true;
         goto out;
     }
@@ -602,7 +634,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
                 // increment current slice number and attempt to reinitialize recording.
                 d->currentSliceNo += 1;
                 initializeInternal();
-            } catch (const std::exception& e) {
+            } catch (const std::exception &e) {
                 // propagate error and stop encoding thread, as we can not really recover from this
                 d->lastError = e.what();
                 d->acceptFrames = false;
@@ -611,7 +643,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     }
 
     success = true;
- out:
+out:
     av_packet_free(&pkt);
     return success;
 }
@@ -647,7 +679,8 @@ bool VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::millisecond
     if (!d->acceptFrames)
         return false;
     if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT) {
-        d->lastError = "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.";
+        d->lastError =
+            "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.";
         return false;
     }
 
@@ -717,7 +750,7 @@ void VideoWriter::setContainer(VideoContainer container)
 
 void VideoWriter::encodeThread(void *vwPtr)
 {
-    VideoWriter *self = static_cast<VideoWriter*> (vwPtr);
+    VideoWriter *self = static_cast<VideoWriter *>(vwPtr);
 
     while (self->d->acceptFrames) {
         cv::Mat frame;

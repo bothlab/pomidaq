@@ -47,14 +47,15 @@ Q_DECLARE_LOGGING_CATEGORY(logMScope)
 
 using milliseconds_t = std::chrono::milliseconds;
 
-using StatusMessageCallback = std::function<void(const QString&, void *)>;
-using ControlChangeCallback = std::function<void(const QString&, double, double, void *)>;
-using RawDataCallback = std::function<void(const cv::Mat &,
-                                            milliseconds_t &,
-                                            const milliseconds_t &,
-                                            const milliseconds_t &,
-                                            const std::vector<float> &orientation,
-                                            void *)>;
+using StatusMessageCallback = std::function<void(const QString &, void *)>;
+using ControlChangeCallback = std::function<void(const QString &, double, double, void *)>;
+using RawDataCallback = std::function<void(
+    const cv::Mat &,
+    milliseconds_t &,
+    const milliseconds_t &,
+    const milliseconds_t &,
+    const std::vector<float> &orientation,
+    void *)>;
 using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
 
 enum class DisplayMode {
@@ -79,7 +80,8 @@ public:
     explicit ControlDefinition()
         : valueMin(-1),
           valueMax(-1)
-    {}
+    {
+    }
 
     ControlKind kind;
     QString id;
@@ -261,8 +263,8 @@ private:
     bool openCamera();
     void enqueueI2CCommand(long preambleKey, std::vector<quint8> packet);
     void sendCommandsToDevice();
-    void addDisplayFrameToBuffer(const cv::Mat& frame, const milliseconds_t &timestamp);
-    void setLastRawFrame(const cv::Mat& frame);
+    void addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp);
+    void setLastRawFrame(const cv::Mat &frame);
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();
@@ -278,12 +280,11 @@ private:
 MS_LIB_EXPORT
 QString videoDeviceNameFromId(int id);
 
-} // end of MiniScope namespace
+} // namespace MScope
 
 /**
  * \brief Call this in main() to initialize resources. Only needed when using static linking.
  */
-#define MSCOPE_RES_INIT	\
-  Q_INIT_RESOURCE(mscopelr)
+#define MSCOPE_RES_INIT Q_INIT_RESOURCE(mscopelr)
 
 #endif // MINISCOPE_H

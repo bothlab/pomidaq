@@ -39,7 +39,7 @@ enum class VideoContainer {
 };
 
 std::string videoContainerToString(VideoContainer container);
-VideoContainer stringToVideoContainer(const std::string& str);
+VideoContainer stringToVideoContainer(const std::string &str);
 
 /**
  * @brief The VideoCodec enum
@@ -63,8 +63,8 @@ enum class VideoCodec {
 };
 
 std::string videoCodecToString(VideoCodec codec);
-VideoCodec stringToVideoCodec(const std::string& str);
+VideoCodec stringToVideoCodec(const std::string &str);
 
-} // end of MiniScope namespace
+} // namespace MScope
 
 #endif // MEDIATYPES_H

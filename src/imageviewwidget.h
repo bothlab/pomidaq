@@ -31,7 +31,7 @@
 #define IVWOpenGLFunctions QOpenGLFunctions_3_2_Core
 #endif
 
-class ImageViewWidget: public QOpenGLWidget, protected IVWOpenGLFunctions
+class ImageViewWidget : public QOpenGLWidget, protected IVWOpenGLFunctions
 {
     Q_OBJECT
 public:
@@ -39,9 +39,9 @@ public:
     ~ImageViewWidget();
 
 public slots:
-    bool showImage(const cv::Mat& image);
+    bool showImage(const cv::Mat &image);
 
-    void setMinimumSize(const QSize& size);
+    void setMinimumSize(const QSize &size);
 
 protected:
     void initializeGL() override;

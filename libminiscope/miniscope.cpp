@@ -64,7 +64,8 @@ public:
         : valueScale(1),
           valueOffset(0),
           valueBitshift(0)
-    {}
+    {
+    }
     std::vector<QHash<QString, int>> commands;
     double valueScale;
     double valueOffset;
@@ -126,8 +127,8 @@ public:
     std::mutex timeMutex;
     std::mutex cmdMutex;
 
-    std::pair<StatusMessageCallback, void*> statusCallback;
-    std::pair<ControlChangeCallback, void*> controlChangeCallback;
+    std::pair<StatusMessageCallback, void *> statusCallback;
+    std::pair<ControlChangeCallback, void *> controlChangeCallback;
 
     cv::VideoCapture cam;
     int scopeCamId;
@@ -144,7 +145,7 @@ public:
     QHash<QString, ControlCommandRule> controlRules;
     QHash<QString, double> controlValueCache;
 
-    QQueue<QPair<long, std::vector<quint8> >> commandQueue;
+    QQueue<QPair<long, std::vector<quint8>>> commandQueue;
 
     double fps;
     QString videoFname;
@@ -159,7 +160,7 @@ public:
     std::atomic_int maxFluorDisplay;
 
     std::atomic<DisplayMode> displayMode;
-    std::atomic<double> bgAccumulateAlpha;  // NOTE: Double may not actually be atomic
+    std::atomic<double> bgAccumulateAlpha; // NOTE: Double may not actually be atomic
 
     bool connected;
     std::atomic_bool running;
@@ -176,8 +177,8 @@ public:
     bool rawFrameRetrieved;
 
     QQueue<cv::Mat> displayQueue;
-    std::pair<RawDataCallback, void*> frameCallback;
-    std::pair<DisplayFrameCallback, void*> displayFrameCallback;
+    std::pair<RawDataCallback, void *> frameCallback;
+    std::pair<DisplayFrameCallback, void *> displayFrameCallback;
 
     bool useColor;
     bool showRed;
@@ -199,16 +200,16 @@ public:
 
 } // end of namespace MScope
 
-
 typedef QHash<QString, QString> ControlIdToNameHash;
-Q_GLOBAL_STATIC_WITH_ARGS(ControlIdToNameHash, g_controlIdToName, ( {
-    { QLatin1String("frameRate"), QLatin1String("Framerate") },
-    { QLatin1String("led0"), QLatin1String("Excitation") },
-    { QLatin1String("gain"), QLatin1String("Gain") },
-    { QLatin1String("ewl"), QLatin1String("EWL") },
-    }
-));
-
+Q_GLOBAL_STATIC_WITH_ARGS(
+    ControlIdToNameHash,
+    g_controlIdToName,
+    ({
+        {QLatin1String("frameRate"), QLatin1String("Framerate") },
+        {QLatin1String("led0"),      QLatin1String("Excitation")},
+        {QLatin1String("gain"),      QLatin1String("Gain")      },
+        {QLatin1String("ewl"),       QLatin1String("EWL")       },
+}));
 
 Miniscope::Miniscope()
     : d(new Miniscope::Private())
@@ -252,16 +253,13 @@ static int msconfStringToInt(const QString &s)
         qCDebug(logMScope) << "No data in string to convert to int";
         value = SEND_COMMAND_ERROR;
         ok = false;
-    }
-    else if (s.left(2) == "0x"){
+    } else if (s.left(2) == "0x") {
         // HEX
         value = s.right(size - 2).toUInt(&ok, 16);
-    }
-    else if (s.left(2) == "0b"){
+    } else if (s.left(2) == "0b") {
         // Binary
         value = s.right(size - 2).toUInt(&ok, 2);
-    }
-    else {
+    } else {
         value = s.toUInt(&ok, 10);
         if (ok == false) {
             // This is then a string
@@ -358,7 +356,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
         return true;
     }
 
-    for (const QString& controlKey : controlSettings.keys()) {
+    for (const QString &controlKey : controlSettings.keys()) {
         const auto values = controlSettings.value(controlKey).toObject();
         const auto keys = values.keys();
         ControlCommandRule commandRule;
@@ -441,7 +439,7 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     }
 
     // create a preferred order for our controls
-    std::sort(d->controls.begin(), d->controls.end(),[](const ControlDefinition& lhs, const ControlDefinition& rhs) {
+    std::sort(d->controls.begin(), d->controls.end(), [](const ControlDefinition &lhs, const ControlDefinition &rhs) {
         if (lhs.kind > rhs.kind)
             return true;
         if (lhs.kind < rhs.kind)
@@ -550,38 +548,40 @@ void Miniscope::sendCommandsToDevice()
         bool success = false;
         quint64 tempPacket;
 
-        if (packet.size() < 6){
-            tempPacket = (quint64) packet[0]; // address
-            tempPacket |= (((quint64) packet.size()) & 0xFF) << 8; // data length
+        if (packet.size() < 6) {
+            tempPacket = (quint64)packet[0];                      // address
+            tempPacket |= (((quint64)packet.size()) & 0xFF) << 8; // data length
 
             for (size_t j = 1; j < packet.size(); j++)
-                tempPacket |= ((quint64) packet[j]) << (8 * (j + 1));
+                tempPacket |= ((quint64)packet[j]) << (8 * (j + 1));
 
             if (d->printExtraDebug)
-                qCDebug(logMScope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket,16);
-            success = scopeDAQSendBytes(&d->cam,
-                                        tempPacket & 0x00000000FFFF,
-                                        (tempPacket & 0x0000FFFF0000) >> 16,
-                                        (tempPacket & 0xFFFF00000000) >> 32);
+                qCDebug(logMScope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket, 16);
+            success = scopeDAQSendBytes(
+                &d->cam,
+                tempPacket & 0x00000000FFFF,
+                (tempPacket & 0x0000FFFF0000) >> 16,
+                (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
                 qCWarning(logMScope) << "Unable to send short control packet";
         } else if (packet.size() == 6) {
-            tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
+            tempPacket = (quint64)packet[0]
+                         | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
 
             for (size_t j = 1; j < packet.size(); j++)
-                tempPacket |= ((quint64)packet[j])<<(8*(j));
+                tempPacket |= ((quint64)packet[j]) << (8 * (j));
 
             if (d->printExtraDebug)
-                qCDebug(logMScope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket,16);
-            success = scopeDAQSendBytes(&d->cam,
-                                        tempPacket & 0x00000000FFFF,
-                                        (tempPacket & 0x0000FFFF0000) >> 16,
-                                        (tempPacket & 0xFFFF00000000) >> 32);
+                qCDebug(logMScope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket, 16);
+            success = scopeDAQSendBytes(
+                &d->cam,
+                tempPacket & 0x00000000FFFF,
+                (tempPacket & 0x0000FFFF0000) >> 16,
+                (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
                 qCDebug(logMScope).noquote() << "Unable to send long control packet";
-        }
-        else {
-            //TODO: Handle packets longer than 6 bytes
+        } else {
+            // TODO: Handle packets longer than 6 bytes
             qCWarning(logMScope) << "Can not handle packets longer than 6 bytes!";
         }
     }
@@ -590,7 +590,8 @@ void Miniscope::sendCommandsToDevice()
 bool Miniscope::openCamera()
 {
     if (d->connected) {
-        qCWarning(logMScope).noquote() << "Trying to open an already opened camera connection. This is likely not intended.";
+        qCWarning(logMScope).noquote()
+            << "Trying to open an already opened camera connection. This is likely not intended.";
         disconnect();
     }
 
@@ -644,7 +645,7 @@ bool Miniscope::openCamera()
     d->commandQueue.clear();
 
     // reset all packet parts to zero
-    scopeDAQSendBytes(&d->cam, 0x00, 0x00 ,0x00);
+    scopeDAQSendBytes(&d->cam, 0x00, 0x00, 0x00);
 
     // We need to make sure the MODE of the SERDES is correct
     // This needs to be done before any other commands are sent over SERDES
@@ -658,35 +659,34 @@ bool Miniscope::openCamera()
 
             // DES
             packet.clear();
-            packet.push_back(0xC0); // I2C Address
-            packet.push_back(0x1F); // reg
+            packet.push_back(0xC0);       // I2C Address
+            packet.push_back(0x1F);       // reg
             packet.push_back(0b00010000); // data
             enqueueI2CCommand(0, packet);
 
             // SER
             packet.clear();
-            packet.push_back(0xB0); // I2C Address
-            packet.push_back(0x05); // reg
+            packet.push_back(0xB0);       // I2C Address
+            packet.push_back(0x05);       // reg
             packet.push_back(0b00100000); // data
             enqueueI2CCommand(1, packet);
 
             sendCommandsToDevice();
             std::this_thread::sleep_for(milliseconds_t(400));
-        }
-        else {
+        } else {
             // Set to 10bit high frequency in this case
 
             // DES
             packet.clear();
-            packet.push_back(0xC0); // I2C Address
-            packet.push_back(0x1F); // reg
+            packet.push_back(0xC0);       // I2C Address
+            packet.push_back(0x1F);       // reg
             packet.push_back(0b00010001); // data
             enqueueI2CCommand(0, packet);
 
             // SER
             packet.clear();
-            packet.push_back(0xB0); // I2C Address
-            packet.push_back(0x05); // reg
+            packet.push_back(0xB0);       // I2C Address
+            packet.push_back(0x05);       // reg
             packet.push_back(0b00100001); // data
             enqueueI2CCommand(1, packet);
 
@@ -695,17 +695,17 @@ bool Miniscope::openCamera()
 
             // DES
             packet.clear();
-            packet.push_back(0xC0); // I2C Address
-            packet.push_back(0x1F); // reg
+            packet.push_back(0xC0);       // I2C Address
+            packet.push_back(0x1F);       // reg
             packet.push_back(0b00010001); // data
-            enqueueI2CCommand(0,packet);
+            enqueueI2CCommand(0, packet);
 
             // SER
             packet.clear();
-            packet.push_back(0xB0); // I2C Address
-            packet.push_back(0x05); // reg
+            packet.push_back(0xB0);       // I2C Address
+            packet.push_back(0x05);       // reg
             packet.push_back(0b00100001); // data
-            enqueueI2CCommand(1,packet);
+            enqueueI2CCommand(1, packet);
 
             sendCommandsToDevice();
             std::this_thread::sleep_for(milliseconds_t(400));
@@ -730,7 +730,7 @@ bool Miniscope::openCamera()
             for (int i = 0; i < command["dataLength"]; i++) {
                 int tempValue = command["data" + QString::number(i)];
                 packet.push_back(tempValue);
-                preambleKey = (preambleKey<<8) | packet.back();
+                preambleKey = (preambleKey << 8) | packet.back();
             }
 
             enqueueI2CCommand(preambleKey, packet);
@@ -821,7 +821,8 @@ double Miniscope::controlValue(const QString &id)
 void Miniscope::setControlValue(const QString &id, double value)
 {
     if (!d->controlRules.contains(id)) {
-        qCWarning(logMScope).noquote() << QStringLiteral("Unable to set nonexisting control %1 to %2").arg(id).arg(value);
+        qCWarning(logMScope).noquote()
+            << QStringLiteral("Unable to set nonexisting control %1 to %2").arg(id).arg(value);
         return;
     }
 
@@ -863,23 +864,17 @@ void Miniscope::setControlValue(const QString &id, double value)
                 // TODO: Handle value1 through value3
                 if (tempValue == SEND_COMMAND_VALUE_H24) {
                     packet.push_back((static_cast<quint32>(i2cValue) >> 24) & 0xFF);
-                }
-                else if (tempValue == SEND_COMMAND_VALUE_H16) {
+                } else if (tempValue == SEND_COMMAND_VALUE_H16) {
                     packet.push_back((static_cast<quint32>(i2cValue) >> 16) & 0xFF);
-                }
-                else if (tempValue == SEND_COMMAND_VALUE_H) {
+                } else if (tempValue == SEND_COMMAND_VALUE_H) {
                     packet.push_back((static_cast<quint32>(i2cValue) >> 8) & 0xFF);
-                }
-                else if (tempValue == SEND_COMMAND_VALUE_L) {
+                } else if (tempValue == SEND_COMMAND_VALUE_L) {
                     packet.push_back(static_cast<quint32>(i2cValue) & 0xFF);
-                }
-                else if (tempValue == SEND_COMMAND_VALUE2_H) {
+                } else if (tempValue == SEND_COMMAND_VALUE2_H) {
                     packet.push_back((static_cast<quint32>(i2cValue2) >> 8) & 0xFF);
-                }
-                else if (tempValue == SEND_COMMAND_VALUE2_L) {
+                } else if (tempValue == SEND_COMMAND_VALUE2_L) {
                     packet.push_back(static_cast<quint32>(i2cValue2) & 0xFF);
-                }
-                else {
+                } else {
                     packet.push_back(tempValue);
                     preambleKey = (preambleKey << 8) | packet.back();
                 }
@@ -966,12 +961,7 @@ void Miniscope::stopRecording()
 
 QFuture<void> Miniscope::acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
 {
-    return launchZStackCapture(this,
-                               fromEWL,
-                               toEWL,
-                               step,
-                               averageCount,
-                               outFilename);
+    return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename);
 }
 
 bool Miniscope::isConnected() const
@@ -1071,7 +1061,7 @@ double Miniscope::fps() const
     return d->fps;
 }
 
-void Miniscope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock>& startTime)
+void Miniscope::setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock> &startTime)
 {
     // changing the start timestamp is protected
     const std::lock_guard<std::mutex> lock(d->timeMutex);
@@ -1079,7 +1069,8 @@ void Miniscope::setCaptureStartTime(const std::chrono::time_point<std::chrono::s
     d->startTimepoint = startTime;
     d->useUnixTime = false; // we have a custom start time, no UNIX epoch will be used
     d->unixCaptureStartTime = milliseconds_t(0);
-    d->captureStartTimeInitialized = false; // reinitialize frame time with new start time, in case we are already running
+    d->captureStartTimeInitialized =
+        false; // reinitialize frame time with new start time, in case we are already running
 }
 
 bool Miniscope::useUnixTimestamps() const
@@ -1094,7 +1085,8 @@ void Miniscope::setUseUnixTimestamps(bool useUnixTime)
 
     d->useUnixTime = useUnixTime;
     d->startTimepoint = std::chrono::time_point<std::chrono::steady_clock>::min();
-    d->captureStartTimeInitialized = false; // reinitialize frame time with new start time, in case we are already running
+    d->captureStartTimeInitialized =
+        false; // reinitialize frame time with new start time, in case we are already running
 }
 
 milliseconds_t Miniscope::unixCaptureStartTime() const
@@ -1117,7 +1109,7 @@ QString Miniscope::videoFilename() const
     return d->videoFname;
 }
 
-void Miniscope::setVideoFilename(const QString& fname)
+void Miniscope::setVideoFilename(const QString &fname)
 {
     // TODO: Maybe mutex this, to prevent API users from doing the wrong thing
     // and checking the value directly after the recording was started?
@@ -1346,7 +1338,8 @@ static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point &l
 
 static cv::Mat makeWarpMatrix(cv::Size sz, double theta, double phi, double gamma, double scale, double fovy)
 {
-    // See https://stackoverflow.com/questions/17087446/how-to-calculate-perspective-transform-for-opencv-from-rotation-angles
+    // See
+    // https://stackoverflow.com/questions/17087446/how-to-calculate-perspective-transform-for-opencv-from-rotation-angles
     // for original code.
 
     double st = sin(theta);
@@ -1363,46 +1356,53 @@ static cv::Mat makeWarpMatrix(cv::Size sz, double theta, double phi, double gamm
     double n = h - (d / 2.0);
     double f = h + (d / 2.0);
 
-    cv::Mat F = cv::Mat(4, 4, CV_64FC1); // Allocate 4x4 transformation matrix F
+    cv::Mat F = cv::Mat(4, 4, CV_64FC1);           // Allocate 4x4 transformation matrix F
     cv::Mat Rtheta = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 rotation matrix around Z-axis by theta degrees
-    cv::Mat Rphi = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 rotation matrix around X-axis by phi degrees
+    cv::Mat Rphi = cv::Mat::eye(4, 4, CV_64FC1);   // Allocate 4x4 rotation matrix around X-axis by phi degrees
     cv::Mat Rgamma = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 rotation matrix around Y-axis by gamma degrees
 
-    cv::Mat T = cv::Mat::eye(4, 4, CV_64FC1); // Allocate 4x4 translation matrix along Z-axis by -h units
+    cv::Mat T = cv::Mat::eye(4, 4, CV_64FC1);   // Allocate 4x4 translation matrix along Z-axis by -h units
     cv::Mat P = cv::Mat::zeros(4, 4, CV_64FC1); // Allocate 4x4 projection matrix
 
     // Rtheta
-    Rtheta.at<double>(0,0) = Rtheta.at<double>(1,1) = ct;
-    Rtheta.at<double>(0,1) = -st;Rtheta.at<double>(1,0) = st;
+    Rtheta.at<double>(0, 0) = Rtheta.at<double>(1, 1) = ct;
+    Rtheta.at<double>(0, 1) = -st;
+    Rtheta.at<double>(1, 0) = st;
     // Rphi
-    Rphi.at<double>(1,1) = Rphi.at<double>(2,2) = cp;
-    Rphi.at<double>(1,2) = -sp;Rphi.at<double>(2,1) = sp;
+    Rphi.at<double>(1, 1) = Rphi.at<double>(2, 2) = cp;
+    Rphi.at<double>(1, 2) = -sp;
+    Rphi.at<double>(2, 1) = sp;
     // Rgamma
-    Rgamma.at<double>(0,0) = Rgamma.at<double>(2,2) = cg;
-    Rgamma.at<double>(0,2) = -sg;Rgamma.at<double>(2,0) = sg;
+    Rgamma.at<double>(0, 0) = Rgamma.at<double>(2, 2) = cg;
+    Rgamma.at<double>(0, 2) = -sg;
+    Rgamma.at<double>(2, 0) = sg;
 
     // T
-    T.at<double>(2,3) = -h;
+    T.at<double>(2, 3) = -h;
 
     // P
-    P.at<double>(0,0) = P.at<double>(1,1) = 1.0 / tan(halfFovy);
-    P.at<double>(2,2) = -(f + n) / (f - n);
-    P.at<double>(2,3) = -(2.0 * f * n) / (f - n);
-    P.at<double>(3,2) = -1.0;
+    P.at<double>(0, 0) = P.at<double>(1, 1) = 1.0 / tan(halfFovy);
+    P.at<double>(2, 2) = -(f + n) / (f - n);
+    P.at<double>(2, 3) = -(2.0 * f * n) / (f - n);
+    P.at<double>(3, 2) = -1.0;
 
     // Compose transformations
     F = P * T * Rphi * Rtheta * Rgamma; // Matrix-multiply to produce master matrix
 
     // Transform 4x4 points
-    double ptsIn [4*3];
-    double ptsOut[4*3];
+    double ptsIn[4 * 3];
+    double ptsOut[4 * 3];
     double halfW = sz.width / 2, halfH = sz.height / 2;
 
-    ptsIn[0] = -halfW;ptsIn[ 1] = halfH;
-    ptsIn[3] = halfW;ptsIn[ 4] = halfH;
-    ptsIn[6] = halfW;ptsIn[ 7] = -halfH;
-    ptsIn[9] = -halfW;ptsIn[10] = -halfH;
-    ptsIn[2] = ptsIn[5]=ptsIn[8] = ptsIn[11]=0; // Set Z component to zero for all 4 components
+    ptsIn[0] = -halfW;
+    ptsIn[1] = halfH;
+    ptsIn[3] = halfW;
+    ptsIn[4] = halfH;
+    ptsIn[6] = halfW;
+    ptsIn[7] = -halfH;
+    ptsIn[9] = -halfW;
+    ptsIn[10] = -halfH;
+    ptsIn[2] = ptsIn[5] = ptsIn[8] = ptsIn[11] = 0; // Set Z component to zero for all 4 components
 
     cv::Mat ptsInMat(1, 4, CV_64FC3, ptsIn);
     cv::Mat ptsOutMat(1, 4, CV_64FC3, ptsOut);
@@ -1414,29 +1414,35 @@ static cv::Mat makeWarpMatrix(cv::Size sz, double theta, double phi, double gamm
     cv::Point2f ptsOutPt2f[4];
 
     for (int i = 0; i < 4; i++) {
-        cv::Point2f ptIn (ptsIn [i*3+0], ptsIn [i*3+1]);
-        cv::Point2f ptOut(ptsOut[i*3+0], ptsOut[i*3+1]);
-        ptsInPt2f[i]  = ptIn + cv::Point2f(halfW, halfH);
+        cv::Point2f ptIn(ptsIn[i * 3 + 0], ptsIn[i * 3 + 1]);
+        cv::Point2f ptOut(ptsOut[i * 3 + 0], ptsOut[i * 3 + 1]);
+        ptsInPt2f[i] = ptIn + cv::Point2f(halfW, halfH);
         ptsOutPt2f[i] = (ptOut + cv::Point2f(1, 1)) * (sideLength * 0.5);
     }
 
-    return cv::getPerspectiveTransform(ptsInPt2f,ptsOutPt2f);
+    return cv::getPerspectiveTransform(ptsInPt2f, ptsOutPt2f);
 }
 
-static cv::Mat perspectiveWarpImage(const cv::Mat &src, double theta, double phi, double gamma, double scale, double fovy)
+static cv::Mat perspectiveWarpImage(
+    const cv::Mat &src,
+    double theta,
+    double phi,
+    double gamma,
+    double scale,
+    double fovy)
 {
     double d = hypot(src.cols, src.rows);
     double sideLength = scale * d / cos(fovy * 0.5);
 
     cv::Mat M = makeWarpMatrix(src.size(), theta, phi, gamma, scale, fovy);
     cv::Mat dst;
-    warpPerspective(src, dst, M, cv::Size(sideLength,sideLength));
+    warpPerspective(src, dst, M, cv::Size(sideLength, sideLength));
     return dst;
 }
 
-void Miniscope::captureThread(void* msPtr)
+void Miniscope::captureThread(void *msPtr)
 {
-    const auto self = static_cast<Miniscope*> (msPtr);
+    const auto self = static_cast<Miniscope *>(msPtr);
     const auto d = self->d.get();
 
     // unpack raw frame callback pair
@@ -1446,12 +1452,13 @@ void Miniscope::captureThread(void* msPtr)
     // make a dummy "dropped frame" matrix to display when we drop frames
     cv::Mat droppedFrameImage(cv::Size(752, 480), CV_8UC3);
     droppedFrameImage.setTo(cv::Scalar(255, 0, 0));
-    cv::putText(droppedFrameImage,
-                "Frame Dropped!",
-                cv::Point(24, 240),
-                cv::FONT_HERSHEY_COMPLEX,
-                1.5,
-                cv::Scalar(255,255,255));
+    cv::putText(
+        droppedFrameImage,
+        "Frame Dropped!",
+        cv::Point(24, 240),
+        cv::FONT_HERSHEY_COMPLEX,
+        1.5,
+        cv::Scalar(255, 255, 255));
 
     d->droppedFramesCount = 0;
     d->currentFPS = static_cast<uint>(d->fps);
@@ -1463,17 +1470,21 @@ void Miniscope::captureThread(void* msPtr)
         QFile oiGoodFile(QStringLiteral(":/graphics/orientation-indicator-good.png"));
         if (oiGoodFile.open(QIODevice::ReadOnly)) {
             const auto pngBytes = oiGoodFile.readAll();
-            bnoIndGood = cv::imdecode(cv::Mat(1, pngBytes.size(), CV_8UC1, (void*) pngBytes.data()), cv::IMREAD_UNCHANGED);
+            bnoIndGood = cv::imdecode(
+                cv::Mat(1, pngBytes.size(), CV_8UC1, (void *)pngBytes.data()), cv::IMREAD_UNCHANGED);
         } else {
-            qCWarning(logMScope).noquote() << "Unable to find BNO indicator image resource 1:" << oiGoodFile.errorString();
+            qCWarning(logMScope).noquote()
+                << "Unable to find BNO indicator image resource 1:" << oiGoodFile.errorString();
         }
 
         QFile oiBadFile(QStringLiteral(":/graphics/orientation-indicator-bad.png"));
         if (oiBadFile.open(QIODevice::ReadOnly)) {
             const auto pngBytes = oiBadFile.readAll();
-            bnoIndBad = cv::imdecode(cv::Mat(1, pngBytes.size(), CV_8UC1, (void*) pngBytes.data()), cv::IMREAD_UNCHANGED);
+            bnoIndBad = cv::imdecode(
+                cv::Mat(1, pngBytes.size(), CV_8UC1, (void *)pngBytes.data()), cv::IMREAD_UNCHANGED);
         } else {
-            qCWarning(logMScope).noquote() << "Unable to find BNO indicator image resource 2:" << oiBadFile.errorString();
+            qCWarning(logMScope).noquote()
+                << "Unable to find BNO indicator image resource 2:" << oiBadFile.errorString();
         }
     }
 
@@ -1503,10 +1514,12 @@ void Miniscope::captureThread(void* msPtr)
     auto driverStartTimestamp = milliseconds_t(0);
 
     // use UNIX timestamp as start time, in case that's the desired setting
-    const auto captureStartUnixTime = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
+    const auto captureStartUnixTime = std::chrono::duration_cast<milliseconds_t>(
+        std::chrono::system_clock::now().time_since_epoch());
     if (d->useUnixTime) {
-        // FIXME: When running on Windows, we get the Windows system time instead, which makes the returned files non-portable
-        // between operating systems. Not ideal, so we should actually universally convert this to UNIX time here.
+        // FIXME: When running on Windows, we get the Windows system time instead, which makes the returned files
+        // non-portable between operating systems. Not ideal, so we should actually universally convert this to UNIX
+        // time here.
         threadStartTime = std::chrono::steady_clock::now() + captureStartUnixTime;
     }
 
@@ -1534,9 +1547,13 @@ void Miniscope::captureThread(void* msPtr)
 
         // acquire a timestamp when we received the frame on our clock, as well as retrieving the driver/device
         // timestamp in milliseconds
-        const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime);
+        const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - threadStartTime);
         auto status = d->cam.grab();
-        auto masterRecvTimestamp = std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime)) / 2.0);
+        auto masterRecvTimestamp = std::chrono::round<milliseconds_t>(
+            (__stime
+             + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime))
+            / 2.0);
 #ifdef Q_OS_LINUX
         const auto driverFrameTimestamp = milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 #else
@@ -1555,14 +1572,17 @@ void Miniscope::captureThread(void* msPtr)
                 d->droppedFramesCount++;
                 if (d->droppedFramesCount >= 5) {
                     if (!status) {
-                        self->fail("Unable to grab valid frames for initialization. (You may try to power cycle the DAQ board to resolve this issue)");
+                        self->fail(
+                            "Unable to grab valid frames for initialization. (You may try to power cycle the DAQ board "
+                            "to resolve this issue)");
                         break;
                     } else if (d->droppedFramesCount >= d->fps) {
 #ifdef Q_OS_WIN
                         if (!d->emulateTimestamps) {
                             d->emulateTimestamps = true;
                             d->droppedFramesCount = 0;
-                            qCWarning(logMScope).noquote() << "Unable to get valid driver timestamps. Falling back to timestamp emulation.";
+                            qCWarning(logMScope).noquote()
+                                << "Unable to get valid driver timestamps. Falling back to timestamp emulation.";
                             continue;
                         }
 #endif
@@ -1578,11 +1598,15 @@ void Miniscope::captureThread(void* msPtr)
 
             if (d->useUnixTime) {
                 // apply a UNIX-time offset to make all subsequent timestamps be UNIX timestamps
-                driverStartTimestamp = driverFrameTimestamp - captureStartUnixTime - milliseconds_t(static_cast<long>(1000.0 / d->fps));
-                threadStartTime = threadStartTime + (masterRecvTimestamp - captureStartUnixTime - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
+                driverStartTimestamp = driverFrameTimestamp - captureStartUnixTime
+                                       - milliseconds_t(static_cast<long>(1000.0 / d->fps));
+                threadStartTime = threadStartTime
+                                  + (masterRecvTimestamp - captureStartUnixTime
+                                     - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
                 masterRecvTimestamp = masterRecvTimestamp + captureStartUnixTime;
             } else {
-                driverStartTimestamp = driverFrameTimestamp - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
+                driverStartTimestamp = driverFrameTimestamp
+                                       - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
             }
         }
         const auto frameDeviceTimestamp = driverFrameTimestamp - driverStartTimestamp;
@@ -1595,7 +1619,7 @@ void Miniscope::captureThread(void* msPtr)
         try {
             status = d->cam.retrieve(frame);
             cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY);
-        } catch (const cv::Exception& e) {
+        } catch (const cv::Exception &e) {
             status = false;
             std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
         }
@@ -1618,7 +1642,7 @@ void Miniscope::captureThread(void* msPtr)
             double z = (qint16)((yz >> 16) & 0xFFFF);
 
             // BNO output is a unit quaternion after 2^14 division
-            double norm = sqrt(w*w + x*x + y*y + z*z);
+            double norm = sqrt(w * w + x * x + y * y + z * z);
             bnoVec[0] = w / 16384.0;
             bnoVec[1] = x / 16384.0;
             bnoVec[2] = y / 16384.0;
@@ -1681,12 +1705,9 @@ void Miniscope::captureThread(void* msPtr)
                     vidFnameBase = vidFnameBase.left(vidFnameBase.length() - 4); // remove 3-char suffix from filename
 
                 try {
-                    vwriter->initialize(vidFnameBase,
-                                        frame.cols,
-                                        frame.rows,
-                                        static_cast<int>(d->fps),
-                                        frame.channels() == 3);
-                } catch (const std::runtime_error& e) {
+                    vwriter->initialize(
+                        vidFnameBase, frame.cols, frame.rows, static_cast<int>(d->fps), frame.channels() == 3);
+                } catch (const std::runtime_error &e) {
                     self->fail(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
                     break;
                 }
@@ -1695,11 +1716,16 @@ void Miniscope::captureThread(void* msPtr)
                 if (saveOrientationData) {
                     qCDebug(logMScope) << "Will save orientation data.";
                     bnoWriter = std::make_unique<CSVWriter>(vidFnameBase + "_orientation.csv");
-                    QObject::connect(bnoWriter.get(), &CSVWriter::error, [&](const QString& errorMessage) {
+                    QObject::connect(bnoWriter.get(), &CSVWriter::error, [&](const QString &errorMessage) {
                         self->fail(QStringLiteral("Unable to write orientation data: %1").arg(errorMessage));
                     });
                     bnoWriter->start();
-                    bnoWriter->addRow(QStringList() << "Time [ms]" << "qw" << "qx" << "qy" << "qz");
+                    bnoWriter->addRow(
+                        QStringList() << "Time [ms]"
+                                      << "qw"
+                                      << "qx"
+                                      << "qy"
+                                      << "qz");
                 }
 
                 // we are set for recording and initialized the video writer,
@@ -1710,7 +1736,8 @@ void Miniscope::captureThread(void* msPtr)
                 // first frame happens at 0 time elapsed, so we cheat here and manipulate the current frame timestamp,
                 // as the current frame will already be added to the recording.
                 if (d->useUnixTime) {
-                    const auto currentUnixTS = std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
+                    const auto currentUnixTS = std::chrono::duration_cast<milliseconds_t>(
+                        std::chrono::system_clock::now().time_since_epoch());
                     driverStartTimestamp = driverFrameTimestamp - currentUnixTS;
                 } else {
                     driverStartTimestamp = driverFrameTimestamp;
@@ -1780,14 +1807,18 @@ void Miniscope::captureThread(void* msPtr)
 
                 cv::merge(bgrChannels, 3, displayFrame);
             }
-         } else {
+        } else {
             // grayscale image
             double minF, maxF;
             cv::minMaxLoc(displayFrame, &minF, &maxF);
             d->minFluor = static_cast<int>(minF);
             d->maxFluor = static_cast<int>(maxF);
 
-            displayFrame.convertTo(displayFrame, CV_8U, 255.0 / (d->maxFluorDisplay - d->minFluorDisplay), -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
+            displayFrame.convertTo(
+                displayFrame,
+                CV_8U,
+                255.0 / (d->maxFluorDisplay - d->minFluorDisplay),
+                -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
         }
 
         if (bnoIndicatorVisible) {
@@ -1843,7 +1874,8 @@ void Miniscope::captureThread(void* msPtr)
         if (!d->commandQueue.isEmpty())
             self->sendCommandsToDevice();
 
-        const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cycleStartTime);
+        const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - cycleStartTime);
         d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 

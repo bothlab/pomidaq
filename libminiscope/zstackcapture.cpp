@@ -25,27 +25,47 @@
 class ZStackException : public QException
 {
 public:
-    ZStackException(const QString &message) : msg(message) {}
-    ZStackException(const char *message) : msg(QString::fromUtf8(message)) {}
-    ZStackException(const std::exception &error) : msg(QString::fromUtf8(error.what())) {}
+    ZStackException(const QString &message)
+        : msg(message)
+    {
+    }
+    ZStackException(const char *message)
+        : msg(QString::fromUtf8(message))
+    {
+    }
+    ZStackException(const std::exception &error)
+        : msg(QString::fromUtf8(error.what()))
+    {
+    }
 
-    void raise() const override { throw *this; }
-    QException* clone() const override { return new ZStackException(*this); }
-    const char *what() const noexcept override { return qPrintable(msg); }
+    void raise() const override
+    {
+        throw *this;
+    }
+    QException *clone() const override
+    {
+        return new ZStackException(*this);
+    }
+    const char *what() const noexcept override
+    {
+        return qPrintable(msg);
+    }
+
 private:
     QString msg;
 };
 
-static void captureZStack(Miniscope *mscope,
-                          int fromEWL,
-                          int toEWL,
-                          uint step,
-                          uint averageCount,
-                          const QString &outFilename)
+static void captureZStack(
+    Miniscope *mscope,
+    int fromEWL,
+    int toEWL,
+    uint step,
+    uint averageCount,
+    const QString &outFilename)
 {
     ControlDefinition ewlControl;
     const auto controls = mscope->controls();
-    for (const auto& ctl : controls) {
+    for (const auto &ctl : controls) {
         if (ctl.name.toLower().contains("ewl")) {
             ewlControl = ctl;
             break;
@@ -111,7 +131,7 @@ static void captureZStack(Miniscope *mscope,
 
         // calculate image average
         cv::Mat accMat(currentMats[0].rows, currentMats[0].cols, CV_32F);
-        accMat.setTo(cv::Scalar(0,0,0));
+        accMat.setTo(cv::Scalar(0, 0, 0));
 
         for (const cv::Mat &raw : currentMats) {
             cv::Mat mat32;
@@ -125,20 +145,21 @@ static void captureZStack(Miniscope *mscope,
 
     try {
         cv::imwrite(outFilenameReal.toStdString(), stack);
-    }  catch (const std::exception &e) {
+    } catch (const std::exception &e) {
         throw ZStackException(e);
     }
 }
 
-QFuture<void> launchZStackCapture(Miniscope *mscope, int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
+QFuture<void> launchZStackCapture(
+    Miniscope *mscope,
+    int fromEWL,
+    int toEWL,
+    uint step,
+    uint averageCount,
+    const QString &outFilename)
 {
     // TODO: Make use of QPromise when we can switch to Qt6
     return QtConcurrent::run([=]() {
-        captureZStack(mscope,
-                      fromEWL,
-                      toEWL,
-                      step,
-                      averageCount,
-                      outFilename);
+        captureZStack(mscope, fromEWL, toEWL, step, averageCount, outFilename);
     });
 }

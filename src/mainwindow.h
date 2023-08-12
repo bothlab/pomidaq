@@ -26,11 +26,13 @@
 class ImageViewWidget;
 class MSControlWidget;
 class QLabel;
-namespace MScope {
+namespace MScope
+{
 class Miniscope;
 }
 
-namespace Ui {
+namespace Ui
+{
 class MainWindow;
 }
 
@@ -84,7 +86,7 @@ private:
     QLabel *m_statusBarLabel;
 
     MScope::Miniscope *m_mscope;
-    QList<MSControlWidget*> m_controls;
+    QList<MSControlWidget *> m_controls;
     QVBoxLayout *m_controlsLayout;
     ImageViewWidget *m_scopeView;
     QTimer *m_msTimer;
@@ -97,7 +99,7 @@ private:
 
     void processMiniscopeDisplay();
     void writeLogMessage(const QString &msg);
-    void setStatusText(const QString& msg);
-    void setDataExportDir(const QString& dir);
+    void setStatusText(const QString &msg);
+    void setDataExportDir(const QString &dir);
     void setUseUnixTimestamps(bool useUnixTimestamp);
 };

@@ -32,15 +32,14 @@ class CSVWriter : public QThread
 {
     Q_OBJECT
 public:
-    explicit CSVWriter(const QString &filename,
-                       QObject *parent = nullptr);
+    explicit CSVWriter(const QString &filename, QObject *parent = nullptr);
 
-    void addRow(const QStringList& rowData);
+    void addRow(const QStringList &rowData);
     void addRow(const std::chrono::milliseconds &timestamp, const std::vector<float> &rowData);
     void stop();
 
 signals:
-    void error(const QString& errorMessage);
+    void error(const QString &errorMessage);
     void finished();
 
 protected:

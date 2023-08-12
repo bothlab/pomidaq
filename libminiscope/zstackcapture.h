@@ -25,9 +25,10 @@
 
 using namespace MScope;
 
-QFuture<void> launchZStackCapture(Miniscope *mscope,
-                                  int fromEWL,
-                                  int toEWL,
-                                  uint step,
-                                  uint averageCount,
-                                  const QString &outFilename);
+QFuture<void> launchZStackCapture(
+    Miniscope *mscope,
+    int fromEWL,
+    int toEWL,
+    uint step,
+    uint averageCount,
+    const QString &outFilename);
