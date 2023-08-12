@@ -75,6 +75,7 @@ private slots:
     void on_actionUseDarkTheme_toggled(bool arg1);
     void on_actionSetTimestampStyle_triggered();
 
+    void on_highlightSaturationCheckBox_toggled(bool checked);
     void on_showBNOIndicatorCheckBox_toggled(bool checked);
     void on_saveOrientationCheckBox_toggled(bool checked);
 

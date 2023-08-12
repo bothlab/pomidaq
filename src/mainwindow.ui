@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1148</width>
-    <height>968</height>
+    <width>1200</width>
+    <height>1000</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -333,8 +333,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1032</width>
-             <height>252</height>
+             <width>1082</width>
+             <height>214</height>
             </rect>
            </property>
            <attribute name="label">
@@ -472,8 +472,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1032</width>
-             <height>252</height>
+             <width>1082</width>
+             <height>312</height>
             </rect>
            </property>
            <attribute name="label">
@@ -497,6 +497,12 @@
             </property>
             <item>
              <widget class="QGroupBox" name="gbDeviceCtls">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="title">
                <string>Device</string>
               </property>
@@ -744,15 +750,25 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="4" column="0">
+                 <item row="5" column="0">
                   <widget class="QLabel" name="showBNOIndicatorLabel">
                    <property name="text">
                     <string>Show BNO Indicator</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="4" column="1">
+                 <item row="5" column="1">
                   <widget class="QCheckBox" name="showBNOIndicatorCheckBox"/>
+                 </item>
+                 <item row="4" column="0">
+                  <widget class="QLabel" name="highlightSaturationLabel">
+                   <property name="text">
+                    <string>Highlight Saturation</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="4" column="1">
+                  <widget class="QCheckBox" name="highlightSaturationCheckBox"/>
                  </item>
                 </layout>
                </item>
@@ -779,8 +795,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1032</width>
-             <height>252</height>
+             <width>1082</width>
+             <height>214</height>
             </rect>
            </property>
            <attribute name="label">
@@ -974,8 +990,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1032</width>
-             <height>252</height>
+             <width>1082</width>
+             <height>279</height>
             </rect>
            </property>
            <attribute name="label">
@@ -1318,8 +1334,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1148</width>
-     <height>22</height>
+     <width>1200</width>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuInfo">

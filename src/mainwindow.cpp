@@ -223,6 +223,7 @@ MainWindow::MainWindow(QWidget *parent)
     // set display modes
     ui->displayModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
     ui->displayModeCB->addItem(QStringLiteral("F - F₀"), QVariant::fromValue(DisplayMode::BackgroundDiff));
+    ui->highlightSaturationCheckBox->setChecked(settings.value("display/highlightSaturation", false).toBool());
 
     // set device list
     ui->deviceTypeComboBox->addItems(m_mscope->availableDeviceTypes());
@@ -304,6 +305,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("ui/geometry", geometry());
     settings.setValue("ui/splitterSizes", splitterSizesBytes);
+    settings.setValue("display/highlightSaturation", m_scopeView->highlightSaturation());
     settings.setValue("recording/useUnixTimestamps", m_useUnixTimestamps);
     settings.setValue("recording/videoSliceInterval", ui->sliceIntervalSpinBox->value());
     settings.setValue("recording/saveOrientationData", ui->saveOrientationCheckBox->isChecked());
@@ -840,6 +842,11 @@ void MainWindow::on_actionSetTimestampStyle_triggered()
         else
             setUseUnixTimestamps(true);
     }
+}
+
+void MainWindow::on_highlightSaturationCheckBox_toggled(bool checked)
+{
+    m_scopeView->setHighlightSaturation(checked);
 }
 
 void MainWindow::on_showBNOIndicatorCheckBox_toggled(bool checked)
