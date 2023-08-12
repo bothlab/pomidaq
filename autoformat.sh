@@ -5,4 +5,4 @@ set -e
 
 source_files=`find libminiscope/ src/ py/ -type f \( -name '*.c' -o -name '*.h' -o -name '*.cpp' -o -name '*.hpp' \)`
 
-clang-format-16 -i $source_files
+clang-format -i $source_files
