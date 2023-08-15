@@ -111,6 +111,7 @@ public:
 
     bool connect();
     void disconnect();
+    bool hardReset();
 
     std::vector<ControlDefinition> controls() const;
     double controlValue(const QString &id);

@@ -3,5 +3,6 @@
         <file>pomidaq.svg</file>
         <file>folder-open.svg</file>
         <file>edit-reset.svg</file>
+        <file>hard-reset.svg</file>
     </qresource>
 </RCC>

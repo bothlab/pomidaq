@@ -51,6 +51,7 @@ private slots:
     void on_sbCamId_valueChanged(int arg1);
     void on_btnDevConnect_clicked();
     void on_btnRecord_toggled(bool checked);
+    void on_btnHardReset_clicked();
     void on_losslessCheckBox_toggled(bool checked);
     void on_containerComboBox_currentIndexChanged(const QString &arg1);
     void on_codecComboBox_currentIndexChanged(const QString &arg1);
@@ -98,6 +99,7 @@ private:
 
     int m_messageCount;
 
+    void updateIcons();
     void processMiniscopeDisplay();
     void writeLogMessage(const QString &msg);
     void setStatusText(const QString &msg);

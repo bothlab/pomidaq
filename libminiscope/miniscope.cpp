@@ -838,6 +838,50 @@ void Miniscope::disconnect()
     d->connected = false;
 }
 
+bool Miniscope::hardReset()
+{
+    statusMessage(QStringLiteral("Performing hard reset of device %1").arg(d->scopeCamId));
+    if (d->connected)
+        disconnect();
+
+    auto apiPreference = cv::CAP_ANY;
+    bool ret;
+#ifdef Q_OS_LINUX
+    apiPreference = cv::CAP_V4L2;
+#elif defined(Q_OS_WIN)
+    apiPreference = cv::CAP_MSMF;
+#endif
+    ret = d->cam.open(d->scopeCamId, apiPreference);
+    if (!ret) {
+        // we failed opening the camera - try again using OpenCV's backend autodetection
+        qCWarning(logMScope).noquote() << "Unable to use preferred camera backend, falling back to autodetection.";
+        ret = d->cam.open(d->scopeCamId);
+    }
+
+    if (!ret) {
+        statusMessage(QStringLiteral("Reset of %1 failed.").arg(d->scopeCamId));
+        return ret;
+    }
+
+    // clear any old commands
+    d->commandQueue.clear();
+
+    // disable any recording, just in case
+    d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
+
+    // send reset command
+    scopeDAQSendBytes(&d->cam, 0xFE, 0x01, 0x01);
+
+    // cleanup
+    d->cam.release();
+#ifdef Q_OS_LINUX
+    resetV4L2State(d->scopeCamId);
+#endif
+
+    statusMessage(QStringLiteral("Device %1 has been reset.").arg(d->scopeCamId));
+    return true;
+}
+
 std::vector<ControlDefinition> Miniscope::controls() const
 {
     return d->controls;

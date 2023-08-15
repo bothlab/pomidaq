@@ -32,6 +32,8 @@
 #include <QInputDialog>
 #include <QProgressDialog>
 #include <QTimer>
+#include <QSvgRenderer>
+#include <QPainter>
 #include <miniscope.h>
 
 #include "imageviewwidget.h"
@@ -150,18 +152,43 @@ void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const Q
     }
 }
 
+static bool currentThemeIsDark()
+{
+    const QPalette pal;
+    const auto bgColor = pal.button().color();
+    return bgColor.value() < 128;
+}
+
+static QIcon renderIconInColormode(const QString &iconPath, bool isDark)
+{
+    if (!isDark)
+        return QIcon(iconPath);
+
+    // convert our bright-mode icon into something that's visible easier
+    // on a dark background
+    QFile f(iconPath);
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning().noquote().nospace() << "Failed to icon " << iconPath << ": " << f.errorString();
+        return QIcon(iconPath);
+    }
+
+    QTextStream in(&f);
+    auto data = in.readAll();
+    QSvgRenderer renderer(data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1")).toLocal8Bit());
+    QPixmap pix(96, 96);
+    pix.fill(QColor(0, 0, 0, 0));
+    QPainter painter(&pix);
+    renderer.render(&painter, pix.rect());
+
+    return QIcon(pix);
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::MainWindow),
       m_msTimer(new QTimer(this))
 {
     ui->setupUi(this);
-
-    // set icons with fallbacks
-    ui->btnOpenSaveDir->setIcon(QIcon::fromTheme(QStringLiteral("folder-open"), QIcon(":/icons/folder-open.svg")));
-    ui->actionSetDataLocation->setIcon(
-        QIcon::fromTheme(QStringLiteral("folder-open"), QIcon(":/icons/folder-open.svg")));
-    ui->btnDispLimitsReset->setIcon(QIcon::fromTheme(QStringLiteral("edit-reset"), QIcon(":/icons/edit-reset.svg")));
 
     // Create status bar
     m_statusBarLabel = new QLabel("OK", this);
@@ -240,6 +267,9 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
+    // set icons with fallbacks
+    updateIcons();
+
     // restore window geometry and splitter position, if any is saved
     setGeometry(settings.value("ui/geometry", geometry()).toRect());
     if (settings.contains("ui/splitterSizes")) {
@@ -279,6 +309,19 @@ MainWindow::MainWindow(QWidget *parent)
     // read current device info, if we can
     ui->camInfoLabel->setText("");
     on_sbCamId_valueChanged(ui->sbCamId->value());
+}
+
+void MainWindow::updateIcons()
+{
+    const bool isDark = currentThemeIsDark();
+
+    ui->btnOpenSaveDir->setIcon(
+        QIcon::fromTheme(QStringLiteral("folder-open"), renderIconInColormode(":/icons/folder-open.svg", isDark)));
+    ui->actionSetDataLocation->setIcon(
+        QIcon::fromTheme(QStringLiteral("folder-open"), renderIconInColormode(":/icons/folder-open.svg", isDark)));
+    ui->btnDispLimitsReset->setIcon(
+        QIcon::fromTheme(QStringLiteral("edit-reset"), renderIconInColormode(":/icons/edit-reset.svg", isDark)));
+    ui->btnHardReset->setIcon(renderIconInColormode(":/icons/hard-reset.svg", isDark));
 }
 
 MainWindow::~MainWindow()
@@ -419,6 +462,7 @@ void MainWindow::processMiniscopeDisplay()
     ui->btnDevConnect->setText("Connect");
     ui->btnDevConnect->setChecked(false);
     ui->btnRecord->setText("Record");
+    ui->btnHardReset->setEnabled(true);
 
     ui->containerScopeControls->setEnabled(false);
     ui->groupBoxDisplay->setEnabled(false);
@@ -488,6 +532,7 @@ void MainWindow::on_btnDevConnect_clicked()
 
     ui->btnDevConnect->setText("Disconnect");
     ui->btnDevConnect->setChecked(true);
+    ui->btnHardReset->setEnabled(false);
     ui->containerScopeControls->setEnabled(true);
     ui->groupBoxDisplay->setEnabled(true);
     ui->btnRecord->setEnabled(true);
@@ -569,6 +614,22 @@ void MainWindow::on_btnRecord_toggled(bool checked)
         ui->btnAcquireZStack->setEnabled(true);
         ui->btnRecord->setText("Record");
     }
+}
+
+void MainWindow::on_btnHardReset_clicked()
+{
+    const int scopeId = ui->sbCamId->value();
+    auto reply = QMessageBox::question(
+        this,
+        "Hard Reset Device?",
+        QStringLiteral("Do you really want to request Miniscope DAQ device %1 to perform a hard reset?").arg(scopeId),
+        QMessageBox::Yes | QMessageBox::No);
+    if (reply != QMessageBox::Yes)
+        return;
+
+    // issue a reset request
+    m_mscope->setScopeCamId(scopeId);
+    m_mscope->hardReset();
 }
 
 void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
@@ -816,6 +877,7 @@ void MainWindow::on_actionUseDarkTheme_toggled(bool arg1)
 {
 #ifdef Q_OS_LINUX
     changeColorsDarkmode(arg1);
+    updateIcons();
 
     QSettings settings(qApp->organizationName(), qApp->applicationName());
     settings.setValue("ui/useDarkStyle", arg1);

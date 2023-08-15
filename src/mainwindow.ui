@@ -333,8 +333,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1082</width>
-             <height>214</height>
+             <width>1084</width>
+             <height>268</height>
             </rect>
            </property>
            <attribute name="label">
@@ -443,13 +443,56 @@
              </layout>
             </item>
             <item>
-             <widget class="QPushButton" name="btnDevConnect">
-              <property name="text">
-               <string>Connect</string>
-              </property>
-              <property name="checkable">
-               <bool>false</bool>
-              </property>
+             <widget class="QWidget" name="widget_12" native="true">
+              <layout class="QHBoxLayout" name="horizontalLayout_15">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <property name="leftMargin">
+                <number>2</number>
+               </property>
+               <property name="topMargin">
+                <number>2</number>
+               </property>
+               <property name="rightMargin">
+                <number>2</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="btnDevConnect">
+                 <property name="text">
+                  <string>Connect</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>false</bool>
+                 </property>
+                 <property name="autoDefault">
+                  <bool>false</bool>
+                 </property>
+                 <property name="default">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnHardReset">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="toolTip">
+                  <string>Hard reset the selected Miniscope and force it to reconnect to the system</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </widget>
             </item>
             <item>
@@ -472,8 +515,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1082</width>
-             <height>312</height>
+             <width>1084</width>
+             <height>268</height>
             </rect>
            </property>
            <attribute name="label">
@@ -795,8 +838,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1082</width>
-             <height>214</height>
+             <width>1084</width>
+             <height>268</height>
             </rect>
            </property>
            <attribute name="label">
@@ -990,8 +1033,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1082</width>
-             <height>279</height>
+             <width>1084</width>
+             <height>268</height>
             </rect>
            </property>
            <attribute name="label">
@@ -1335,7 +1378,7 @@
      <x>0</x>
      <y>0</y>
      <width>1200</width>
-     <height>27</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuInfo">
