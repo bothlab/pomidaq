@@ -39,6 +39,13 @@
 #include <opencv2/opencv_modules.hpp>
 #include <opencv2/videoio.hpp>
 
+#ifdef Q_OS_LINUX
+#include <linux/videodev2.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
 #include "scopeintf.h"
 #include "videowriter.h"
 #include "csvwriter.h"
@@ -587,6 +594,27 @@ void Miniscope::sendCommandsToDevice()
     }
 }
 
+#ifdef Q_OS_LINUX
+static void resetV4L2State(int devIdx)
+{
+    auto devicePath = QStringLiteral("/dev/video%1").arg(devIdx);
+    int fd = open(qPrintable(devicePath), O_RDWR);
+    if (fd == -1) {
+        qCWarning(logMScope).noquote() << "Unable to open video device" << devicePath << "for reset.";
+        return;
+    }
+
+    // Release any remaining held buffers, so future connections are pristine
+    v4l2_requestbuffers reqbuf;
+    reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    reqbuf.memory = V4L2_MEMORY_MMAP;
+    reqbuf.count = 0;
+    ioctl(fd, VIDIOC_REQBUFS, &reqbuf);
+
+    close(fd);
+}
+#endif
+
 bool Miniscope::openCamera()
 {
     if (d->connected) {
@@ -594,6 +622,11 @@ bool Miniscope::openCamera()
             << "Trying to open an already opened camera connection. This is likely not intended.";
         disconnect();
     }
+
+#ifdef Q_OS_LINUX
+    // ensure V4L buffer state is reset
+    resetV4L2State(d->scopeCamId);
+#endif
 
     // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen, has issues
     // with some properties of the Miniscope camera and will refuse to grab any proper frame.
@@ -794,8 +827,14 @@ void Miniscope::disconnect()
 {
     stop();
     d->cam.release();
-    if (d->connected)
+    if (d->connected) {
+#ifdef Q_OS_LINUX
+        // Cleanup V4L state.
+        // If this is omitted, subsequent reconnect attempts will fail.
+        resetV4L2State(d->scopeCamId);
+#endif
         statusMessage(QStringLiteral("Disconnected camera %1").arg(d->scopeCamId));
+    }
     d->connected = false;
 }
 
