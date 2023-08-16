@@ -833,18 +833,23 @@ void MainWindow::on_actionAboutVideoFormats_triggered()
 
 void MainWindow::on_actionAbout_triggered()
 {
-    const auto text = QStringLiteral("PoMiDAQ Version " PROJECT_VERSION
-                                     " \n\n"
-                                     "© 2019-2023 Matthias Klumpp\n\n"
-                                     "PoMiDAQ is free software: you can redistribute it and/or modify "
-                                     "it under the terms of the GNU Lesser General Public License as published by "
-                                     "the Free Software Foundation, either version 3 of the License, or "
-                                     "(at your option) any later version.\n"
-                                     "\n"
-                                     "PoMiDAQ is distributed in the hope that it will be useful, "
-                                     "but WITHOUT ANY WARRANTY; without even the implied warranty of "
-                                     "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
-                                     "GNU Lesser General Public License for more details.");
+    const auto text = QStringLiteral(
+        "<html>PoMiDAQ Version " PROJECT_VERSION
+        "<br/><br/>"
+        "© 2019-2023 Matthias Klumpp<br/><br/>"
+        "PoMiDAQ is free software: you can redistribute it and/or modify "
+        "it under the terms of the GNU Lesser General Public License as published by "
+        "the Free Software Foundation, either version 3 of the License, or "
+        "(at your option) any later version."
+        "<br/><br/>"
+        "PoMiDAQ is distributed in the hope that it will be useful, "
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of "
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
+        "GNU Lesser General Public License for more details."
+        "<br/><br/>"
+        "<strong>Citation</strong><br/>"
+        "If you want to cite PoMiDAQ, please use its Zenodo DOI:<br/>"
+        "<i>Klumpp, Matthias. (2022). PoMiDAQ. Zenodo. https://doi.org/10.5281/zenodo.8225049</i>");
     QMessageBox::about(this, QStringLiteral("About this tool"), text);
 }
 
