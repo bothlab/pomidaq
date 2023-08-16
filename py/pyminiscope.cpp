@@ -101,6 +101,7 @@ PYBIND11_MODULE(miniscope, m)
 
         .def("connect", &Miniscope::connect, "Connect the selected Miniscope")
         .def("disconnect", &Miniscope::disconnect, "Disconnect the selected Miniscope and stop all operations")
+        .def("hard_reset", &Miniscope::hardReset, "Forcefully reset the selected Miniscope DAQ box and make it reboot")
         .def("run", &Miniscope::run, "Start image acquisition with the selected settings")
         .def("stop", &Miniscope::stop, "Stop image acquisition")
         .def("start_recording", &Miniscope::startRecording, "Start recording a video file")
