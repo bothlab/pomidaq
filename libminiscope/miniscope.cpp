@@ -623,11 +623,6 @@ bool Miniscope::openCamera()
         disconnect();
     }
 
-#ifdef Q_OS_LINUX
-    // ensure V4L buffer state is reset
-    resetV4L2State(d->scopeCamId);
-#endif
-
     // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen, has issues
     // with some properties of the Miniscope camera and will refuse to grab any proper frame.
     // On Windows on the other hand, the MSMF backend seems to be the best and most complete option.
