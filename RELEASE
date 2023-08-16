@@ -3,15 +3,15 @@ PoMiDAQ Release Notes
 
 1. Set variables
 
-OLD_VERSION="0.5.0"
-NEW_VERSION="0.5.1"
+OLD_VERSION="0.5.1"
+NEW_VERSION="0.5.2"
 
 2. Write NEWS entries for PoMiDAQ in the same format as usual.
 
 git shortlog v$OLD_VERSION.. | grep -i -v trivial | grep -v Merge > NEWS.new
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Version 0.5.1
+Version 0.5.2
 ~~~~~~~~~~~~~
 Released: 2023-xx-xx
 
