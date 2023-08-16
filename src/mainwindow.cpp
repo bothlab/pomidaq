@@ -259,7 +259,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->toolBox->setCurrentIndex(0);
 
     // select our default Miniscope device choice, or the one last used by the user
-    const auto selectedDevice = settings.value("device/type", QStringLiteral("Miniscope_V4")).toString().toLower();
+    const auto selectedDevice = settings.value("device/type", QStringLiteral("Miniscope_V4_BNO")).toString().toLower();
     for (int i = 0; i < ui->deviceTypeComboBox->count(); ++i) {
         if (ui->deviceTypeComboBox->itemText(i).toLower() == selectedDevice) {
             ui->deviceTypeComboBox->setCurrentIndex(i);
