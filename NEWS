@@ -1,3 +1,20 @@
+Version 0.5.1
+~~~~~~~~~~~~~
+Released: 2023-08-16
+
+Features:
+ * Update to more modern image rendering code from Syntalos
+ * Add option to highlight image saturation
+ * Allow building for OpenGL ES, making arm64 builds easier
+ * Implement a device hard-reset feature for developers
+
+Bugfixes:
+ * Clean up V4L buffers after OpenCV release for clean future device reconnect
+
+Miscellaneous:
+ * ci: Build for Debian 12 by default
+ * cmake: Stop using PythonInterp, use Python3 module instead in FindNumPy
+
 Version 0.5.0
 ~~~~~~~~~~~~~
 Released: 2023-08-08
