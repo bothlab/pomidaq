@@ -246,6 +246,10 @@ void VideoWriter::initializeInternal()
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
+    // We must set time_base on the stream as well, otherwise it will be set to default values for come container formats.
+    // See https://projects.blender.org/blender/blender/commit/b2e067d98ccf43657404b917b13ad5275f1c96e2 for details.
+    d->vstrm->time_base = d->cctx->time_base;
+
     if (d->codec == VideoCodec::Raw)
         d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE
                                    || d->inputPixFormat == AV_PIX_FMT_GRAY16BE
