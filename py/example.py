@@ -70,13 +70,12 @@ mscope.set_control_value('led0', EXCITATION_VAL)
 
 # prepare video recording
 print('\n--------')
-mscope.video_filename = VIDEO_FILENAME
 print('Codec used for recording: {}'.format(mscope.video_codec))
 print('Container used for recording: {}'.format(mscope.video_container))
-print('Saving video in: {}'.format(mscope.video_filename))
+print('Saving video in: {}'.format(VIDEO_FILENAME))
 print('--------\n')
 
-if not mscope.start_recording(''):
+if not mscope.start_recording(VIDEO_FILENAME):
     print('Unable to start video recording: {}'.format(mscope.last_error), file=sys.stderr)
     sys.exit(1)
 
