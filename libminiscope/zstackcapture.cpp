@@ -22,18 +22,27 @@
 
 #include "zstackcapture.h"
 
+namespace MScope
+{
+
+static void emitProgress(TaskProgressEmitter *progress, int value)
+{
+    if (progress != nullptr)
+        emit progress->progress(value);
+}
+
 class ZStackException : public QException
 {
 public:
-    ZStackException(const QString &message)
+    explicit ZStackException(const QString &message)
         : msg(message)
     {
     }
-    ZStackException(const char *message)
+    explicit ZStackException(const char *message)
         : msg(QString::fromUtf8(message))
     {
     }
-    ZStackException(const std::exception &error)
+    explicit ZStackException(const std::exception &error)
         : msg(QString::fromUtf8(error.what()))
     {
     }
@@ -42,10 +51,12 @@ public:
     {
         throw *this;
     }
+
     QException *clone() const override
     {
         return new ZStackException(*this);
     }
+
     const char *what() const noexcept override
     {
         return qPrintable(msg);
@@ -61,7 +72,8 @@ static void captureZStack(
     int toEWL,
     uint step,
     uint averageCount,
-    const QString &outFilename)
+    const QString &outFilename,
+    TaskProgressEmitter *progress)
 {
     ControlDefinition ewlControl;
     const auto controls = mscope->controls();
@@ -101,6 +113,7 @@ static void captureZStack(
     else
         stepSigned = step * -1;
 
+    int maxProgress = abs(fromEWL - toEWL) / abs(stepSigned);
     std::vector<cv::Mat> stack;
     for (int currentPos = fromEWL; currentPos != toEWL; currentPos += stepSigned) {
         std::vector<cv::Mat> currentMats;
@@ -141,6 +154,8 @@ static void captureZStack(
 
         accMat.convertTo(accMat, CV_8U, 1. / currentMats.size());
         stack.push_back(accMat);
+
+        emitProgress(progress, (100.0 / maxProgress) * stack.size());
     }
 
     try {
@@ -148,6 +163,8 @@ static void captureZStack(
     } catch (const std::exception &e) {
         throw ZStackException(e);
     }
+
+    emitProgress(progress, 100);
 }
 
 QFuture<void> launchZStackCapture(
@@ -156,10 +173,14 @@ QFuture<void> launchZStackCapture(
     int toEWL,
     uint step,
     uint averageCount,
-    const QString &outFilename)
+    const QString &outFilename,
+    TaskProgressEmitter *progress)
 {
-    // TODO: Make use of QPromise when we can switch to Qt6
+    // TODO: Make use of QPromise when we can switch to Qt6, obsolete ProgressEmitter
+    emitProgress(progress, 0);
     return QtConcurrent::run([=]() {
-        captureZStack(mscope, fromEWL, toEWL, step, averageCount, outFilename);
+        captureZStack(mscope, fromEWL, toEWL, step, averageCount, outFilename, progress);
     });
 }
+
+} // namespace MScope

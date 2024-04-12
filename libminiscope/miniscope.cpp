@@ -1037,9 +1037,15 @@ void Miniscope::stopRecording()
     statusMessage("Video recording stopped.");
 }
 
-QFuture<void> Miniscope::acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
+QFuture<void> Miniscope::acquireZStack(
+    int fromEWL,
+    int toEWL,
+    uint step,
+    uint averageCount,
+    const QString &outFilename,
+    TaskProgressEmitter *progress)
 {
-    return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename);
+    return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename, progress);
 }
 
 bool Miniscope::isConnected() const

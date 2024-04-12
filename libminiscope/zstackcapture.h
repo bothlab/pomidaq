@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2021 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -23,7 +23,8 @@
 
 #include "miniscope.h"
 
-using namespace MScope;
+namespace MScope
+{
 
 QFuture<void> launchZStackCapture(
     Miniscope *mscope,
@@ -31,4 +32,7 @@ QFuture<void> launchZStackCapture(
     int toEWL,
     uint step,
     uint averageCount,
-    const QString &outFilename);
+    const QString &outFilename,
+    TaskProgressEmitter *progress = nullptr);
+
+}

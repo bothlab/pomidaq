@@ -760,19 +760,27 @@ void MainWindow::on_btnAcquireZStack_clicked()
     ui->btnDevConnect->setEnabled(false);
     ui->pageSettings->setEnabled(false);
     setStatusText("Acquiring z-stack...");
+
+    QProgressDialog progressDlg("Acquiring images...", QString(), 0, 100, this);
+    progressDlg.setWindowModality(Qt::WindowModal);
+    progressDlg.setWindowFlags(progressDlg.windowFlags() & ~Qt::WindowCloseButtonHint);
+    progressDlg.show();
+
+    auto progress = std::make_unique<TaskProgressEmitter>();
+    connect(progress.get(), &TaskProgressEmitter::progress, [&](int value) {
+        progressDlg.setValue(value);
+    });
+
     auto future = m_mscope->acquireZStack(
         ui->sbStackFrom->value(),
         ui->sbStackTo->value(),
         ui->sbStackStepSize->value(),
         ui->sbStackAverage->value(),
-        fileName);
-
-    QProgressDialog progressDlg("Acquiring images...", QString(), 0, 0, this);
-    progressDlg.setWindowModality(Qt::WindowModal);
-    progressDlg.show();
-
+        fileName,
+        progress.get());
     while (!future.isFinished())
         QApplication::processEvents();
+
     try {
         future.waitForFinished();
         setStatusText("OK");
