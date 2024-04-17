@@ -71,6 +71,7 @@ private slots:
     void on_accAlphaSpinBox_valueChanged(double arg1);
 
     void on_btnAcquireZStack_clicked();
+    void on_btnAcquireAccu3D_clicked();
 
     void on_actionShowMiniscopeLog_toggled(bool arg1);
     void on_actionUseDarkTheme_toggled(bool arg1);

@@ -1048,6 +1048,19 @@ QFuture<void> Miniscope::acquireZStack(
     return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename, progress);
 }
 
+QFuture<void> Miniscope::accumulate3DView(
+    int fromEWL,
+    int toEWL,
+    uint step,
+    uint count,
+    bool saveRaw,
+    const QString &outDir,
+    const QString &outName,
+    TaskProgressEmitter *progress)
+{
+    return launch3DAccumulation(this, fromEWL, toEWL, step, count, saveRaw, outDir, outName, progress);
+}
+
 bool Miniscope::isConnected() const
 {
     return d->connected;

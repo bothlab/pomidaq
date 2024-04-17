@@ -326,7 +326,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>0</number>
+           <number>4</number>
           </property>
           <widget class="QWidget" name="pageConnect">
            <property name="geometry">
@@ -334,7 +334,7 @@
              <x>0</x>
              <y>0</y>
              <width>1084</width>
-             <height>268</height>
+             <height>237</height>
             </rect>
            </property>
            <attribute name="label">
@@ -516,7 +516,7 @@
              <x>0</x>
              <y>0</y>
              <width>1084</width>
-             <height>268</height>
+             <height>266</height>
             </rect>
            </property>
            <attribute name="label">
@@ -839,7 +839,7 @@
              <x>0</x>
              <y>0</y>
              <width>1084</width>
-             <height>268</height>
+             <height>237</height>
             </rect>
            </property>
            <attribute name="label">
@@ -1034,7 +1034,7 @@
              <x>0</x>
              <y>0</y>
              <width>1084</width>
-             <height>268</height>
+             <height>242</height>
             </rect>
            </property>
            <attribute name="label">
@@ -1290,6 +1290,257 @@
                <size>
                 <width>20</width>
                 <height>107</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="pageAccu3D">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>0</y>
+             <width>1084</width>
+             <height>237</height>
+            </rect>
+           </property>
+           <attribute name="label">
+            <string>Accumulate 3D</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayout_9">
+            <property name="spacing">
+             <number>4</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <layout class="QFormLayout" name="formLayout_5">
+              <property name="horizontalSpacing">
+               <number>4</number>
+              </property>
+              <property name="verticalSpacing">
+               <number>2</number>
+              </property>
+              <item row="0" column="0">
+               <widget class="QLabel" name="stackRangeLabel_2">
+                <property name="text">
+                 <string>Stack Range</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QWidget" name="displayMinMaxWidget_3" native="true">
+                <layout class="QHBoxLayout" name="horizontalLayout_16">
+                 <property name="spacing">
+                  <number>2</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QSpinBox" name="sbA3DStackFrom">
+                   <property name="toolTip">
+                    <string>Minimum grayscale pixel value</string>
+                   </property>
+                   <property name="minimum">
+                    <number>-127</number>
+                   </property>
+                   <property name="maximum">
+                    <number>127</number>
+                   </property>
+                   <property name="value">
+                    <number>-127</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="label_6">
+                   <property name="text">
+                    <string> to </string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QSpinBox" name="sbA3DStackTo">
+                   <property name="toolTip">
+                    <string>Maximum grayscale pixel value</string>
+                   </property>
+                   <property name="minimum">
+                    <number>-127</number>
+                   </property>
+                   <property name="maximum">
+                    <number>127</number>
+                   </property>
+                   <property name="value">
+                    <number>127</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_5">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="stackStepSizeLabel_2">
+                <property name="text">
+                 <string>Step Size</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QWidget" name="widget_13" native="true">
+                <layout class="QHBoxLayout" name="horizontalLayout_17">
+                 <property name="spacing">
+                  <number>2</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>2</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QSpinBox" name="sbA3DStackStepSize">
+                   <property name="minimum">
+                    <number>1</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_9">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>969</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="durationLabel">
+                <property name="text">
+                 <string>Duration</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QSpinBox" name="sbA3DCyclesDuration">
+                <property name="suffix">
+                 <string> cycles</string>
+                </property>
+                <property name="minimum">
+                 <number>2</number>
+                </property>
+                <property name="maximum">
+                 <number>400</number>
+                </property>
+                <property name="value">
+                 <number>24</number>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="keepRawDataLabel">
+                <property name="text">
+                 <string>Keep Raw Data</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QCheckBox" name="cbA3DKeepRaw">
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QWidget" name="widget_14" native="true">
+              <layout class="QHBoxLayout" name="horizontalLayout_18">
+               <item>
+                <spacer name="horizontalSpacer_10">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnAcquireAccu3D">
+                 <property name="text">
+                  <string>Run 3D Accumulation</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer_11">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>493</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <spacer name="verticalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>101</height>
                </size>
               </property>
              </spacer>

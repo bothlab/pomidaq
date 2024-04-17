@@ -795,6 +795,69 @@ void MainWindow::on_btnAcquireZStack_clicked()
     ui->btnDevConnect->setEnabled(prevConnectState);
 }
 
+void MainWindow::on_btnAcquireAccu3D_clicked()
+{
+    static QString saveDirName = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    saveDirName = QFileDialog::getExistingDirectory(this, QStringLiteral("Select Data Storage Directory"), saveDirName);
+    if (saveDirName.isEmpty())
+        return;
+
+    bool ok;
+    static QString saveDataName = QStringLiteral("MyImageStack");
+    saveDataName = QInputDialog::getText(
+        this,
+        QStringLiteral("Set Data Name"),
+        QStringLiteral("Name of recording:"),
+        QLineEdit::Normal,
+        saveDataName,
+        &ok);
+    if (!ok || saveDataName.isEmpty())
+        return;
+
+    const auto prevRecordState = ui->btnRecord->isEnabled();
+    const auto prevConnectState = ui->btnDevConnect->isEnabled();
+    ui->btnAcquireZStack->setEnabled(false);
+    ui->btnRecord->setEnabled(false);
+    ui->btnDevConnect->setEnabled(false);
+    ui->pageSettings->setEnabled(false);
+    setStatusText("Accumulating 3D data...");
+
+    QProgressDialog progressDlg("Accumulating 3D data...", QString(), 0, 100, this);
+    progressDlg.setWindowModality(Qt::WindowModal);
+    progressDlg.setWindowFlags(progressDlg.windowFlags() & ~Qt::WindowCloseButtonHint);
+    progressDlg.show();
+
+    auto progress = std::make_unique<TaskProgressEmitter>();
+    connect(progress.get(), &TaskProgressEmitter::progress, [&](int value) {
+        progressDlg.setValue(value);
+    });
+
+    auto future = m_mscope->accumulate3DView(
+        ui->sbA3DStackFrom->value(),
+        ui->sbA3DStackTo->value(),
+        ui->sbA3DStackStepSize->value(),
+        ui->sbA3DCyclesDuration->value(),
+        ui->cbA3DKeepRaw->isChecked(),
+        saveDirName,
+        saveDataName,
+        progress.get());
+    while (!future.isFinished())
+        QApplication::processEvents();
+
+    try {
+        future.waitForFinished();
+        setStatusText("OK");
+        progressDlg.close();
+    } catch (const QException &e) {
+        QMessageBox::critical(this, QStringLiteral("Unable to acquite stack for 3D accumulation"), e.what());
+        setStatusText("3D data accumulation failed.");
+    }
+    ui->btnAcquireZStack->setEnabled(true);
+    ui->pageSettings->setEnabled(true);
+    ui->btnRecord->setEnabled(prevRecordState);
+    ui->btnDevConnect->setEnabled(prevConnectState);
+}
+
 void MainWindow::on_actionAboutVideoFormats_triggered()
 {
     const auto infoText = QStringLiteral(

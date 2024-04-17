@@ -150,6 +150,15 @@ public:
         uint averageCount,
         const QString &outFilename,
         TaskProgressEmitter *progress = nullptr);
+    QFuture<void> accumulate3DView(
+        int fromEWL,
+        int toEWL,
+        uint step,
+        uint count,
+        bool saveRaw,
+        const QString &outDir,
+        const QString &outName,
+        TaskProgressEmitter *progress = nullptr);
 
     bool isConnected() const;
     bool isRunning() const;
