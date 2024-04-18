@@ -831,7 +831,8 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
         return;
 
     bool ok;
-    static QString saveDataName = QStringLiteral("MyImageStack");
+    static QString saveDataName = QStringLiteral("%1_MyImageStack")
+                                      .arg(QDateTime::currentDateTime().toString("yyMMdd-hhmm"));
     saveDataName = QInputDialog::getText(
         this,
         QStringLiteral("Set Data Name"),
