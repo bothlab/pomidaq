@@ -326,7 +326,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>4</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="pageConnect">
            <property name="geometry">
@@ -1302,7 +1302,7 @@
              <x>0</x>
              <y>0</y>
              <width>1084</width>
-             <height>237</height>
+             <height>255</height>
             </rect>
            </property>
            <attribute name="label">
@@ -1609,13 +1609,13 @@
          <number>4</number>
         </property>
         <property name="topMargin">
-         <number>4</number>
+         <number>0</number>
         </property>
         <property name="rightMargin">
-         <number>4</number>
+         <number>0</number>
         </property>
         <property name="bottomMargin">
-         <number>4</number>
+         <number>0</number>
         </property>
        </layout>
       </widget>

@@ -34,6 +34,7 @@
 #include <QTimer>
 #include <QSvgRenderer>
 #include <QPainter>
+#include <QProgressBar>
 #include <miniscope.h>
 
 #include "imageviewwidget.h"
@@ -192,7 +193,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Create status bar
     m_statusBarLabel = new QLabel("OK", this);
-    statusBar()->addWidget(m_statusBarLabel, 1);
+    statusBar()->addWidget(m_statusBarLabel, 5);
+
+    m_statusProgress = new QProgressBar(this);
+    m_statusProgress->setAlignment(Qt::AlignLeft);
+    statusBar()->addPermanentWidget(m_statusProgress, 1);
+    setStatusProgressVisible(false);
 
     // don't display log by default
     ui->logTextList->setVisible(false);
@@ -385,6 +391,22 @@ void MainWindow::setStatusText(const QString &msg)
 {
     m_statusBarLabel->setText(msg);
     QApplication::processEvents();
+}
+
+void MainWindow::setStatusProgress(int progress)
+{
+    if (progress < 0) {
+        m_statusProgress->setRange(0, 0);
+    } else {
+        m_statusProgress->setValue(progress);
+    }
+}
+
+void MainWindow::setStatusProgressVisible(bool visible)
+{
+    m_statusProgress->setRange(0, 100);
+    m_statusProgress->setValue(0);
+    m_statusProgress->setVisible(visible);
 }
 
 void MainWindow::setDataExportDir(const QString &dir)
@@ -606,6 +628,8 @@ void MainWindow::on_btnRecord_toggled(bool checked)
             ui->btnRecord->setChecked(false);
         }
         ui->btnAcquireZStack->setEnabled(false);
+        setStatusProgressVisible(true);
+        setStatusProgress(-1);
 
     } else {
         m_mscope->stopRecording();
@@ -613,6 +637,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
         ui->btnDevConnect->setEnabled(true);
         ui->btnAcquireZStack->setEnabled(true);
         ui->btnRecord->setText("Record");
+        setStatusProgressVisible(false);
     }
 }
 
@@ -756,20 +781,22 @@ void MainWindow::on_btnAcquireZStack_clicked()
     const auto prevRecordState = ui->btnRecord->isEnabled();
     const auto prevConnectState = ui->btnDevConnect->isEnabled();
     ui->btnAcquireZStack->setEnabled(false);
+    ui->btnAcquireAccu3D->setEnabled(false);
     ui->btnRecord->setEnabled(false);
     ui->btnDevConnect->setEnabled(false);
     ui->pageSettings->setEnabled(false);
     setStatusText("Acquiring z-stack...");
 
-    QProgressDialog progressDlg("Acquiring images...", QString(), 0, 100, this);
-    progressDlg.setWindowModality(Qt::WindowModal);
-    progressDlg.setWindowFlags(progressDlg.windowFlags() & ~Qt::WindowCloseButtonHint);
-    progressDlg.show();
-
+    setStatusProgressVisible(true);
     auto progress = std::make_unique<TaskProgressEmitter>();
-    connect(progress.get(), &TaskProgressEmitter::progress, [&](int value) {
-        progressDlg.setValue(value);
-    });
+    connect(
+        progress.get(),
+        &TaskProgressEmitter::progress,
+        this,
+        [this](int value) {
+            setStatusProgress(value);
+        },
+        Qt::QueuedConnection);
 
     auto future = m_mscope->acquireZStack(
         ui->sbStackFrom->value(),
@@ -784,12 +811,13 @@ void MainWindow::on_btnAcquireZStack_clicked()
     try {
         future.waitForFinished();
         setStatusText("OK");
-        progressDlg.close();
+        setStatusProgressVisible(false);
     } catch (const QException &e) {
         QMessageBox::critical(this, QStringLiteral("Unable to acquite stack"), e.what());
         setStatusText("Z-stack failed.");
     }
     ui->btnAcquireZStack->setEnabled(true);
+    ui->btnAcquireAccu3D->setEnabled(true);
     ui->pageSettings->setEnabled(true);
     ui->btnRecord->setEnabled(prevRecordState);
     ui->btnDevConnect->setEnabled(prevConnectState);
@@ -817,20 +845,22 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
     const auto prevRecordState = ui->btnRecord->isEnabled();
     const auto prevConnectState = ui->btnDevConnect->isEnabled();
     ui->btnAcquireZStack->setEnabled(false);
+    ui->btnAcquireAccu3D->setEnabled(false);
     ui->btnRecord->setEnabled(false);
     ui->btnDevConnect->setEnabled(false);
     ui->pageSettings->setEnabled(false);
     setStatusText("Accumulating 3D data...");
 
-    QProgressDialog progressDlg("Accumulating 3D data...", QString(), 0, 100, this);
-    progressDlg.setWindowModality(Qt::WindowModal);
-    progressDlg.setWindowFlags(progressDlg.windowFlags() & ~Qt::WindowCloseButtonHint);
-    progressDlg.show();
-
+    setStatusProgressVisible(true);
     auto progress = std::make_unique<TaskProgressEmitter>();
-    connect(progress.get(), &TaskProgressEmitter::progress, [&](int value) {
-        progressDlg.setValue(value);
-    });
+    connect(
+        progress.get(),
+        &TaskProgressEmitter::progress,
+        this,
+        [this](int value) {
+            setStatusProgress(value);
+        },
+        Qt::QueuedConnection);
 
     auto future = m_mscope->accumulate3DView(
         ui->sbA3DStackFrom->value(),
@@ -847,12 +877,13 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
     try {
         future.waitForFinished();
         setStatusText("OK");
-        progressDlg.close();
+        setStatusProgressVisible(false);
     } catch (const QException &e) {
         QMessageBox::critical(this, QStringLiteral("Unable to acquite stack for 3D accumulation"), e.what());
         setStatusText("3D data accumulation failed.");
     }
     ui->btnAcquireZStack->setEnabled(true);
+    ui->btnAcquireAccu3D->setEnabled(true);
     ui->pageSettings->setEnabled(true);
     ui->btnRecord->setEnabled(prevRecordState);
     ui->btnDevConnect->setEnabled(prevConnectState);
@@ -907,7 +938,7 @@ void MainWindow::on_actionAbout_triggered()
     const auto text = QStringLiteral(
         "<html>PoMiDAQ Version " PROJECT_VERSION
         "<br/><br/>"
-        "© 2019-2023 Matthias Klumpp<br/><br/>"
+        "© 2019-2024 Matthias Klumpp<br/><br/>"
         "PoMiDAQ is free software: you can redistribute it and/or modify "
         "it under the terms of the GNU Lesser General Public License as published by "
         "the Free Software Foundation, either version 3 of the License, or "

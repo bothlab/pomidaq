@@ -26,6 +26,7 @@
 class ImageViewWidget;
 class MSControlWidget;
 class QLabel;
+class QProgressBar;
 namespace MScope
 {
 class Miniscope;
@@ -87,6 +88,7 @@ protected:
 private:
     Ui::MainWindow *ui;
     QLabel *m_statusBarLabel;
+    QProgressBar *m_statusProgress;
 
     MScope::Miniscope *m_mscope;
     QList<MSControlWidget *> m_controls;
@@ -104,6 +106,8 @@ private:
     void processMiniscopeDisplay();
     void writeLogMessage(const QString &msg);
     void setStatusText(const QString &msg);
+    void setStatusProgress(int progress);
+    void setStatusProgressVisible(bool visible);
     void setDataExportDir(const QString &dir);
     void setUseUnixTimestamps(bool useUnixTimestamp);
 };
