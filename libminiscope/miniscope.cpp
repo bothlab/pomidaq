@@ -665,7 +665,7 @@ bool Miniscope::openCamera()
     if (fwABIVersion < 2)
         qCWarning(logMScope).noquote() << "Firmware version is too low, some features may be unavailable.";
 
-    // recording disabled, we are just running
+    // ensure sync pulses are disabled at this point
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 
     // ensure the command queue isn't full with old packets that flood the
@@ -861,7 +861,7 @@ bool Miniscope::hardReset()
     // clear any old commands
     d->commandQueue.clear();
 
-    // disable any recording, just in case
+    // disable any recording / sync pulse emission, just in case
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 
     // send reset command
@@ -1623,6 +1623,10 @@ void Miniscope::captureThread(void *msPtr)
     // align our start time, initially
     d->captureStartTimeInitialized = false;
 
+    // tell DAQ hardware that we are acquiring data now (enables sync trigger output)
+    d->cam.set(cv::CAP_PROP_SATURATION, 0x0001);
+
+    // communicate with hardware until stopped or error
     while (d->running) {
         cv::Mat frame;
         const auto cycleStartTime = std::chrono::steady_clock::now();
@@ -1841,9 +1845,6 @@ void Miniscope::captureThread(void *msPtr)
                 }
                 frameTimestamp = driverFrameTimestamp - driverStartTimestamp;
                 vwriter->setCaptureStartTimestamp(frameTimestamp);
-
-                // tell DAQ hardware that we are recording now (enables sync trigger output)
-                d->cam.set(cv::CAP_PROP_SATURATION, 0x0001);
             }
         } else {
             // we are not recording or stopped recording
@@ -1863,9 +1864,6 @@ void Miniscope::captureThread(void *msPtr)
                         bnoWriter->stop();
                     bnoWriter.reset();
                 }
-
-                // let DAQ board know that we aren't recording (anymore)
-                d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
             }
         }
 
@@ -1976,6 +1974,9 @@ void Miniscope::captureThread(void *msPtr)
         d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 
+    // let DAQ board know that we aren't acquiring data anymore
+    d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
+
     // finalize recording (if there was any still ongoing)
     vwriter->finalize();
     d->lastRecordedFrameTime = std::chrono::milliseconds(0);
@@ -1985,9 +1986,6 @@ void Miniscope::captureThread(void *msPtr)
         if (bnoWriter.get() != nullptr)
             bnoWriter->stop();
     }
-
-    // any recording is finished at this point, let DAQ hardware know about that
-    d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 }
 
 QString MScope::videoDeviceNameFromId(int id)
