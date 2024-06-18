@@ -22,7 +22,7 @@ cmake -G Ninja \
 
 # Build, Test & Install
 ninja
-ninja test
+CTEST_OUTPUT_ON_FAILURE=1 ninja test -v
 DESTDIR=/tmp/install_root/ ninja install
 cd ..
 rm -rf build/

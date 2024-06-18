@@ -9,7 +9,9 @@
 
   <metadata_license>FSFAP</metadata_license>
   <project_license>LGPL-3.0+</project_license>
-  <developer_name translate="no">Matthias Klumpp</developer_name>
+  <developer id="net.tenstral.matthias">
+    <name translate="no">Matthias Klumpp</name>
+  </developer>
 
   <description>
     <p>
