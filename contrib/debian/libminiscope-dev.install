@@ -1,0 +1,3 @@
+usr/include/*
+usr/lib/*/libminiscope.so
+usr/lib/*/pkgconfig/*
