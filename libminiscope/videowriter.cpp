@@ -238,13 +238,26 @@ void VideoWriter::initializeInternal()
     // set codec parameters
     d->cctx->codec_id = codecId;
     d->cctx->codec_type = AVMEDIA_TYPE_VIDEO;
-    if (vcodec->pix_fmts != nullptr)
-        d->cctx->pix_fmt = vcodec->pix_fmts[0];
     d->cctx->time_base = av_inv_q(d->fps);
     d->cctx->width = d->width;
     d->cctx->height = d->height;
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
+
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+    const enum AVPixelFormat *fmts = nullptr;
+    ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
+    if (ret < 0 || fmts == nullptr) {
+        std::cerr << "Failed to get supported pixel formats for codec " << vcodec->name << ": " << ret;
+        d->cctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    } else {
+        d->cctx->pix_fmt = fmts[0];
+    }
+#else
+    d->cctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    if (vcodec->pix_fmts != nullptr)
+        d->cctx->pix_fmt = vcodec->pix_fmts[0];
+#endif
 
     // We must set time_base on the stream as well, otherwise it will be set to default values for some container
     // formats. See https://projects.blender.org/blender/blender/commit/b2e067d98ccf43657404b917b13ad5275f1c96e2 for
