@@ -214,7 +214,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Miniscope controls
     m_controlsLayout = new QVBoxLayout(ui->gbDeviceCtls);
-    m_controlsLayout->setMargin(2);
+    m_controlsLayout->setContentsMargins(2, 2, 2, 2);
     m_controlsLayout->setSpacing(4);
     ui->gbDeviceCtls->setLayout(m_controlsLayout);
     m_controlsLayout->addStretch();
@@ -381,7 +381,7 @@ void MainWindow::queueLogMessage(const QString &msg)
 {
     QMetaObject::invokeMethod(
         this,
-        [=]() {
+        [this, msg]() {
             writeLogMessage(msg);
         },
         Qt::QueuedConnection);
@@ -429,7 +429,7 @@ void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)
 void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
 {
     // clear previous controls
-    for (const auto &control : qAsConst(m_controls))
+    for (const auto &control : std::as_const(m_controls))
         delete control;
     m_controls.clear();
 
@@ -546,7 +546,7 @@ void MainWindow::on_btnDevConnect_clicked()
     m_mscope->setUseUnixTimestamps(m_useUnixTimestamps);
 
     // reflect currently active control values in the UI
-    for (const auto &w : qAsConst(m_controls))
+    for (const auto &w : std::as_const(m_controls))
         w->setValue(m_mscope->controlValue(w->controlId()));
 
     // run and display images

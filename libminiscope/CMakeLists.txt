@@ -19,7 +19,7 @@ set(LIBMINISCOPE_HEADERS
     mediatypes.h
 )
 
-qt5_add_resources(LIBMINISCOPE_RES_SRC mscopelr.qrc)
+qt6_add_resources(LIBMINISCOPE_RES_SRC mscopelr.qrc)
 
 add_library(miniscope
     ${LIBMINISCOPE_SRC}
@@ -42,8 +42,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miniscope.pc DESTINATION "${CMAKE_INST
 
 target_link_libraries(miniscope
     ${CMAKE_THREAD_LIBS_INIT}
-    Qt5::Core
-    Qt5::Concurrent
+    Qt6::Core
+    Qt6::Concurrent
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${FFMPEG_LIBRARIES}

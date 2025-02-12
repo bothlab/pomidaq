@@ -8,7 +8,7 @@ project(PoMiDAQ
     VERSION 0.5.3
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_testing()
 
@@ -67,11 +67,12 @@ endif()
 #
 include(GNUInstallDirs)
 find_package(Threads)
-find_package(Qt5Core 5.12 REQUIRED)
-find_package(Qt5Concurrent 5.12 REQUIRED)
+find_package(Qt6Core 6.4 REQUIRED)
+find_package(Qt6Concurrent 6.4 REQUIRED)
 if (GUI)
-    find_package(Qt5Widgets 5.12 REQUIRED)
-    find_package(Qt5Svg 5.12 REQUIRED)
+    find_package(Qt6Widgets 6.4 REQUIRED)
+    find_package(Qt6OpenGLWidgets 6.4 REQUIRED)
+    find_package(Qt6Svg 6.4 REQUIRED)
 endif()
 
 find_package(OpenCV 4.2 REQUIRED)
@@ -79,8 +80,8 @@ find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-    find_package(KF5ConfigWidgets)
-    set(KF5_ConfigWidgets KF5::ConfigWidgets)
+    find_package(KF6ConfigWidgets)
+    set(KF6_ConfigWidgets KF6::ConfigWidgets)
 endif()
 
 

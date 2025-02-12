@@ -22,9 +22,9 @@ set(POMIDAQ_UI
     mainwindow.ui
 )
 
-qt5_wrap_ui(POMIDAQ_UI_SRC ${POMIDAQ_UI})
+qt6_wrap_ui(POMIDAQ_UI_SRC ${POMIDAQ_UI})
 
-qt5_add_resources(POMIDAQ_RES_SRC ../data/resources.qrc)
+qt6_add_resources(POMIDAQ_RES_SRC ../data/resources.qrc)
 
 add_executable(pomidaq
     ${GUI_TYPE}
@@ -35,9 +35,10 @@ add_executable(pomidaq
 
 target_link_libraries(pomidaq
     ${CMAKE_DL_LIBS}
-    Qt5::Widgets
-    Qt5::Svg
-    ${KF5_ConfigWidgets}
+    Qt6::Widgets
+    Qt6::OpenGLWidgets
+    Qt6::Svg
+    ${KF6_ConfigWidgets}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     miniscope

@@ -72,7 +72,7 @@ If you want to cite PoMiDAQ, please use its Zenodo DOI:
 ### Dependencies
 
  * CMake (>= 3.16)
- * Qt5 (>= 5.12)
+ * Qt6 (>= 6.4)
  * FFmpeg (>= 4.1)
  * OpenCV (>= 4.1)
  * KF5ConfigWidgets (on Linux)
@@ -83,8 +83,8 @@ You should then be able to build the software after configuring the build with c
 
 On Debian-based Linux systems, all dependencies can be installed from the package repositories with this command:
 ```bash
-sudo apt install build-essential cmake ninja-build qtbase5-dev libqt5opengl5-dev \
-                 libkf5configwidgets-dev libopencv-dev libavcodec-dev libavformat-dev libswscale-dev \
+sudo apt install build-essential cmake ninja-build qt6-base-dev qt6-svg-dev \
+                 libkf6configwidgets-dev libopencv-dev libavcodec-dev libavformat-dev libswscale-dev \
                  pybind11-dev python3-dev python3-numpy
 ```
 The software can then be built like this, for an optimized release build with debug infos included:

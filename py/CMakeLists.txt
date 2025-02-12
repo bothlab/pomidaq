@@ -1,5 +1,6 @@
 # CMakeLists for PoMiDAQ Python module
 
+set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 REQUIRED)
 find_package(NumPy REQUIRED)
 

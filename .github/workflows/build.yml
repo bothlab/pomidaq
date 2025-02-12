@@ -68,7 +68,7 @@ jobs:
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.*
+        version: 6.8.*
 
     - name: Make vcpkg only build release builds
       run: |
