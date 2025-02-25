@@ -29,12 +29,12 @@
 #include <QDateTime>
 #include <QSettings>
 #include <QInputDialog>
-#include <QProgressDialog>
 #include <QTimer>
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QProgressBar>
 #include <QFutureWatcher>
+#include <QStandardPaths>
 #include <miniscope.h>
 
 #include "imageviewwidget.h"
