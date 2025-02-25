@@ -230,9 +230,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     // ensure codecs and container UI is aligned with the MiniScope settings
     ui->codecComboBox->setCurrentIndex(0);
-    this->on_codecComboBox_currentIndexChanged(ui->codecComboBox->currentText());
+    on_codecComboBox_currentIndexChanged(ui->codecComboBox->currentIndex());
     ui->containerComboBox->setCurrentIndex(0);
-    this->on_containerComboBox_currentIndexChanged(ui->containerComboBox->currentText());
+    on_containerComboBox_currentIndexChanged(ui->containerComboBox->currentIndex());
     ui->losslessCheckBox->setChecked(true);
     on_sliceIntervalSpinBox_valueChanged(ui->sliceIntervalSpinBox->value());
 
@@ -426,15 +426,18 @@ void MainWindow::setUseUnixTimestamps(bool useUnixTimestamp)
         ui->labelTimestampStyle->setText(QStringLiteral("start-at-zero"));
 }
 
-void MainWindow::on_deviceTypeComboBox_currentIndexChanged(const QString &arg1)
+void MainWindow::on_deviceTypeComboBox_currentIndexChanged(int index)
 {
+    Q_UNUSED(index);
+    const auto curValue = ui->deviceTypeComboBox->currentText();
+
     // clear previous controls
     for (const auto &control : std::as_const(m_controls))
         delete control;
     m_controls.clear();
 
     // load new controls
-    if (!m_mscope->loadDeviceConfig(arg1)) {
+    if (!m_mscope->loadDeviceConfig(curValue)) {
         QMessageBox::critical(
             this,
             QStringLiteral("Error"),
@@ -657,41 +660,44 @@ void MainWindow::on_btnHardReset_clicked()
     m_mscope->hardReset();
 }
 
-void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
+void MainWindow::on_codecComboBox_currentIndexChanged(int index)
 {
+    Q_UNUSED(index);
+    const auto curValue = ui->codecComboBox->currentText();
+
     // reset state of lossless infobox
     ui->losslessCheckBox->setEnabled(true);
     ui->losslessCheckBox->setChecked(m_mscope->recordLossless());
     ui->containerComboBox->setEnabled(true);
 
-    if (arg1 == "AV1") {
+    if (curValue == "AV1") {
         m_mscope->setVideoCodec(VideoCodec::AV1);
 
-    } else if (arg1 == "FFV1") {
+    } else if (curValue == "FFV1") {
         m_mscope->setVideoCodec(VideoCodec::FFV1);
 
         // FFV1 is always lossless
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
-    } else if (arg1 == "VP9") {
+    } else if (curValue == "VP9") {
         m_mscope->setVideoCodec(VideoCodec::VP9);
 
-    } else if (arg1 == "HEVC") {
+    } else if (curValue == "HEVC") {
         m_mscope->setVideoCodec(VideoCodec::HEVC);
 
         // H.256 only works with MKV and MP4 containers, select MKV by default
         ui->containerComboBox->setCurrentIndex(0);
         ui->containerComboBox->setEnabled(false);
 
-    } else if (arg1 == "MPEG-4") {
+    } else if (curValue == "MPEG-4") {
         m_mscope->setVideoCodec(VideoCodec::MPEG4);
 
         // MPEG-4 can't do lossless encoding
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
 
-    } else if (arg1 == "Raw") {
+    } else if (curValue == "Raw") {
         m_mscope->setVideoCodec(VideoCodec::Raw);
 
         // Raw is always lossless
@@ -703,17 +709,20 @@ void MainWindow::on_codecComboBox_currentIndexChanged(const QString &arg1)
         ui->containerComboBox->setEnabled(false);
 
     } else
-        qCritical() << "Unknown video codec option selected:" << arg1;
+        qCritical() << "Unknown video codec option selected:" << curValue;
 }
 
-void MainWindow::on_containerComboBox_currentIndexChanged(const QString &arg1)
+void MainWindow::on_containerComboBox_currentIndexChanged(int index)
 {
-    if (arg1 == "MKV")
+    Q_UNUSED(index);
+    const auto curValue = ui->containerComboBox->currentText();
+
+    if (curValue == "MKV")
         m_mscope->setVideoContainer(VideoContainer::Matroska);
-    else if (arg1 == "AVI")
+    else if (curValue == "AVI")
         m_mscope->setVideoContainer(VideoContainer::AVI);
     else
-        qCritical() << "Unknown video container option selected:" << arg1;
+        qCritical() << "Unknown video container option selected:" << curValue;
 }
 
 void MainWindow::on_losslessCheckBox_toggled(bool checked)

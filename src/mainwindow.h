@@ -48,14 +48,14 @@ public:
     void queueLogMessage(const QString &msg);
 
 private slots:
-    void on_deviceTypeComboBox_currentIndexChanged(const QString &arg1);
+    void on_deviceTypeComboBox_currentIndexChanged(int index);
     void on_sbCamId_valueChanged(int arg1);
     void on_btnDevConnect_clicked();
     void on_btnRecord_toggled(bool checked);
     void on_btnHardReset_clicked();
     void on_losslessCheckBox_toggled(bool checked);
-    void on_containerComboBox_currentIndexChanged(const QString &arg1);
-    void on_codecComboBox_currentIndexChanged(const QString &arg1);
+    void on_containerComboBox_currentIndexChanged(int index);
+    void on_codecComboBox_currentIndexChanged(int index);
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
