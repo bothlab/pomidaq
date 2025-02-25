@@ -75,7 +75,7 @@ If you want to cite PoMiDAQ, please use its Zenodo DOI:
  * Qt6 (>= 6.4)
  * FFmpeg (>= 4.1)
  * OpenCV (>= 4.1)
- * KF5ConfigWidgets (on Linux)
+ * KF6ConfigWidgets (on Linux)
  * [pyBind11](https://github.com/pybind/pybind11) (optional)
 
 Before attempting to build PoMiDAQ, ensure all dependencies (and their development files) are installed on your system.
