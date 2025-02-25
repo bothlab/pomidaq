@@ -100,22 +100,6 @@ public:
 };
 
 /**
- * @brief Progress emitter helper for auxiliary tasks
- */
-class MS_LIB_EXPORT TaskProgressEmitter : public QObject
-{
-    Q_OBJECT
-public:
-    explicit TaskProgressEmitter(QObject *parent = nullptr)
-        : QObject(parent)
-    {
-    }
-
-Q_SIGNALS:
-    void progress(int value);
-};
-
-/**
  * @brief Controller for the UCLA Miniscope family
  */
 class MS_LIB_EXPORT Miniscope
@@ -143,22 +127,15 @@ public:
     void stop();
     bool startRecording(const QString &fname = "");
     void stopRecording();
-    QFuture<void> acquireZStack(
-        int fromEWL,
-        int toEWL,
-        uint step,
-        uint averageCount,
-        const QString &outFilename,
-        TaskProgressEmitter *progress = nullptr);
-    QFuture<void> accumulate3DView(
+    QFuture<bool> acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename);
+    QFuture<bool> accumulate3DView(
         int fromEWL,
         int toEWL,
         uint step,
         uint count,
         bool saveRaw,
         const QString &outDir,
-        const QString &outName,
-        TaskProgressEmitter *progress = nullptr);
+        const QString &outName);
 
     bool isConnected() const;
     bool isRunning() const;

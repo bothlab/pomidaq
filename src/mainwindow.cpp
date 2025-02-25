@@ -25,7 +25,6 @@
 #include <QScrollBar>
 #include <QMessageBox>
 #include <QLabel>
-#include <QStandardPaths>
 #include <QFileDialog>
 #include <QDateTime>
 #include <QSettings>
@@ -35,6 +34,7 @@
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QProgressBar>
+#include <QFutureWatcher>
 #include <miniscope.h>
 
 #include "imageviewwidget.h"
@@ -797,23 +797,18 @@ void MainWindow::on_btnAcquireZStack_clicked()
     setStatusText("Acquiring z-stack...");
 
     setStatusProgressVisible(true);
-    auto progress = std::make_unique<TaskProgressEmitter>();
-    connect(
-        progress.get(),
-        &TaskProgressEmitter::progress,
-        this,
-        [this](int value) {
-            setStatusProgress(value);
-        },
-        Qt::QueuedConnection);
+    QFutureWatcher<bool> watcher;
+    connect(&watcher, &QFutureWatcher<bool>::progressValueChanged, [this](int progress) {
+        setStatusProgress(progress);
+    });
 
     auto future = m_mscope->acquireZStack(
         ui->sbStackFrom->value(),
         ui->sbStackTo->value(),
         ui->sbStackStepSize->value(),
         ui->sbStackAverage->value(),
-        fileName,
-        progress.get());
+        fileName);
+    watcher.setFuture(future);
     while (!future.isFinished())
         QApplication::processEvents();
 
@@ -862,15 +857,10 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
     setStatusText("Accumulating 3D data...");
 
     setStatusProgressVisible(true);
-    auto progress = std::make_unique<TaskProgressEmitter>();
-    connect(
-        progress.get(),
-        &TaskProgressEmitter::progress,
-        this,
-        [this](int value) {
-            setStatusProgress(value);
-        },
-        Qt::QueuedConnection);
+    QFutureWatcher<bool> watcher;
+    connect(&watcher, &QFutureWatcher<bool>::progressValueChanged, [this](int progress) {
+        setStatusProgress(progress);
+    });
 
     auto future = m_mscope->accumulate3DView(
         ui->sbA3DStackFrom->value(),
@@ -879,8 +869,8 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
         ui->sbA3DCyclesDuration->value(),
         ui->cbA3DKeepRaw->isChecked(),
         saveDirName,
-        saveDataName,
-        progress.get());
+        saveDataName);
+    watcher.setFuture(future);
     while (!future.isFinished())
         QApplication::processEvents();
 

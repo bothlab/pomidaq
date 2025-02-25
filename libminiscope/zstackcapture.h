@@ -26,16 +26,15 @@
 namespace MScope
 {
 
-QFuture<void> launchZStackCapture(
+QFuture<bool> launchZStackCapture(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
     uint step,
     uint averageCount,
-    const QString &outFilename,
-    TaskProgressEmitter *progress = nullptr);
+    const QString &outFilename);
 
-QFuture<void> launch3DAccumulation(
+QFuture<bool> launch3DAccumulation(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
@@ -43,7 +42,6 @@ QFuture<void> launch3DAccumulation(
     uint count,
     bool saveRaw,
     const QString &outDir,
-    const QString &outName,
-    TaskProgressEmitter *progress);
+    const QString &outName);
 
 } // namespace MScope

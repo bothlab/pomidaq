@@ -1037,28 +1037,21 @@ void Miniscope::stopRecording()
     statusMessage("Video recording stopped.");
 }
 
-QFuture<void> Miniscope::acquireZStack(
-    int fromEWL,
-    int toEWL,
-    uint step,
-    uint averageCount,
-    const QString &outFilename,
-    TaskProgressEmitter *progress)
+QFuture<bool> Miniscope::acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
 {
-    return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename, progress);
+    return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename);
 }
 
-QFuture<void> Miniscope::accumulate3DView(
+QFuture<bool> Miniscope::accumulate3DView(
     int fromEWL,
     int toEWL,
     uint step,
     uint count,
     bool saveRaw,
     const QString &outDir,
-    const QString &outName,
-    TaskProgressEmitter *progress)
+    const QString &outName)
 {
-    return launch3DAccumulation(this, fromEWL, toEWL, step, count, saveRaw, outDir, outName, progress);
+    return launch3DAccumulation(this, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
 }
 
 bool Miniscope::isConnected() const

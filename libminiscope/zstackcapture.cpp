@@ -25,12 +25,6 @@
 namespace MScope
 {
 
-static void emitProgress(TaskProgressEmitter *progress, int value)
-{
-    if (progress != nullptr)
-        emit progress->progress(value);
-}
-
 class ZStackException : public QException
 {
 public:
@@ -73,8 +67,8 @@ static std::vector<cv::Mat> acquire3DData(
     int toEWL,
     uint step,
     uint averageCount,
-    TaskProgressEmitter *progress,
-    uint adjFrameWaitTime = 2)
+    uint adjFrameWaitTime = 2,
+    QPromise<bool> *promise = nullptr)
 {
     if (fromEWL - toEWL == 0)
         throw ZStackException("EWL start and end positions must be different.");
@@ -139,21 +133,25 @@ static std::vector<cv::Mat> acquire3DData(
         accMat.convertTo(accMat, CV_8U, 1. / currentMats.size());
         stack.push_back(accMat);
 
-        emitProgress(progress, (100.0 / maxProgress) * stack.size());
+        if (promise != nullptr)
+            promise->setProgressValue((100.0 / maxProgress) * stack.size());
     }
 
     return stack;
 }
 
 static void captureZStack(
+    QPromise<bool> &promise,
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
     uint step,
     uint averageCount,
-    const QString &outFilename,
-    TaskProgressEmitter *progress)
+    const QString &outFilename)
 {
+    promise.setProgressRange(0, 100);
+    promise.start();
+
     ControlDefinition ewlControl;
     const auto controls = mscope->controls();
     for (const auto &ctl : controls) {
@@ -176,7 +174,7 @@ static void captureZStack(
     mscope->setControlValue(ewlControl.id, fromEWL);
     mscope->waitForAcquiredFrameCount(5);
 
-    auto stack = acquire3DData(mscope, ewlControl, fromEWL, toEWL, step, averageCount, progress);
+    auto stack = acquire3DData(mscope, ewlControl, fromEWL, toEWL, step, averageCount, 2, &promise);
 
     std::vector<int> tiffParams;
     tiffParams.push_back(cv::IMWRITE_TIFF_COMPRESSION);
@@ -188,34 +186,37 @@ static void captureZStack(
         throw ZStackException(e);
     }
 
-    emitProgress(progress, 100);
+    promise.setProgressValue(100);
+    promise.addResult(true);
 }
 
-QFuture<void> launchZStackCapture(
+QFuture<bool> launchZStackCapture(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
     uint step,
     uint averageCount,
-    const QString &outFilename,
-    TaskProgressEmitter *progress)
+    const QString &outFilename)
 {
-    // TODO: Make use of QPromise when we can switch to Qt6, obsolete ProgressEmitter
-    emitProgress(progress, 0);
-    return QtConcurrent::run([=]() {
-        captureZStack(mscope, fromEWL, toEWL, step, averageCount, outFilename, progress);
+    return QtConcurrent::run([=](QPromise<bool> &promise) {
+        captureZStack(promise, mscope, fromEWL, toEWL, step, averageCount, outFilename);
     });
 }
 
 struct Accu3DProgress {
-    int maxSteps;
+    int maxSteps{1};
     int currentStep{0};
-    TaskProgressEmitter *emitter;
+    QPromise<bool> *promise;
+
+    explicit Accu3DProgress(QPromise<bool> *p)
+        : promise(p)
+    {
+    }
 
     void progressStep(uint stride = 1)
     {
         for (uint i = 0; i < stride; ++i)
-            emitProgress(emitter, (100.0 / maxSteps) * currentStep++);
+            promise->setProgressValue((100.0 / maxSteps) * currentStep++);
     }
 };
 
@@ -306,6 +307,7 @@ static std::vector<cv::Mat> computeBalanced3DMIP(const QStringList &rawImageFile
 }
 
 static void acquire3DAccumulation(
+    QPromise<bool> &promise,
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
@@ -313,9 +315,10 @@ static void acquire3DAccumulation(
     uint count,
     bool saveRaw,
     const QString &outDir,
-    const QString &outName,
-    TaskProgressEmitter *progress)
+    const QString &outName)
 {
+    promise.setProgressRange(0, 100);
+
     ControlDefinition ewlControl;
     const auto controls = mscope->controls();
     for (const auto &ctl : controls) {
@@ -342,15 +345,15 @@ static void acquire3DAccumulation(
     tiffSaveParams.push_back(317 /* TIFFTAG_PREDICTOR */);
     tiffSaveParams.push_back(2 /* PREDICTOR_HORIZONTAL */);
 
-    Accu3DProgress aprog;
-    aprog.maxSteps = (count * 4) + 2 + 2 + 1;
-    aprog.emitter = progress;
+    Accu3DProgress aprog(&promise);
+    aprog.maxSteps = (count * 3) + 2 + 1 + count + 2;
 
     // move in range already, in case we have a big jump from the current EWL setting
     aprog.progressStep();
     mscope->setControlValue(ewlControl.id, fromEWL);
     mscope->waitForAcquiredFrameCount(5);
 
+    promise.setProgressValueAndText(aprog.currentStep, "Acquiring data...");
     QStringList rawFileList;
     for (uint i = 0; i < count; ++i) {
         auto fnameRaw = QStringLiteral("%1/%2_zstack_%3.tiff").arg(outDirRaw.absolutePath(), outName).arg(i);
@@ -376,7 +379,6 @@ static void acquire3DAccumulation(
             hwToEWL,
             step,
             1, /* average count */
-            nullptr,
             1 /* frame acq wait time */);
         aprog.progressStep(2);
 
@@ -395,6 +397,7 @@ static void acquire3DAccumulation(
         aprog.progressStep();
     }
 
+    promise.setProgressValueAndText(aprog.currentStep, "Computing MIPs...");
     auto balancedMipStack = computeBalanced3DMIP(rawFileList, aprog);
     const auto mipStackFname = QStringLiteral("%1/%2_mip3D.tiff").arg(outDirNamed.absolutePath(), outName);
     try {
@@ -413,10 +416,11 @@ static void acquire3DAccumulation(
         outDirRaw.rmpath(outDirRaw.absolutePath());
     }
 
-    emitProgress(progress, 100);
+    promise.setProgressValue(100);
+    promise.addResult(true);
 }
 
-QFuture<void> launch3DAccumulation(
+QFuture<bool> launch3DAccumulation(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
@@ -424,13 +428,10 @@ QFuture<void> launch3DAccumulation(
     uint count,
     bool saveRaw,
     const QString &outDir,
-    const QString &outName,
-    TaskProgressEmitter *progress)
+    const QString &outName)
 {
-    // TODO: Make use of QPromise when we can switch to Qt6, obsolete ProgressEmitter
-    emitProgress(progress, 0);
-    return QtConcurrent::run([=]() {
-        acquire3DAccumulation(mscope, fromEWL, toEWL, step, count, saveRaw, outDir, outName, progress);
+    return QtConcurrent::run([=](QPromise<bool> &promise) {
+        acquire3DAccumulation(promise, mscope, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
     });
 }
 
