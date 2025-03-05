@@ -1726,6 +1726,13 @@ void Miniscope::captureThread(void *msPtr)
         // determine device position in space
         std::vector<float> bnoVec(5);
         if (hasHeadOrientationSupport) {
+#ifdef Q_OS_WIN
+            // on Windows, PAN/TILT is not properly recognized, so we use the legacy properties
+            double w = static_cast<qint16>(d->cam.get(cv::CAP_PROP_SATURATION));
+            double x = static_cast<qint16>(d->cam.get(cv::CAP_PROP_HUE));
+            double y = static_cast<qint16>(d->cam.get(cv::CAP_PROP_GAIN));
+            double z = static_cast<qint16>(d->cam.get(cv::CAP_PROP_BRIGHTNESS));
+#else
             // unpack BNO quaternions
             auto wx = static_cast<quint32>(d->cam.get(cv::CAP_PROP_PAN));
             auto yz = static_cast<quint32>(d->cam.get(cv::CAP_PROP_TILT));
@@ -1734,6 +1741,7 @@ void Miniscope::captureThread(void *msPtr)
             double x = (qint16)((wx >> 16) & 0xFFFF);
             double y = (qint16)(yz & 0xFFFF);
             double z = (qint16)((yz >> 16) & 0xFFFF);
+#endif
 
             // BNO output is a unit quaternion after 2^14 division
             double norm = sqrt(w * w + x * x + y * y + z * z);
