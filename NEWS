@@ -1,3 +1,18 @@
+Version 0.6.0
+~~~~~~~~~~~~~
+Released: 2025-03-16
+
+Features:
+ * Port to Qt6
+ * Migrate zstack acquisition jobs to QPromise
+
+Bugfixes:
+ * Resolve deprecation warning with newer FFmpeg
+ * Use the older BNO query interface on Windows
+
+Miscellaneous:
+ * Update Debian packaging, allow PPA upload
+
 Version 0.5.2
 ~~~~~~~~~~~~~
 Released: 2024-06-18
