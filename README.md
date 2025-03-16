@@ -24,7 +24,7 @@ PoMiDAQ also provides an experimental Python module to access a Miniscope easily
 currently only been tested on Linux (and may stay Linux-only) and is still considered a bit experimental.
 
 Some features like parallel behavior recording, are intentionally left out of PoMiDAQ.
-You may like to use [Syntalos](https://github.com/bothlab/syntalos) for advanced multimodal data acquisition
+You may like to use [Syntalos](https://github.com/syntalos/syntalos) for advanced multimodal data acquisition
 with Miniscopes and a variety of cameras, or try
 [Miniscope-DAQ-QT-Software](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software) instead.
 
@@ -38,10 +38,18 @@ Don't hesitate to file issues if you notice anything unusual.
 On Linux, you can also just install the software from your software center when Flathub is configured:
 <a href="https://flathub.org/apps/details/io.github.bothlab.pomidaq"><img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/></a>
 
+If you Linux distribution is Ubuntu 24.04, you can also install PoMiDAQ from the Syntalos PPA:
+```bash
+sudo add-apt-repository ppa:ximion/syntalos
+sudo apt update
+sudo apt install pomidaq
+```
+
 ### Notes
 #### On Linux
- * The released binaries were built on Ubuntu 22.04 or Debian 12 respectively. They may work on other Debian-based distributions as well,
+ * The released binaries were built on Ubuntu 24.04 or Debian 13 respectively. They may work on other Debian-based distributions as well,
    but in case they don't, compiling the application from source is pretty easy to do (for short instructions see below).
+ * For Ubuntu 24.04, PoMiDAQ can be installed from the Syntalos PPA (see above)
  * You need at least an OpenGL 3.0-capable graphics driver on your system to run this application.
 
 #### On Windows
@@ -72,9 +80,9 @@ If you want to cite PoMiDAQ, please use its Zenodo DOI:
 ### Dependencies
 
  * CMake (>= 3.16)
- * Qt6 (>= 6.4)
- * FFmpeg (>= 4.1)
- * OpenCV (>= 4.1)
+ * Qt6 (>= 6.6.2)
+ * FFmpeg (>= 6.1)
+ * OpenCV (>= 4.8)
  * KF6ConfigWidgets (on Linux)
  * [pyBind11](https://github.com/pybind/pybind11) (optional)
 
