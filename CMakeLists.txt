@@ -1,11 +1,11 @@
+cmake_minimum_required(VERSION 3.16)
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "Prevented in-tree build. Please create a dedicated build directory and call cmake from there.")
 endif()
-cmake_minimum_required(VERSION 3.16)
 
 project(PoMiDAQ
     DESCRIPTION "Portable Miniscope data acquisition"
-    VERSION 0.6.0
+    VERSION 0.6.1
 )
 
 set(CMAKE_CXX_STANDARD 20)
