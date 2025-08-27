@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2025 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,21 +21,24 @@
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
-#include <opencv2/core/core.hpp>
+#include <opencv2/core.hpp>
 
 class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
     explicit ImageViewWidget(QWidget *parent = nullptr);
-    ~ImageViewWidget();
+    ~ImageViewWidget() override;
 
 public slots:
-    bool showImage(const cv::Mat &image);
+    bool showImage(const cv::Mat &mat);
+    [[nodiscard]] cv::Mat currentImage() const;
 
     void setMinimumSize(const QSize &size);
     void setHighlightSaturation(bool enabled);
-    bool highlightSaturation() const;
+    [[nodiscard]] bool highlightSaturation() const;
+
+    [[nodiscard]] bool usesGLES() const;
 
 protected:
     void initializeGL() override;
@@ -45,5 +48,5 @@ protected:
 private:
     class Private;
     Q_DISABLE_COPY(ImageViewWidget)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };
