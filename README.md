@@ -67,6 +67,11 @@ a bad firmware version. If that is the case, please download the latest `Minisco
 from [the Miniscope firmware site](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware) and flash
 it to your DAQ box.
 
+*NOTE:* On newer Linux kernels, you need a fixed version of the firmware which you can download
+[from here](https://github.com/ximion/Miniscope-DAQ-Cypress-firmware/tree/master/Built_Firmware). The changes are
+documented [in this PR against the Miniscope firmware](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware/pull/19),
+which is pending to be merged.
+
 
 ### Citing
 
