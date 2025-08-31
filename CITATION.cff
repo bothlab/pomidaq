@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+
+type: software
+title: PoMiDAQ
+message: If you use this software, please cite it using these metadata.
+repository-code: https://github.com/bothlab/pomidaq
+license: lgpl-3.0-or-later
+doi: 10.5281/zenodo.8225049
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.8225049
+authors:
+  - given-names: Matthias
+    family-names: Klumpp
+    affiliation: Institute of Physiology and Pathophysiology, Medical Faculty,
+      Heidelberg University
+    orcid: https://orcid.org/0000-0003-2981-043X
