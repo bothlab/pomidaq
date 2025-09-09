@@ -59,25 +59,26 @@ jobs:
           *.deb
           *.build*
 
-  build-flatpak:
-    name: Flatpak
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
-
-    - name: Create Build Environment
-      run: cd contrib/flatpak/ && podman build -t pomidaq-flatpak -f Dockerfile .
-
-    - name: Build
-      run: |
-        podman run --privileged -t -v `pwd`:/build pomidaq-flatpak \
-            ./contrib/flatpak/build-bundle.sh
-
-    - name: Upload Flatpak bundle
-      uses: actions/upload-artifact@v4
-      with:
-        name: Flatpak Bundle
-        path: contrib/flatpak/*.flatpak
+  # NOTE: Disabled for now, we now build the Flatpak on FlatHub's infrastructure
+  # build-flatpak:
+  #   name: Flatpak
+  #   runs-on: ubuntu-latest
+  #
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #     with:
+  #       fetch-depth: 0
+  #
+  #   - name: Create Build Environment
+  #     run: cd contrib/flatpak/ && podman build -t pomidaq-flatpak -f Dockerfile .
+  #
+  #   - name: Build
+  #     run: |
+  #       podman run --privileged -t -v `pwd`:/build pomidaq-flatpak \
+  #           ./contrib/flatpak/build-bundle.sh
+  #
+  #   - name: Upload Flatpak bundle
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: Flatpak Bundle
+  #       path: contrib/flatpak/*.flatpak
