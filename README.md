@@ -38,7 +38,14 @@ Don't hesitate to file issues if you notice anything unusual.
 On Linux, you can also just install the software from your software center when Flathub is configured:
 <a href="https://flathub.org/apps/details/io.github.bothlab.pomidaq"><img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/></a>
 
-If you Linux distribution is Ubuntu 24.04, you can also install PoMiDAQ from the Syntalos PPA:
+Quick Flatpak installation commands for systems where Flathub has not been configured yet on Debian/Ubuntu:
+```bash
+sudo apt install flatpak
+sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+sudo flatpak install flathub io.github.bothlab.pomidaq
+```
+
+If your Linux distribution is Ubuntu 24.04, you can also install PoMiDAQ from the Syntalos PPA:
 ```bash
 sudo add-apt-repository ppa:ximion/syntalos
 sudo apt update
