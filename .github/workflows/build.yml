@@ -95,7 +95,10 @@ jobs:
         git_commit_no=$(git rev-list --count HEAD)
         PMD_VERSION=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/~/g')
         PMD_VERSION="$PMD_VERSION+git$git_commit_no"
+        # Strip everything after the first non-numeric/dot character
+        PMD_VERSION_NUMERIC=$(echo "${git_current_tag}" | sed 's/^v//;s/[^0-9.].*//')
         echo "PMD_VERSION=${PMD_VERSION}" >> $GITHUB_ENV
+        echo "PMD_VERSION_NUMERIC=${PMD_VERSION_NUMERIC}" >> $GITHUB_ENV
 
     - name: Configure
       run: |
@@ -144,7 +147,8 @@ jobs:
       uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
       with:
         path: contrib/win-installer.iss
-        options: /DMyAppVersion=${{ env.PMD_VERSION }} /DDeployDir=..\win64-deploy\PoMiDAQ-${{ env.PMD_VERSION }}
+        options: >-
+          /DMyAppVersion=${{ env.PMD_VERSION }} /DMyAppVersionNumeric=${{ env.PMD_VERSION_NUMERIC }} /DDeployDir=..\win64-deploy\PoMiDAQ-${{ env.PMD_VERSION }}
 
     - name: Upload Windows installer
       uses: actions/upload-artifact@v6
