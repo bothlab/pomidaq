@@ -1,13 +1,11 @@
 #
 # Docker file for PoMiDAQ CI
 #
-FROM ubuntu:noble
+FROM ubuntu:resolute
 
 # prepare
 RUN apt-get update -qq
-RUN apt-get install -yq --no-install-recommends eatmydata software-properties-common
-RUN add-apt-repository -y ppa:ximion/syntalos
-RUN apt-get update -qq
+RUN apt-get install -yq --no-install-recommends eatmydata
 
 # install build essentials
 RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq \
