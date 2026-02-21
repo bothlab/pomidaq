@@ -34,7 +34,7 @@ jobs:
   build-ubuntu:
     name: Ubuntu
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v6
       with:
@@ -42,7 +42,7 @@ jobs:
 
     - name: Create Build Environment
       run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-ubuntu .
-      
+
     - name: Build
       run: |
         podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
@@ -59,32 +59,36 @@ jobs:
   build-windows:
     name: Windows
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
 
     steps:
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v4
+    - uses: msys2/setup-msys2@v2
       with:
-        version: 6.8.*
-
-    - name: Make vcpkg only build release builds
-      run: |
-        "`r`nset(VCPKG_BUILD_TYPE release)" | Add-Content "$env:VCPKG_INSTALLATION_ROOT\triplets\x64-windows.cmake"
-        "`r`nset(VCPKG_BUILD_TYPE release)" | Add-Content "$env:VCPKG_INSTALLATION_ROOT\triplets\x64-windows-static.cmake"
-
-    - name: Setup OpenCV
-      run: vcpkg install --triplet x64-windows opencv[core,opengl,world]
-
-    - name: Setup FFmpeg
-      run: |
-        vcpkg install --triplet x86-windows yasm-tool
-        vcpkg install --triplet x64-windows ffmpeg[core,avcodec,avfilter,avformat,swresample,swscale,vpx,opus,openssl]
+        msystem: ucrt64
+        update: true
+        pacboy: >-
+          git
+          cmake
+          ninja
+          gcc:p
+          python
+          librsvg:p
+          icoutils:p
+          appstream:p
+          qt6-base:p
+          qt6-svg:p
+          opencv:p
+          ffmpeg:p
+          pybind11:p
+          python-numpy:p
 
     - name: Determine PoMiDAQ revision number
-      shell: bash
       run: |
         git_commit=$(git log --pretty="format:%h" -n1)
         git_current_tag=$(git describe --tags --abbrev=0 2> /dev/null || echo "v0.1")
@@ -93,57 +97,44 @@ jobs:
         PMD_VERSION="$PMD_VERSION+git$git_commit_no"
         echo "PMD_VERSION=${PMD_VERSION}" >> $GITHUB_ENV
 
-    - name: Create Build Environment
-      run: cmake -E make_directory ${{runner.workspace}}/build
-
-    - name: Configure Build
-      shell: bash
-      working-directory: ${{runner.workspace}}/build
+    - name: Configure
       run: |
-        cmake $GITHUB_WORKSPACE \
+        cmake -GNinja -Bbuild \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/PoMiDAQ-$PMD_VERSION" \
-          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" \
-          -DVCPKG_TARGET_TRIPLET="x64-windows" \
-          -DOpenCV_DIR="C:/vcpkg/installed/x64-windows/share/opencv" \
-          -DFFmpegPath="C:/vcpkg/installed/x64-windows/share/ffmpeg" \
+          -DPython3_EXECUTABLE="$(which python3)" \
           -DGUI=ON \
-          -DPYTHON=OFF
+          -DPYTHON=ON
 
     - name: Build
-      working-directory: ${{runner.workspace}}/build
-      shell: bash
-      run: cmake --build . --config $BUILD_TYPE
+      run: cmake --build build
 
     - name: Install & Bundle
-      working-directory: ${{runner.workspace}}/build
-      shell: bash
       run: |
-        cmake --build . --config $BUILD_TYPE --target install
+        cmake --build build --target install
 
         cd $GITHUB_WORKSPACE
         DEPLOY_DIR=$GITHUB_WORKSPACE/PoMiDAQ-$PMD_VERSION
-        VCPKG_BIN_DIR="C:/vcpkg/installed/x64-windows/bin"
 
         windeployqt \
-            --no-quick-import \
-            --no-translations \
-            $DEPLOY_DIR/bin/pomidaq.exe
+          --no-quick-import \
+          --no-translations \
+          $DEPLOY_DIR/bin/pomidaq.exe
 
-        # FFmpeg
-        cp $VCPKG_BIN_DIR/av*.dll $DEPLOY_DIR/bin/
-        cp $VCPKG_BIN_DIR/sw*.dll $DEPLOY_DIR/bin/
-
-        # OpenCV
-        cp $VCPKG_BIN_DIR/opencv*.dll $DEPLOY_DIR/bin/
-
-        # Install all DLLs, we assume all are needed
-        install $VCPKG_BIN_DIR/*.dll $DEPLOY_DIR/bin/
+        # Copy DLLs
+        ldd $DEPLOY_DIR/bin/pomidaq.exe \
+          | awk '/\/ucrt64\/bin/ { print $3 }' \
+          | while read -r dll; do
+                install -v -p "$dll" $DEPLOY_DIR/bin/
+            done
 
         # Misc
         cp LICENSE $DEPLOY_DIR/LICENSE.txt
         cp README.md $DEPLOY_DIR/
         cp contrib/LICENSES.3rd-party $DEPLOY_DIR/LICENSES_3rd-party.txt
+
+        # Cleanup
+        rm -rf $DEPLOY_DIR/cmake
 
         # move deploy dir into subdirectory
         mkdir -p $GITHUB_WORKSPACE/win64-deploy

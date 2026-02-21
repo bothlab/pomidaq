@@ -15,7 +15,6 @@ enable_testing()
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/contrib/cmake/")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
 set(OpenGL_GL_PREFERENCE GLVND)
 
 set(LIBSOVERSION 0)
@@ -67,12 +66,9 @@ endif()
 #
 include(GNUInstallDirs)
 find_package(Threads)
-find_package(Qt6Core 6.4 REQUIRED)
-find_package(Qt6Concurrent 6.4 REQUIRED)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Concurrent)
 if (GUI)
-    find_package(Qt6Widgets 6.4 REQUIRED)
-    find_package(Qt6OpenGLWidgets 6.4 REQUIRED)
-    find_package(Qt6Svg 6.4 REQUIRED)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Svg OpenGLWidgets)
 endif()
 
 find_package(OpenCV 4.2 REQUIRED)
@@ -84,6 +80,10 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     set(KF6_ConfigWidgets KF6::ConfigWidgets)
 endif()
 
+qt_standard_project_setup()
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
 #
 # Config
