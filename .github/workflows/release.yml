@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-test:
+    name: Build
+    uses: ./.github/workflows/build.yml
+
+  release:
+    name: Create Release
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive version string
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from NEWS.md
+        env:
+          RELEASE_FOOTER: |
+
+            ---
+            Please check out the [information for users](https://github.com/bothlab/pomidaq#users) for using the
+            prebuilt binaries and solutions to common issues users may encounter.
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Extract the block for this version from NEWS.md.
+          # The block starts with "Version X.Y.Z" and ends before the next "Version " line.
+          awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^Version / {
+              if (found) exit
+              if ($2 == ver) { found=1; next }
+            }
+            /^-+$/ && found && !body { next }
+            found { body=1; print }
+          ' NEWS.md > release_notes.md
+
+          if [ ! -s release_notes.md ]; then
+            echo "::warning::No release notes found for version $VERSION in NEWS.md"
+            echo "Release $VERSION" > release_notes.md
+          fi
+
+          printf '%s' "$RELEASE_FOOTER" >> release_notes.md
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+
+          # Move the artifact directory itself as a ZIP for the Linux packages,
+          # and copy the .exe directly for the Windows installer.
+          for artifact_dir in artifacts/*/; do
+            name=$(basename "$artifact_dir")
+            case "$name" in
+              *.debian*.zip|*.ubuntu*.zip)
+                zip -j "$GITHUB_WORKSPACE/release_assets/${name}" "$artifact_dir"/*.deb
+                ;;
+              *_setup_win64)
+                cp "$artifact_dir"/*.exe release_assets/
+                ;;
+            esac
+          done
+
+          echo "Assets to upload:"
+          ls -la release_assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Version ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: release_assets/*

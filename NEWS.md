@@ -1,20 +1,20 @@
 Version 0.6.0
-~~~~~~~~~~~~~
+-------------
 Released: 2025-03-16
 
-Features:
+### Features:
  * Port to Qt6
  * Migrate zstack acquisition jobs to QPromise
 
-Bugfixes:
+### Bugfixes:
  * Resolve deprecation warning with newer FFmpeg
  * Use the older BNO query interface on Windows
 
-Miscellaneous:
+### Miscellaneous:
  * Update Debian packaging, allow PPA upload
 
 Version 0.5.2
-~~~~~~~~~~~~~
+-------------
 Released: 2024-06-18
 
 Features:
@@ -30,7 +30,7 @@ Miscellaneous:
  * py: Explicitly set video filename, rather than implicitly
 
 Version 0.5.1
-~~~~~~~~~~~~~
+-------------
 Released: 2023-08-16
 
 Features:
@@ -47,7 +47,7 @@ Miscellaneous:
  * cmake: Stop using PythonInterp, use Python3 module instead in FindNumPy
 
 Version 0.5.0
-~~~~~~~~~~~~~
+-------------
 Released: 2023-08-08
 
 Features:
@@ -62,7 +62,7 @@ Bugfixes:
  * Make "Stop recording" button more obviously clickable
 
 Version 0.4.5
-~~~~~~~~~~~~~
+-------------
 Released: 2022-08-20
 
 Features:
@@ -78,7 +78,7 @@ Bugfixes:
  * cmake: Find more recent FFmpeg versions as well
 
 Version 0.4.4
-~~~~~~~~~~~~~
+-------------
 Released: 2021-12-16
 
 Features:
@@ -89,7 +89,7 @@ Bugfixes:
  * Resolve a few compiler warnings
 
 Version 0.4.3
-~~~~~~~~~~~~~
+-------------
 Released: 2021-09-21
 
 Features:
@@ -101,7 +101,7 @@ Bugfixes:
  * Save view splitter sizes as byte array, instead of variant
 
 Version 0.4.2
-~~~~~~~~~~~~~
+-------------
 Released: 2021-05-24
 
 Features:
@@ -114,7 +114,7 @@ Bugfixes:
  * Save & restore main window splitter position
 
 Version 0.4.1
-~~~~~~~~~~~~~
+-------------
 Released: 2020-12-16
 
 Features:
@@ -128,7 +128,7 @@ Bugfixes:
  * Update Miniscope hardware definition from upstream
 
 Version 0.4.0
-~~~~~~~~~~~~~
+-------------
 Released: 2020-08-08
 
 Features:
@@ -162,7 +162,7 @@ Bugfixes:
  * Show GUI error message when failing to initialize OpenGL
 
 Version 0.3.0
-~~~~~~~~~~~~~
+-------------
 Released: 2020-04-04
 
 Features:
@@ -184,7 +184,7 @@ Bugfixes:
  * Improve locking code and handle dropped init frames better
 
 Version 0.2.0
-~~~~~~~~~~~~~
+-------------
 Released: 2020-02-04
 
 Features:
@@ -200,7 +200,7 @@ Bugfixes:
  * Use camera driver timestamps instead of client timestamps
 
 Version 0.1.0
-~~~~~~~~~~~~~
+-------------
 Released: 2019-04-18
 
 Features:

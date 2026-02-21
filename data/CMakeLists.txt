@@ -16,7 +16,7 @@ if (GUI)
     add_custom_command(OUTPUT ${REL_METAINFO_FILE}
       COMMAND ${ASCLI_EXE}
               news-to-metainfo --limit=4 --format=text
-              "${CMAKE_SOURCE_DIR}/NEWS"
+              "${CMAKE_SOURCE_DIR}/NEWS.md"
               ${SRC_METAINFO_FILENAME}
               ${REL_METAINFO_FILE}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
