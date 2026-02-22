@@ -148,8 +148,9 @@ jobs:
 
         # Misc
         cp LICENSE $DEPLOY_DIR/LICENSE.txt
-        cp README.md $DEPLOY_DIR/
         cp contrib/LICENSES.3rd-party $DEPLOY_DIR/LICENSES_3rd-party.txt
+        cp README.md $DEPLOY_DIR/
+        cp NEWS.md $DEPLOY_DIR/
 
         # Cleanup
         rm -rf $DEPLOY_DIR/cmake
@@ -163,7 +164,9 @@ jobs:
       with:
         path: contrib/win-installer.iss
         options: >-
-          /DMyAppVersion=${{ needs.get-version.outputs.version }} /DMyAppVersionNumeric=${{ needs.get-version.outputs.version-numeric }} /DDeployDir=..\win64-deploy\PoMiDAQ-${{ needs.get-version.outputs.version }}
+          /DAppVersion=${{ needs.get-version.outputs.version }}
+          /DAppVersionNumeric=${{ needs.get-version.outputs.version-numeric }}
+          /DDeployDir=..\win64-deploy\PoMiDAQ-${{ needs.get-version.outputs.version }}
 
     - name: Upload Windows installer
       uses: actions/upload-artifact@v6

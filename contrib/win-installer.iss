@@ -1,36 +1,36 @@
-#define MyAppName      "PoMiDAQ"
-#define MyAppPublisher "Matthias Klumpp"
-#define MyAppURL       "https://github.com/bothlab/pomidaq"
-#define MyAppExeName   "pomidaq.exe"
-; These can be overridden from the command line: /DMyAppVersion=... /DDeployDir=...
-#ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+#define AppName      "PoMiDAQ"
+#define AppPublisher "Matthias Klumpp"
+#define AppURL       "https://github.com/bothlab/pomidaq"
+#define AppExeName   "pomidaq.exe"
+; These can be overridden from the command line: /DAppVersion=... /DDeployDir=...
+#ifndef AppVersion
+  #define AppVersion "0.1.0"
 #endif
-#ifndef MyAppVersionNumeric
-  #define MyAppVersionNumeric "0.1.0"
+#ifndef AppVersionNumeric
+  #define AppVersionNumeric "0.1.0"
 #endif
 #ifndef DeployDir
-  #define DeployDir "..\win64-deploy\PoMiDAQ-" + MyAppVersion
+  #define DeployDir "..\win64-deploy\PoMiDAQ-" + AppVersion
 #endif
 
 [Setup]
 AppId={{FE994758-DCDE-40E4-BC6F-F626D1B5964A}}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppVerName={#MyAppName} {#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+AppName={#AppName}
+AppVersion={#AppVersion}
+AppVerName={#AppName} {#AppVersion}
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppURL}
+AppSupportURL={#AppURL}
+AppUpdatesURL={#AppURL}
 
 ; Installer exe metadata
-VersionInfoVersion={#MyAppVersionNumeric}
-VersionInfoDescription={#MyAppName} Installer
-VersionInfoCompany={#MyAppPublisher}
-VersionInfoCopyright=Copyright (C) 2020-2026 {#MyAppPublisher}
+VersionInfoVersion={#AppVersionNumeric}
+VersionInfoDescription={#AppName} Installer
+VersionInfoCompany={#AppPublisher}
+VersionInfoCopyright=Copyright (C) 2020-2026 {#AppPublisher}
 
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+DefaultDirName={autopf}\{#AppName}
+DefaultGroupName={#AppName}
 ; Ask for admin rights only when installing system-wide; allows per-user installs too
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
@@ -38,9 +38,9 @@ PrivilegesRequiredOverridesAllowed=dialog
 LicenseFile={#DeployDir}\LICENSE.txt
 
 OutputDir=output
-OutputBaseFilename=PoMiDAQ-{#MyAppVersion}_Setup_win64
+OutputBaseFilename=PoMiDAQ-{#AppVersion}_Setup_win64
 SetupIconFile={#DeployDir}\share\icons\pomidaq.ico
-UninstallDisplayIcon={app}\bin\{#MyAppExeName}
+UninstallDisplayIcon={app}\bin\{#AppExeName}
 
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -59,14 +59,22 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+[InstallDelete]
+; Remove the entire deployed tree before installing so that upgrading
+; over an existing version leaves no stale files from the previous release.
+Type: filesandordirs; Name: "{app}\bin"
+Type: filesandordirs; Name: "{app}\lib"
+Type: filesandordirs; Name: "{app}\libexec"
+Type: filesandordirs; Name: "{app}\share"
+
 [Files]
-Source: "{#DeployDir}\bin\{#MyAppExeName}"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "{#DeployDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "bin\{#MyAppExeName},LICENSE.txt"
+Source: "{#DeployDir}\bin\{#AppExeName}"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "{#DeployDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "bin\{#AppExeName},LICENSE.txt"
 Source: "{#DeployDir}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}";         Filename: "{app}\bin\{#MyAppExeName}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\bin\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#AppName}";         Filename: "{app}\bin\{#AppExeName}"
+Name: "{commondesktop}\{#AppName}"; Filename: "{app}\bin\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\bin\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\bin\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
