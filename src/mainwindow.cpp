@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -938,7 +938,7 @@ void MainWindow::on_actionAbout_triggered()
     const auto text = QStringLiteral(
         "<html>PoMiDAQ Version " PROJECT_VERSION
         "<br/><br/>"
-        "© 2019-2024 Matthias Klumpp<br/><br/>"
+        "© 2019-2026 Matthias Klumpp<br/><br/>"
         "PoMiDAQ is free software: you can redistribute it and/or modify "
         "it under the terms of the GNU Lesser General Public License as published by "
         "the Free Software Foundation, either version 3 of the License, or "
