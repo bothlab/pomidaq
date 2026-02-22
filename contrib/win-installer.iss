@@ -50,7 +50,7 @@ WizardStyle=modern
 MinVersion=10.0
 ; Offer to close any running instance before installing/uninstalling
 CloseApplications=yes
-CloseApplicationsFilter=*.exe
+CloseApplicationsFilter={#AppExeName}
 RestartApplications=yes
 
 [Languages]
@@ -73,8 +73,8 @@ Source: "{#DeployDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 Source: "{#DeployDir}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#AppName}";         Filename: "{app}\bin\{#AppExeName}"
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\bin\{#AppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppName}";  Filename: "{app}\bin\{#AppExeName}"
+Name: "{autodesktop}\{#AppName}";   Filename: "{app}\bin\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\bin\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
