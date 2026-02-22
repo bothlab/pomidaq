@@ -18,11 +18,14 @@ jobs:
     - name: Determine revision number
       id: version
       run: |
-        git_current_tag=$(git describe --abbrev=0 --tags 2> /dev/null || echo "v0.1")
-        git_commit_no=$(git rev-list --count HEAD)
-        PMD_VERSION=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/./g')
-        PMD_VERSION="$PMD_VERSION+git$git_commit_no"
+        git_commit=$(git rev-parse --short HEAD)
+        git_current_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+        git_commit_no=$(git rev-list --count "${git_current_tag}..HEAD" 2>/dev/null)
+        PMD_VERSION=${git_current_tag#v}; PMD_VERSION=${PMD_VERSION//-/.}
         PMD_VERSION_NUMERIC=$(echo "${git_current_tag}" | sed 's/^v//;s/[^0-9.].*//')
+        if [ "$git_commit_no" -gt 0 ]; then
+          PMD_VERSION+="+git$git_commit_no"
+        fi
         echo "version=${PMD_VERSION}" >> $GITHUB_OUTPUT
         echo "version-numeric=${PMD_VERSION_NUMERIC}" >> $GITHUB_OUTPUT
 
