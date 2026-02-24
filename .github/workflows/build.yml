@@ -160,7 +160,7 @@ jobs:
         mv $DEPLOY_DIR $GITHUB_WORKSPACE/win64-deploy/
 
     - name: Build installer
-      uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+      uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
       with:
         path: contrib/win-installer.iss
         options: >-
