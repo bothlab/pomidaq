@@ -50,7 +50,7 @@ jobs:
             -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
 
     - name: Upload Debian package artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pomidaq_${{ needs.get-version.outputs.version }}.debian13_amd64.zip
         path: pomidaq_*.deb
@@ -76,7 +76,7 @@ jobs:
             -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
 
     - name: Upload Ubuntu package artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pomidaq_${{ needs.get-version.outputs.version }}.ubuntu24.04_amd64.zip
         path: pomidaq_*.deb
@@ -169,13 +169,13 @@ jobs:
           /DDeployDir=..\win64-deploy\PoMiDAQ-${{ needs.get-version.outputs.version }}
 
     - name: Upload Windows installer
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: PoMiDAQ-${{ needs.get-version.outputs.version }}_setup_win64
         path: contrib/output/PoMiDAQ-*_Setup_win64.exe
 
     - name: Upload Windows build as ZIP
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: PoMiDAQ-${{ needs.get-version.outputs.version }}_win64
         path: win64-deploy/
