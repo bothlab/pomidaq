@@ -53,7 +53,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: pomidaq_${{ needs.get-version.outputs.version }}.debian13_amd64.zip
-        path: pomidaq_*.deb
+        path: "*.deb"
 
 
   build-ubuntu:
@@ -79,7 +79,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: pomidaq_${{ needs.get-version.outputs.version }}.ubuntu24.04_amd64.zip
-        path: pomidaq_*.deb
+        path: "*.deb"
 
 
   build-windows:
