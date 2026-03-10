@@ -2,9 +2,10 @@
 
 This directory contains prebuild Miniscope firmware.
 Its sources are available on [Aharoni-Lab/Miniscope-DAQ-Cypress-firmware](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware),
-but the build firmware here contains fixes outlined in the [Miniscope-DAQ-Cypress-firmware/#19](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware/pull/19) PR.
+but the build firmware here contains fixes outlined [in this PR against the Miniscope firmware](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware/pull/19)
+which is pending to be merged.
 
-These fixes are required to make the BNO sensor display properly with PoMiDAQ.
+These fixes are required to make the BNO sensor display properly with PoMiDAQ/libminiscope.
 
 
 ## Flashing the Firmware

@@ -56,12 +56,13 @@ sudo apt install pomidaq
 #### On Linux
  * The released binaries were built on Ubuntu 24.04 or Debian 13 respectively. They may work on other Debian-based distributions as well,
    but in case they don't, compiling the application from source is pretty easy to do (for short instructions see below).
- * For Ubuntu 24.04, PoMiDAQ can be installed from the Syntalos PPA (see above)
- * You need at least an OpenGL 3.0-capable graphics driver on your system to run this application.
+ * For Ubuntu 24.04, PoMiDAQ can be installed from the Syntalos PPA (see above).
+ * You need at least an OpenGL 4.1-capable graphics driver on your system to run this application.
 
 #### On Windows
- * You will need at least an OpenGL 3.0-capable graphics driver installed, otherwise the application will not start.
- * You will need to trust the executable from an "Unknown Publisher" as it is not signed.
+ * An installer is provided for PoMiDAQ as executable, which should set it up correctly.
+ * You will need at least an OpenGL 4.1-capable graphics driver, otherwise the application will not work.
+ * You may need to explicitly trust the setup executable from an "Unknown Publisher" as it is not signed.
  * Some users reported they can't start PoMiDAQ on Windows because `MF.dll`/`MFPLAT.dll` are missing. In this case,
    you will need to install the [Mediafeaturepack from Microsoft](https://www.microsoft.com/en-us/software-download/mediafeaturepack)
    for your Windows version to resolve the problem. Sometimes enabling this feature via Windows' "Additional Features" selection
@@ -69,18 +70,12 @@ sudo apt install pomidaq
 
 #### No BNO orientation information
 If you can't record any valid data from the Miniscope's BNO sensor, your firmware version may be too old.
-You can test for that by showing the Minscope log (Info → Show Miniscope Log) and check for a warning mentioning
-a bad firmware version. If that is the case, please download the latest `Miniscope_DAQ_256K_EEPROM.img` firmware
-from [the Miniscope firmware site](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware) and flash
-it to your DAQ box.
-
-*NOTE:* On newer Linux kernels, you need a fixed version of the firmware which you can download
-[from here](https://github.com/ximion/Miniscope-DAQ-Cypress-firmware/tree/master/Built_Firmware). The changes are
-documented [in this PR against the Miniscope firmware](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware/pull/19),
-which is pending to be merged.
+You can test for that by displaying the Minscope log (*Info → Show Miniscope Log*) and check for a warning mentioning
+a bad firmware version. If that is the case (or if you still don't get BNO information), please download the latest
+Miniscope DAQ box firmware from [here](https://github.com/bothlab/pomidaq/tree/master/firmware) and flash it to your DAQ box.
 
 
-### Citing
+### Citation
 
 If you want to cite PoMiDAQ, please use its Zenodo DOI:
 
@@ -92,7 +87,7 @@ If you want to cite PoMiDAQ, please use its Zenodo DOI:
 ### Dependencies
 
  * CMake (>= 3.16)
- * Qt6 (>= 6.6.2)
+ * Qt6 (>= 6.8)
  * FFmpeg (>= 6.1)
  * OpenCV (>= 4.8)
  * KF6ConfigWidgets (on Linux)
