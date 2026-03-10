@@ -5,7 +5,7 @@ set -e
 # This script will create the PoMiDAQ Debian package & upload it to the PPA
 #
 
-TARGET_SUITE="noble"
+TARGET_SUITE="resolute"
 
 set -x
 mkdir -p __ppa-pkg-build

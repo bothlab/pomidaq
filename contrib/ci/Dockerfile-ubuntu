@@ -5,7 +5,7 @@ FROM ubuntu:resolute
 
 # prepare
 RUN apt-get update -qq
-RUN apt-get install -yq --no-install-recommends eatmydata
+RUN apt-get install -yq eatmydata
 
 # install build essentials
 RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq \

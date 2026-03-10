@@ -45,7 +45,7 @@ sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flat
 sudo flatpak install flathub io.github.bothlab.pomidaq
 ```
 
-If your Linux distribution is Ubuntu 24.04, you can also install PoMiDAQ from the Syntalos PPA:
+If your Linux distribution is Ubuntu 24.04/26.04, you can also install PoMiDAQ from the Syntalos PPA:
 ```bash
 sudo add-apt-repository ppa:ximion/syntalos
 sudo apt update
@@ -54,9 +54,9 @@ sudo apt install pomidaq
 
 ### Notes
 #### On Linux
- * The released binaries were built on Ubuntu 24.04 or Debian 13 respectively. They may work on other Debian-based distributions as well,
+ * The released binaries were built on Ubuntu 26.04 or Debian 13 respectively. They may work on other Debian-based distributions as well,
    but in case they don't, compiling the application from source is pretty easy to do (for short instructions see below).
- * For Ubuntu 24.04, PoMiDAQ can be installed from the Syntalos PPA (see above).
+ * For Ubuntu 26.04, PoMiDAQ can be installed from the Syntalos PPA (see above).
  * You need at least an OpenGL 4.1-capable graphics driver on your system to run this application.
 
 #### On Windows

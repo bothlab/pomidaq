@@ -66,12 +66,12 @@ endif()
 #
 include(GNUInstallDirs)
 find_package(Threads)
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Concurrent)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Concurrent)
 if (GUI)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Svg OpenGLWidgets)
+    find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Svg OpenGLWidgets)
 endif()
 
-find_package(OpenCV 4.2 REQUIRED)
+find_package(OpenCV 4.8 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 

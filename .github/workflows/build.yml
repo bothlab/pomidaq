@@ -78,7 +78,7 @@ jobs:
     - name: Upload Ubuntu package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: pomidaq_${{ needs.get-version.outputs.version }}.ubuntu24.04_amd64.zip
+        name: pomidaq_${{ needs.get-version.outputs.version }}.ubuntu26.04_amd64.zip
         path: "*.deb"
 
 
