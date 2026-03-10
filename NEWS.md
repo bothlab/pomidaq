@@ -1,3 +1,25 @@
+Version 0.6.1
+-------------
+Released: 2026-03-10
+
+### Features:
+ * Build for Windows using MSYS2
+ * windows: Embed icon in the executable
+ * windows: Autobuild an installer for the app
+ * Add working Miniscope firmware to the repository
+ * Build binaries for Ubuntu 26.04
+
+### Bugfixes:
+ * Update image view widget with Syntalos version
+ * Ensure libminiscope is included in Linux release tarballs
+
+### Miscellaneous:
+ * Update README and mention PPA
+ * README: Add note on missing BNO info on newer Linux kernels
+ * README: Add explicit Flatpak installation instructions
+ * Add CITATION.cff
+ * ci: Streamline build workflow, drop linux-release-binaries workflow
+
 Version 0.6.0
 -------------
 Released: 2025-03-16
