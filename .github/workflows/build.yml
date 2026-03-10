@@ -150,6 +150,7 @@ jobs:
         cp LICENSE $DEPLOY_DIR/LICENSE.txt
         cp contrib/LICENSES.3rd-party $DEPLOY_DIR/LICENSES_3rd-party.txt
         cp README.md $DEPLOY_DIR/
+        cp CITATION.cff $DEPLOY_DIR/
         cp NEWS.md $DEPLOY_DIR/
 
         # Cleanup
