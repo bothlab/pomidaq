@@ -31,9 +31,16 @@ jobs:
 
 
   build-debian:
-    name: Debian
-    runs-on: ubuntu-latest
+    name: Debian (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     needs: revision
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
 
     steps:
     - uses: actions/checkout@v6
@@ -52,14 +59,21 @@ jobs:
     - name: Upload Debian package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: pomidaq_${{ needs.revision.outputs.version }}.debian13_amd64.zip
+        name: pomidaq_${{ needs.revision.outputs.version }}.debian13_${{ matrix.arch }}.zip
         path: "*.deb"
 
 
   build-ubuntu:
-    name: Ubuntu
-    runs-on: ubuntu-latest
+    name: Ubuntu (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     needs: revision
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
 
     steps:
     - uses: actions/checkout@v6
@@ -78,7 +92,7 @@ jobs:
     - name: Upload Ubuntu package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: pomidaq_${{ needs.revision.outputs.version }}.ubuntu26.04_amd64.zip
+        name: pomidaq_${{ needs.revision.outputs.version }}.ubuntu26.04_${{ matrix.arch }}.zip
         path: "*.deb"
 
 
