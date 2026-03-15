@@ -3,8 +3,8 @@ name: Build
 on: [push, pull_request, workflow_call]
 
 jobs:
-  get-version:
-    name: Determine revision number
+  revision:
+    name: Revision check
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -33,7 +33,7 @@ jobs:
   build-debian:
     name: Debian
     runs-on: ubuntu-latest
-    needs: get-version
+    needs: revision
 
     steps:
     - uses: actions/checkout@v6
@@ -52,14 +52,14 @@ jobs:
     - name: Upload Debian package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: pomidaq_${{ needs.get-version.outputs.version }}.debian13_amd64.zip
+        name: pomidaq_${{ needs.revision.outputs.version }}.debian13_amd64.zip
         path: "*.deb"
 
 
   build-ubuntu:
     name: Ubuntu
     runs-on: ubuntu-latest
-    needs: get-version
+    needs: revision
 
     steps:
     - uses: actions/checkout@v6
@@ -78,14 +78,14 @@ jobs:
     - name: Upload Ubuntu package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: pomidaq_${{ needs.get-version.outputs.version }}.ubuntu26.04_amd64.zip
+        name: pomidaq_${{ needs.revision.outputs.version }}.ubuntu26.04_amd64.zip
         path: "*.deb"
 
 
   build-windows:
     name: Windows
     runs-on: windows-latest
-    needs: get-version
+    needs: revision
     defaults:
       run:
         shell: msys2 {0}
@@ -119,7 +119,7 @@ jobs:
       run: |
         cmake -GNinja -Bbuild \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/PoMiDAQ-${{ needs.get-version.outputs.version }}" \
+          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/PoMiDAQ-${{ needs.revision.outputs.version }}" \
           -DPython3_EXECUTABLE="$(which python3)" \
           -DGUI=ON \
           -DPYTHON=ON
@@ -132,7 +132,7 @@ jobs:
         cmake --build build --target install
 
         cd $GITHUB_WORKSPACE
-        DEPLOY_DIR=$GITHUB_WORKSPACE/PoMiDAQ-${{ needs.get-version.outputs.version }}
+        DEPLOY_DIR=$GITHUB_WORKSPACE/PoMiDAQ-${{ needs.revision.outputs.version }}
 
         windeployqt \
           --no-quick-import \
@@ -165,18 +165,18 @@ jobs:
       with:
         path: contrib/win-installer.iss
         options: >-
-          /DAppVersion=${{ needs.get-version.outputs.version }}
-          /DAppVersionNumeric=${{ needs.get-version.outputs.version-numeric }}
-          /DDeployDir=..\win64-deploy\PoMiDAQ-${{ needs.get-version.outputs.version }}
+          /DAppVersion=${{ needs.revision.outputs.version }}
+          /DAppVersionNumeric=${{ needs.revision.outputs.version-numeric }}
+          /DDeployDir=..\win64-deploy\PoMiDAQ-${{ needs.revision.outputs.version }}
 
     - name: Upload Windows installer
       uses: actions/upload-artifact@v7
       with:
-        name: PoMiDAQ-${{ needs.get-version.outputs.version }}_setup_win64
+        name: PoMiDAQ-${{ needs.revision.outputs.version }}_setup_win64
         path: contrib/output/PoMiDAQ-*_Setup_win64.exe
 
     - name: Upload Windows build as ZIP
       uses: actions/upload-artifact@v7
       with:
-        name: PoMiDAQ-${{ needs.get-version.outputs.version }}_win64
+        name: PoMiDAQ-${{ needs.revision.outputs.version }}_win64
         path: win64-deploy/
