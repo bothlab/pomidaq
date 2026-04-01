@@ -45,10 +45,10 @@ sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flat
 sudo flatpak install flathub io.github.bothlab.pomidaq
 ```
 
-If your Linux distribution is Ubuntu 24.04/26.04, you can also install PoMiDAQ from the Syntalos PPA:
+If your Linux distribution is Debian 13 or Ubuntu 26.04, you can also install PoMiDAQ from
+the [Syntalos](https://github.com/syntalos/syntalos) APT repository:
 ```bash
-sudo add-apt-repository ppa:ximion/syntalos
-sudo apt update
+curl -fsSL https://syntalos.org/setup/setup-syntalos-repo.sh | sudo sh
 sudo apt install pomidaq
 ```
 
