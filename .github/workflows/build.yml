@@ -40,24 +40,28 @@ jobs:
         include:
           - display_name: Debian 13
             artifact_label: debian13
-            suite: stable
+            version_slug: deb13
+            suite: trixie
             components: main
             runner: ubuntu-latest
             arch: amd64
           - display_name: Debian 13
             artifact_label: debian13
-            suite: stable
+            version_slug: deb13
+            suite: trixie
             components: main
             runner: ubuntu-24.04-arm
             arch: arm64
           - display_name: Ubuntu 26.04
             artifact_label: ubuntu26.04
+            version_slug: ubu26
             suite: resolute
             components: main universe
             runner: ubuntu-latest
             arch: amd64
           - display_name: Ubuntu 26.04
             artifact_label: ubuntu26.04
+            version_slug: ubu26
             suite: resolute
             components: main universe
             runner: ubuntu-24.04-arm
@@ -103,7 +107,9 @@ jobs:
         suite: ${{ matrix.suite }}
         summary: "Build PoMiDAQ on ${{ matrix.display_name }} (${{ matrix.arch }})"
         commands: |
-          CC=gcc CXX=g++ DEBEMAIL=no-reply@physiologie.uni-heidelberg.de ./contrib/ci/cibuild.sh
+          CC=gcc CXX=g++ \
+          DEBEMAIL=no-reply@physiologie.uni-heidelberg.de SUITE="${{ matrix.suite }}" DEBVER_SLUG="${{ matrix.version_slug }}" \
+            ./contrib/ci/cibuild.sh
 
     - name: Upload Linux package artifact
       uses: actions/upload-artifact@v7
