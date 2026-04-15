@@ -30,16 +30,37 @@ jobs:
         echo "version-numeric=${PMD_VERSION_NUMERIC}" >> $GITHUB_OUTPUT
 
 
-  build-debian:
-    name: Debian (${{ matrix.arch }})
+  build-linux:
+    name: ${{ matrix.display_name }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: revision
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - display_name: Debian 13
+            artifact_label: debian13
+            suite: stable
+            components: main
+            runner: ubuntu-latest
             arch: amd64
-          - runner: ubuntu-24.04-arm
+          - display_name: Debian 13
+            artifact_label: debian13
+            suite: stable
+            components: main
+            runner: ubuntu-24.04-arm
+            arch: arm64
+          - display_name: Ubuntu 26.04
+            artifact_label: ubuntu26.04
+            suite: resolute
+            components: main universe
+            runner: ubuntu-latest
+            arch: amd64
+          - display_name: Ubuntu 26.04
+            artifact_label: ubuntu26.04
+            suite: resolute
+            components: main universe
+            runner: ubuntu-24.04-arm
             arch: arm64
 
     steps:
@@ -48,51 +69,46 @@ jobs:
         fetch-depth: 0
 
     - name: Create Build Environment
-      run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-debian .
+      uses: ximion/debspawn-action/setup@v1.0.0
+      with:
+        suite: ${{ matrix.suite }}
+        components: ${{ matrix.components }}
+        packages: >-
+          gcc
+          g++
+          git-core
+          dpkg-dev
+          devscripts
+          debhelper
+          libdistro-info-perl
+          cmake
+          ninja-build
+          appstream
+          qt6-base-dev
+          qt6-svg-dev
+          libkf6configwidgets-dev
+          libopencv-dev
+          libavcodec-dev
+          libavformat-dev
+          libswscale-dev
+          pybind11-dev
+          python3-dev
+          python3-numpy
+        script:
+          git config --global --add safe.directory /srv/build
 
     - name: Build
-      run: |
-        podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
-            -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de \
-            -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
+      uses: ximion/debspawn-action/run@v1.0.0
+      with:
+        suite: ${{ matrix.suite }}
+        summary: "Build PoMiDAQ on ${{ matrix.display_name }} (${{ matrix.arch }})"
+        commands: |
+          CC=gcc CXX=g++ DEBEMAIL=no-reply@physiologie.uni-heidelberg.de ./contrib/ci/cibuild.sh
 
-    - name: Upload Debian package artifact
+    - name: Upload Linux package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: pomidaq_${{ needs.revision.outputs.version }}.debian13_${{ matrix.arch }}.zip
-        path: "*.deb"
-
-
-  build-ubuntu:
-    name: Ubuntu (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
-    needs: revision
-    strategy:
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            arch: amd64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Create Build Environment
-      run: cd contrib/ci/ && podman build -t pomidaq -f Dockerfile-ubuntu .
-
-    - name: Build
-      run: |
-        podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ \
-            -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de \
-            -v `pwd`:/build pomidaq ./contrib/ci/cibuild.sh
-
-    - name: Upload Ubuntu package artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: pomidaq_${{ needs.revision.outputs.version }}.ubuntu26.04_${{ matrix.arch }}.zip
+        name: pomidaq_${{ needs.revision.outputs.version }}.${{ matrix.artifact_label }}_${{ matrix.arch }}.zip
         path: "*.deb"
 
 
