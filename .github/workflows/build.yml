@@ -73,7 +73,7 @@ jobs:
         fetch-depth: 0
 
     - name: Create Build Environment
-      uses: ximion/debspawn-action/setup@v1.0.0
+      uses: ximion/debspawn-action/setup@v1.0.1
       with:
         suite: ${{ matrix.suite }}
         components: ${{ matrix.components }}
@@ -102,7 +102,7 @@ jobs:
           git config --global --add safe.directory /srv/build
 
     - name: Build
-      uses: ximion/debspawn-action/run@v1.0.0
+      uses: ximion/debspawn-action/run@v1.0.1
       with:
         suite: ${{ matrix.suite }}
         summary: "Build PoMiDAQ on ${{ matrix.display_name }} (${{ matrix.arch }})"
