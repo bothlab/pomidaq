@@ -200,7 +200,7 @@ jobs:
       uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
       with:
         path: contrib/win-installer.iss
-        options: >-
+        options: |-
           /DAppVersion=${{ needs.revision.outputs.version }}
           /DAppVersionNumeric=${{ needs.revision.outputs.version-numeric }}
           /DDeployDir=..\win64-deploy\PoMiDAQ-${{ needs.revision.outputs.version }}
