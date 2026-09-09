@@ -102,7 +102,7 @@ include_directories(${CMAKE_BINARY_DIR})
 #
 # Subdirectories
 #
-add_subdirectory(libminiscope)
+add_subdirectory(miniscope)
 add_subdirectory(data)
 if (GUI)
   add_subdirectory(src)

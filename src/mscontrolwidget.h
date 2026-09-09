@@ -20,7 +20,7 @@
 #pragma once
 
 #include <QWidget>
-#include "miniscope.h"
+#include "miniscope/miniscope.h"
 
 class QSlider;
 

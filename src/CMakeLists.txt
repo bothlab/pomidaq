@@ -93,7 +93,7 @@ include_directories(SYSTEM
     ${OpenCV_INCLUDE_DIRS}
 )
 include_directories(
-    ../libminiscope/
+    ../
 )
 
 install(TARGETS pomidaq DESTINATION ${CMAKE_INSTALL_BINDIR})

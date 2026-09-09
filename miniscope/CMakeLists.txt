@@ -62,7 +62,6 @@ add_library(miniscope
 set_target_properties(miniscope PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(miniscope PROPERTIES SOVERSION ${LIBSOVERSION})
 
-set(MINISCOPE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/miniscope)
 target_include_directories(miniscope PRIVATE .)
 set_target_properties(miniscope PROPERTIES PUBLIC_HEADER "${LIBMINISCOPE_HEADERS}")
 set_target_properties(miniscope PROPERTIES CXX_VISIBILITY_PRESET hidden)

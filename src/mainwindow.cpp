@@ -35,7 +35,7 @@
 #include <QProgressBar>
 #include <QStandardPaths>
 #include <QLoggingCategory>
-#include <miniscope.h>
+#include <miniscope/miniscope.h>
 
 #include "imageviewwidget.h"
 #include "mscontrolwidget.h"
