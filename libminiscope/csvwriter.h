@@ -19,36 +19,47 @@
 
 #pragma once
 
-#include <QThread>
-#include <QObject>
-#include <QMutex>
-#include <QWaitCondition>
-#include <QQueue>
-#include <QLoggingCategory>
+#include <chrono>
+#include <condition_variable>
+#include <deque>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
 
-Q_DECLARE_LOGGING_CATEGORY(logCSVWriter)
-
-class CSVWriter : public QThread
+/**
+ * @brief Write rows of data to a CSV file from a dedicated thread.
+ */
+class CSVWriter
 {
-    Q_OBJECT
 public:
-    explicit CSVWriter(const QString &filename, QObject *parent = nullptr);
+    using ErrorCallback = std::function<void(const std::string &errorMessage)>;
 
-    void addRow(const QStringList &rowData);
+    explicit CSVWriter(const std::string &filename);
+    ~CSVWriter();
+
+    CSVWriter(const CSVWriter &) = delete;
+    CSVWriter &operator=(const CSVWriter &) = delete;
+
+    /**
+     * @brief Set a callback that is invoked (from the writer thread) if writing fails.
+     */
+    void setErrorCallback(ErrorCallback callback);
+
+    void start();
+    void addRow(const std::vector<std::string> &rowData);
     void addRow(const std::chrono::milliseconds &timestamp, const std::vector<float> &rowData);
     void stop();
 
-signals:
-    void error(const QString &errorMessage);
-    void finished();
-
-protected:
-    void run() override;
-
 private:
-    QString m_filename;
-    QQueue<QStringList> m_dataQueue;
-    QMutex m_mutex;
-    QWaitCondition m_dataAvailable;
+    void run();
+
+    std::string m_filename;
+    ErrorCallback m_errorCallback;
+    std::deque<std::vector<std::string>> m_dataQueue;
+    std::mutex m_mutex;
+    std::condition_variable m_dataAvailable;
+    std::thread m_thread;
     bool m_stopThread;
 };

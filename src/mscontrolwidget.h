@@ -31,7 +31,7 @@ class MSControlWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent = nullptr);
+    explicit MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWidget *parent = nullptr);
 
     QString controlId() const;
 

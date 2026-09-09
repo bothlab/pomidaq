@@ -102,6 +102,22 @@ modules:
         url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.12.0.tar.gz
         sha256: 4197722b4c5ed42b476d42e29beb29a52b6b25c34ec7b4d589c3ae5145fee98e
 
+  - name: nlohmann-json
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DJSON_BuildTests=OFF
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        url: https://github.com/nlohmann/json/archive/refs/tags/v3.12.0.tar.gz
+        sha256: 4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187
+        x-checker-data:
+          type: anitya
+          project-id: 11152
+          url-template: https://github.com/nlohmann/json/archive/refs/tags/v$version.tar.gz
+
   - name: pomidaq
     buildsystem: cmake-ninja
     builddir: true

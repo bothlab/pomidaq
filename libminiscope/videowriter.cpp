@@ -19,8 +19,11 @@
 
 #include "videowriter.h"
 
-#include <QString>
+#include <cassert>
+#include <cstring>
+#include <format>
 #include <iostream>
+#include <stdexcept>
 #include <atomic>
 #include <thread>
 #include <mutex>
@@ -42,7 +45,7 @@ extern "C" {
  * The maximum number of frames we want to hold in the queue in memory
  * before dropping frames.
  */
-static const uint FRAME_QUEUE_MAX_COUNT = 512;
+static const unsigned int FRAME_QUEUE_MAX_COUNT = 512;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -70,14 +73,14 @@ public:
         lossless = false;
     }
 
-    QString lastError;
+    std::string lastError;
     std::thread *thread;
     std::mutex mutex;
     std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
 
-    QString fnameBase;
-    uint fileSliceIntervalMin;
-    uint currentSliceNo;
+    std::string fnameBase;
+    unsigned int fileSliceIntervalMin;
+    unsigned int currentSliceNo;
     VideoCodec codec;
     VideoContainer container;
 
@@ -95,7 +98,7 @@ public:
     AVFrame *frame;
     AVFrame *inputFrame;
     int64_t framePts;
-    uchar *alignedInput;
+    uint8_t *alignedInput;
 
     AVFormatContext *octx;
     AVStream *vstrm;
@@ -161,9 +164,9 @@ void VideoWriter::initializeInternal()
     }
 
     // if file slicing is used, give our new file the appropriate name
-    QString fname;
+    std::string fname;
     if (d->fileSliceIntervalMin > 0)
-        fname = QStringLiteral("%1_%2").arg(d->fnameBase).arg(d->currentSliceNo);
+        fname = std::format("{}_{}", d->fnameBase, d->currentSliceNo);
     else
         fname = d->fnameBase;
 
@@ -173,15 +176,15 @@ void VideoWriter::initializeInternal()
     // set container format
     switch (d->container) {
     case VideoContainer::Matroska:
-        if (!fname.endsWith(".mkv"))
+        if (!fname.ends_with(".mkv"))
             fname = fname + ".mkv";
         break;
     case VideoContainer::AVI:
-        if (!fname.endsWith(".avi"))
+        if (!fname.ends_with(".avi"))
             fname = fname + ".avi";
         break;
     default:
-        if (!fname.endsWith(".mkv"))
+        if (!fname.ends_with(".mkv"))
             fname = fname + ".mkv";
         break;
     }
@@ -189,15 +192,15 @@ void VideoWriter::initializeInternal()
     // open output format context
     int ret;
     d->octx = nullptr;
-    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, qPrintable(fname));
+    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
     if (ret < 0)
-        throw std::runtime_error(QStringLiteral("Failed to allocate output context: %1").arg(ret).toStdString());
+        throw std::runtime_error(std::format("Failed to allocate output context: {}", ret));
 
     // open output IO context
-    ret = avio_open2(&d->octx->pb, qPrintable(fname), AVIO_FLAG_WRITE, nullptr, nullptr);
+    ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(QStringLiteral("Failed to open output I/O context: %1").arg(ret).toStdString());
+        throw std::runtime_error(std::format("Failed to open output I/O context: {}", ret));
     }
 
     auto codecId = AV_CODEC_ID_AV1;
@@ -350,7 +353,7 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(QStringLiteral("Failed to open video encoder: %1").arg(ret).toStdString());
+        throw std::runtime_error(std::format("Failed to open video encoder: {}", ret));
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -386,14 +389,14 @@ void VideoWriter::initializeInternal()
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(ret).toStdString());
+        throw std::runtime_error(std::format("Failed to write format header: {}", ret));
     }
     d->framePts = 0;
 
     if (d->saveTimestamps) {
         d->timestampFile.close(); // ensure file is closed
         d->timestampFile.clear();
-        d->timestampFile.open(timestampFname.toStdString());
+        d->timestampFile.open(timestampFname);
         d->timestampFile << "frame; timestamp"
                          << "\n";
         d->timestampFile.flush();
@@ -452,7 +455,13 @@ void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(const QString &fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
+void VideoWriter::initialize(
+    const std::string &fname,
+    int width,
+    int height,
+    int fps,
+    bool hasColor,
+    bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -463,8 +472,10 @@ void VideoWriter::initialize(const QString &fname, int width, int height, int fp
     d->frames_n = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
-    if (fname.mid(fname.lastIndexOf(".") + 1).length() == 3)
-        d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
+    const auto dotPos = fname.rfind('.');
+    const auto suffixLen = (dotPos == std::string::npos) ? fname.length() : fname.length() - dotPos - 1;
+    if (suffixLen == 3)
+        d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
     else
         d->fnameBase = fname;
 
@@ -519,17 +530,14 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead %3x%4)")
-                                     .arg(width)
-                                     .arg(height)
-                                     .arg(d->width)
-                                     .arg(d->height)
-                                     .toStdString());
+        throw std::runtime_error(
+            std::format(
+                "Received bigger frame than we expected ({}x{} instead {}x{})", width, height, d->width, d->height));
     if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
-        d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels").arg(channels);
+        d->lastError = std::format("Expected BGR colored image, but received image has {} channels", channels);
         return false;
     } else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
-        d->lastError = QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels);
+        d->lastError = std::format("Expected grayscale image, but received image has {} channels", channels);
         return false;
     }
 
@@ -542,7 +550,7 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         auto aligned_step = (step + STEP_ALIGNMENT - 1) & -STEP_ALIGNMENT;
 
         if (d->alignedInput == nullptr)
-            d->alignedInput = static_cast<uchar *>(av_mallocz(aligned_step * static_cast<size_t>(height)));
+            d->alignedInput = static_cast<uint8_t *>(av_mallocz(aligned_step * static_cast<size_t>(height)));
 
         for (size_t y = 0; y < static_cast<size_t>(height); y++)
             memcpy(d->alignedInput + y * aligned_step, image.ptr() + y * step, step);
@@ -599,8 +607,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     AVPacket *pkt = nullptr;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError.toStdString() << ")"
-                  << std::endl;
+        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError << ")" << std::endl;
         return false;
     }
 
@@ -613,7 +620,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
 
     pkt = av_packet_alloc();
     if (!pkt) {
-        d->lastError = QStringLiteral("Unable to allocate packet.");
+        d->lastError = "Unable to allocate packet.";
         return false;
     }
 
@@ -746,17 +753,17 @@ void VideoWriter::setLossless(bool enabled)
     d->lossless = enabled;
 }
 
-uint VideoWriter::fileSliceInterval() const
+unsigned int VideoWriter::fileSliceInterval() const
 {
     return d->fileSliceIntervalMin;
 }
 
-void VideoWriter::setFileSliceInterval(uint minutes)
+void VideoWriter::setFileSliceInterval(unsigned int minutes)
 {
     d->fileSliceIntervalMin = minutes;
 }
 
-QString VideoWriter::lastError() const
+std::string VideoWriter::lastError() const
 {
     return d->lastError;
 }

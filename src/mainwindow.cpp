@@ -33,8 +33,8 @@
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QProgressBar>
-#include <QFutureWatcher>
 #include <QStandardPaths>
+#include <QLoggingCategory>
 #include <miniscope.h>
 
 #include "imageviewwidget.h"
@@ -45,7 +45,6 @@
 #include <KColorScheme>
 #endif
 
-using namespace MScope;
 
 static bool darkColorSchemeAvailable()
 {
@@ -122,6 +121,36 @@ static void changeColorsDarkmode(bool enabled)
 #endif
 
 static MainWindow *g_mainWin = nullptr;
+
+// Qt logging categories mirroring the ones used by libminiscope,
+// so its messages are routed through Qt's logging machinery
+Q_LOGGING_CATEGORY(logMScope, "miniscope")
+Q_LOGGING_CATEGORY(logCSVWriter, "csvwriter")
+
+/**
+ * Forward log messages from libminiscope into Qt's logging system.
+ * This means they will be handled by messageOutputHandler() as well.
+ */
+static void miniscopeLogHandler(const Miniscope::LogMessage &m)
+{
+    const QLoggingCategory &cat = (std::string_view(m.category) == "csvwriter") ? logCSVWriter() : logMScope();
+    const auto msg = QString::fromUtf8(m.message.data(), static_cast<qsizetype>(m.message.size()));
+    switch (m.severity) {
+    case Miniscope::LogSeverity::Debug:
+        qCDebug(cat).noquote() << msg;
+        break;
+    case Miniscope::LogSeverity::Info:
+        qCInfo(cat).noquote() << msg;
+        break;
+    case Miniscope::LogSeverity::Warning:
+        qCWarning(cat).noquote() << msg;
+        break;
+    case Miniscope::LogSeverity::Error:
+    case Miniscope::LogSeverity::Critical:
+        qCCritical(cat).noquote() << msg;
+        break;
+    }
+}
 
 void messageOutputHandler(QtMsgType type, const QMessageLogContext &ctx, const QString &msg)
 {
@@ -207,9 +236,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_scopeView = new ImageViewWidget(this);
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
-    m_mscope = new Miniscope();
-    m_mscope->setOnStatusMessage([&](const QString &msg, void *) {
-        setStatusText(msg);
+    m_mscope = new Miniscope::Miniscope();
+    m_mscope->setOnStatusMessage([&](const std::string &msg, void *) {
+        setStatusText(QString::fromStdString(msg));
     });
 
     // Miniscope controls
@@ -254,12 +283,13 @@ MainWindow::MainWindow(QWidget *parent)
     ui->sliceIntervalSpinBox->setValue(settings.value("recording/videoSliceInterval", 20).toInt());
 
     // set display modes
-    ui->displayModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
-    ui->displayModeCB->addItem(QStringLiteral("F - F₀"), QVariant::fromValue(DisplayMode::BackgroundDiff));
+    ui->displayModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(Miniscope::DisplayMode::RawFrames));
+    ui->displayModeCB->addItem(QStringLiteral("F - F₀"), QVariant::fromValue(Miniscope::DisplayMode::BackgroundDiff));
     ui->highlightSaturationCheckBox->setChecked(settings.value("display/highlightSaturation", false).toBool());
 
     // set device list
-    ui->deviceTypeComboBox->addItems(m_mscope->availableDeviceTypes());
+    for (const auto &deviceType : m_mscope->availableDeviceTypes())
+        ui->deviceTypeComboBox->addItem(QString::fromStdString(deviceType));
 
     // set the right first toolbox page
     ui->toolBox->setCurrentIndex(0);
@@ -297,8 +327,9 @@ MainWindow::MainWindow(QWidget *parent)
             QMessageBox::warning(
                 this,
                 "Data directory changed",
-                QStringLiteral("The previous data storage location ('%1') does no longer exist or is not writable. "
-                               "Falling back to default location.")
+                QStringLiteral(
+                    "The previous data storage location ('%1') does no longer exist or is not writable. "
+                    "Falling back to default location.")
                     .arg(savedDataDir));
         }
     }
@@ -311,6 +342,8 @@ MainWindow::MainWindow(QWidget *parent)
     // log display (Windows users like this...)
     g_mainWin = this;
     qInstallMessageHandler(messageOutputHandler);
+    Miniscope::setLogHandler(miniscopeLogHandler);
+    Miniscope::setLogSeverity(Miniscope::LogSeverity::Debug); // filtering is done by Qt's logging rules
 
     // read current device info, if we can
     ui->camInfoLabel->setText("");
@@ -338,6 +371,9 @@ MainWindow::~MainWindow()
 
     delete ui;
     delete m_mscope;
+
+    // stop forwarding libminiscope messages
+    Miniscope::setLogHandler(nullptr);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -437,11 +473,12 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(int index)
     m_controls.clear();
 
     // load new controls
-    if (!m_mscope->loadDeviceConfig(curValue)) {
+    if (!m_mscope->loadDeviceConfig(curValue.toStdString())) {
         QMessageBox::critical(
             this,
             QStringLiteral("Error"),
-            QStringLiteral("Unable to load device configuration: %1").arg(m_mscope->lastError()));
+            QStringLiteral("Unable to load device configuration: %1")
+                .arg(QString::fromStdString(m_mscope->lastError())));
         return;
     }
 
@@ -450,7 +487,7 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(int index)
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
         connect(w, &MSControlWidget::valueChanged, this, [&](const QString ctlId, double value) {
-            m_mscope->setControlValue(ctlId, value);
+            m_mscope->setControlValue(ctlId.toStdString(), value);
         });
         m_controls.append(w);
     }
@@ -498,8 +535,8 @@ void MainWindow::processMiniscopeDisplay()
     ui->deviceTypeComboBox->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
-    if (!m_mscope->lastError().isEmpty())
-        QMessageBox::critical(this, "Error", m_mscope->lastError());
+    if (!m_mscope->lastError().empty())
+        QMessageBox::critical(this, "Error", QString::fromStdString(m_mscope->lastError()));
 
     // switch back to connect page, as this is the
     // only useful page when no scope is connected
@@ -509,7 +546,7 @@ void MainWindow::processMiniscopeDisplay()
 void MainWindow::on_sbCamId_valueChanged(int arg1)
 {
 #ifdef Q_OS_LINUX
-    const auto devName = videoDeviceNameFromId(arg1);
+    const auto devName = QString::fromStdString(Miniscope::videoDeviceNameFromId(arg1));
     if (devName.isEmpty())
         ui->camInfoLabel->setText("➞ unknown or unavailable");
     else
@@ -550,7 +587,7 @@ void MainWindow::on_btnDevConnect_clicked()
 
     // reflect currently active control values in the UI
     for (const auto &w : std::as_const(m_controls))
-        w->setValue(m_mscope->controlValue(w->controlId()));
+        w->setValue(m_mscope->controlValue(w->controlId().toStdString()));
 
     // run and display images
     m_mscope->run();
@@ -570,15 +607,15 @@ void MainWindow::on_btnDevConnect_clicked()
     ui->toolBox->setCurrentIndex(1);
 
     // set z-stack range limits
-    ControlDefinition ewlControl;
+    Miniscope::ControlDefinition ewlControl;
     for (const auto &ctl : m_mscope->controls()) {
-        if (ctl.name.toLower().contains("ewl")) {
+        if (QString::fromStdString(ctl.name).toLower().contains("ewl")) {
             ewlControl = ctl;
             break;
         }
     }
     ui->btnAcquireZStack->setEnabled(true);
-    if (ewlControl.id.isEmpty()) {
+    if (ewlControl.id.empty()) {
         ui->pageZStack->setEnabled(false);
     } else {
         ui->pageZStack->setEnabled(true);
@@ -623,7 +660,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     if (checked) {
         const auto videoFname = QDir(m_dataDir).filePath(
             QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
-        if (m_mscope->startRecording(videoFname)) {
+        if (m_mscope->startRecording(videoFname.toStdString())) {
             ui->pageRecord->setEnabled(false);
             ui->btnDevConnect->setEnabled(false);
             ui->btnRecord->setText("Stop recording");
@@ -671,34 +708,34 @@ void MainWindow::on_codecComboBox_currentIndexChanged(int index)
     ui->containerComboBox->setEnabled(true);
 
     if (curValue == "AV1") {
-        m_mscope->setVideoCodec(VideoCodec::AV1);
+        m_mscope->setVideoCodec(Miniscope::VideoCodec::AV1);
 
     } else if (curValue == "FFV1") {
-        m_mscope->setVideoCodec(VideoCodec::FFV1);
+        m_mscope->setVideoCodec(Miniscope::VideoCodec::FFV1);
 
         // FFV1 is always lossless
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
     } else if (curValue == "VP9") {
-        m_mscope->setVideoCodec(VideoCodec::VP9);
+        m_mscope->setVideoCodec(Miniscope::VideoCodec::VP9);
 
     } else if (curValue == "HEVC") {
-        m_mscope->setVideoCodec(VideoCodec::HEVC);
+        m_mscope->setVideoCodec(Miniscope::VideoCodec::HEVC);
 
         // H.256 only works with MKV and MP4 containers, select MKV by default
         ui->containerComboBox->setCurrentIndex(0);
         ui->containerComboBox->setEnabled(false);
 
     } else if (curValue == "MPEG-4") {
-        m_mscope->setVideoCodec(VideoCodec::MPEG4);
+        m_mscope->setVideoCodec(Miniscope::VideoCodec::MPEG4);
 
         // MPEG-4 can't do lossless encoding
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
 
     } else if (curValue == "Raw") {
-        m_mscope->setVideoCodec(VideoCodec::Raw);
+        m_mscope->setVideoCodec(Miniscope::VideoCodec::Raw);
 
         // Raw is always lossless
         ui->losslessCheckBox->setEnabled(false);
@@ -718,9 +755,9 @@ void MainWindow::on_containerComboBox_currentIndexChanged(int index)
     const auto curValue = ui->containerComboBox->currentText();
 
     if (curValue == "MKV")
-        m_mscope->setVideoContainer(VideoContainer::Matroska);
+        m_mscope->setVideoContainer(Miniscope::VideoContainer::Matroska);
     else if (curValue == "AVI")
-        m_mscope->setVideoContainer(VideoContainer::AVI);
+        m_mscope->setVideoContainer(Miniscope::VideoContainer::AVI);
     else
         qCritical() << "Unknown video container option selected:" << curValue;
 }
@@ -797,26 +834,27 @@ void MainWindow::on_btnAcquireZStack_clicked()
     setStatusText("Acquiring z-stack...");
 
     setStatusProgressVisible(true);
-    QFutureWatcher<bool> watcher;
-    connect(&watcher, &QFutureWatcher<bool>::progressValueChanged, [this](int progress) {
-        setStatusProgress(progress);
-    });
-
-    auto future = m_mscope->acquireZStack(
+    auto task = m_mscope->acquireZStack(
         ui->sbStackFrom->value(),
         ui->sbStackTo->value(),
         ui->sbStackStepSize->value(),
         ui->sbStackAverage->value(),
-        fileName);
-    watcher.setFuture(future);
-    while (!future.isFinished())
+        fileName.toStdString());
+    int lastProgress = -1;
+    while (!task.isFinished()) {
+        const auto progress = task.progressValue();
+        if (progress != lastProgress) {
+            setStatusProgress(progress);
+            lastProgress = progress;
+        }
         QApplication::processEvents();
+    }
 
     try {
-        future.waitForFinished();
+        task.waitForFinished();
         setStatusText("OK");
         setStatusProgressVisible(false);
-    } catch (const QException &e) {
+    } catch (const std::exception &e) {
         QMessageBox::critical(this, QStringLiteral("Unable to acquite stack"), e.what());
         setStatusText("Z-stack failed.");
     }
@@ -857,28 +895,29 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
     setStatusText("Accumulating 3D data...");
 
     setStatusProgressVisible(true);
-    QFutureWatcher<bool> watcher;
-    connect(&watcher, &QFutureWatcher<bool>::progressValueChanged, [this](int progress) {
-        setStatusProgress(progress);
-    });
-
-    auto future = m_mscope->accumulate3DView(
+    auto task = m_mscope->accumulate3DView(
         ui->sbA3DStackFrom->value(),
         ui->sbA3DStackTo->value(),
         ui->sbA3DStackStepSize->value(),
         ui->sbA3DCyclesDuration->value(),
         ui->cbA3DKeepRaw->isChecked(),
-        saveDirName,
-        saveDataName);
-    watcher.setFuture(future);
-    while (!future.isFinished())
+        saveDirName.toStdString(),
+        saveDataName.toStdString());
+    int lastProgress = -1;
+    while (!task.isFinished()) {
+        const auto progress = task.progressValue();
+        if (progress != lastProgress) {
+            setStatusProgress(progress);
+            lastProgress = progress;
+        }
         QApplication::processEvents();
+    }
 
     try {
-        future.waitForFinished();
+        task.waitForFinished();
         setStatusText("OK");
         setStatusProgressVisible(false);
-    } catch (const QException &e) {
+    } catch (const std::exception &e) {
         QMessageBox::critical(this, QStringLiteral("Unable to acquite stack for 3D accumulation"), e.what());
         setStatusText("3D data accumulation failed.");
     }
@@ -957,10 +996,10 @@ void MainWindow::on_actionAbout_triggered()
 
 void MainWindow::on_displayModeCB_currentIndexChanged(int)
 {
-    const auto mode = ui->displayModeCB->currentData().value<DisplayMode>();
+    const auto mode = ui->displayModeCB->currentData().value<Miniscope::DisplayMode>();
 
-    ui->accAlphaSpinBox->setEnabled(mode == DisplayMode::BackgroundDiff);
-    ui->accumulateAlphaLabel->setEnabled(mode == DisplayMode::BackgroundDiff);
+    ui->accAlphaSpinBox->setEnabled(mode == Miniscope::DisplayMode::BackgroundDiff);
+    ui->accumulateAlphaLabel->setEnabled(mode == Miniscope::DisplayMode::BackgroundDiff);
 
     m_mscope->setDisplayMode(mode);
 }

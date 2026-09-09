@@ -8,7 +8,7 @@ project(PoMiDAQ
     VERSION 0.6.2
 )
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_testing()
 
@@ -17,7 +17,7 @@ list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/contrib/cmake/")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(OpenGL_GL_PREFERENCE GLVND)
 
-set(LIBSOVERSION 0)
+set(LIBSOVERSION 1)
 
 #
 # Options
@@ -65,25 +65,27 @@ endif()
 # Dependencies
 #
 include(GNUInstallDirs)
-find_package(Threads)
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Concurrent)
+find_package(Threads REQUIRED)
+find_package(nlohmann_json 3.10 REQUIRED)
 if (GUI)
-    find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Svg OpenGLWidgets)
+    find_package(Qt6 6.8 REQUIRED COMPONENTS Core Widgets Svg OpenGLWidgets)
 endif()
 
 find_package(OpenCV 4.8 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+if (GUI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     find_package(KF6ConfigWidgets)
     set(KF6_ConfigWidgets KF6::ConfigWidgets)
 endif()
 
-qt_standard_project_setup()
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+if (GUI)
+    qt_standard_project_setup()
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTORCC ON)
+    set(CMAKE_AUTOUIC ON)
+endif()
 
 #
 # Config

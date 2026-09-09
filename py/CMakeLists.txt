@@ -8,7 +8,6 @@ pybind11_add_module(pyminiscope
     pyminiscope.cpp
     cvmatndsliceconvert.h
     cvmatndsliceconvert.cpp
-    qstringtopy.h
 )
 
 target_link_libraries(pyminiscope PRIVATE

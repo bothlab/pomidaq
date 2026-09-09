@@ -19,7 +19,7 @@
 
 #include "mediatypes.h"
 
-using namespace MScope;
+using namespace Miniscope;
 
 VideoCodec stringToVideoCodec(const std::string &str)
 {

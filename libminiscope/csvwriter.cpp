@@ -19,32 +19,50 @@
 
 #include "csvwriter.h"
 
-#include <QDebug>
-#include <QFile>
-#include <QMutexLocker>
+#include <format>
+#include <fstream>
 
-Q_LOGGING_CATEGORY(logCSVWriter, "csvwriter")
+#include "loginternal.h"
 
-CSVWriter::CSVWriter(const QString &filename, QObject *parent)
-    : QThread{parent},
-      m_filename(filename),
+MS_DEFINE_LOG_CATEGORY(logCSVWriter, "csvwriter");
+
+CSVWriter::CSVWriter(const std::string &filename)
+    : m_filename(filename),
       m_stopThread(false)
 {
 }
 
-void CSVWriter::addRow(const QStringList &rowData)
+CSVWriter::~CSVWriter()
 {
-    QMutexLocker locker(&m_mutex);
-    m_dataQueue.enqueue(rowData);
-    m_dataAvailable.wakeOne();
+    stop();
+}
+
+void CSVWriter::setErrorCallback(ErrorCallback callback)
+{
+    m_errorCallback = std::move(callback);
+}
+
+void CSVWriter::start()
+{
+    if (m_thread.joinable())
+        return;
+    m_stopThread = false;
+    m_thread = std::thread(&CSVWriter::run, this);
+}
+
+void CSVWriter::addRow(const std::vector<std::string> &rowData)
+{
+    std::lock_guard<std::mutex> locker(m_mutex);
+    m_dataQueue.push_back(rowData);
+    m_dataAvailable.notify_one();
 }
 
 void CSVWriter::addRow(const std::chrono::milliseconds &timestamp, const std::vector<float> &rowData)
 {
-    QStringList rowStr;
-    rowStr << QString::number(timestamp.count());
+    std::vector<std::string> rowStr;
+    rowStr.push_back(std::to_string(timestamp.count()));
     for (const auto &n : rowData)
-        rowStr << QString::number(n);
+        rowStr.push_back(std::format("{:g}", n));
     addRow(rowStr);
 }
 
@@ -52,48 +70,54 @@ void CSVWriter::stop()
 {
     bool waitForThread = m_stopThread == false;
     {
-        QMutexLocker locker(&m_mutex);
+        std::lock_guard<std::mutex> locker(m_mutex);
         m_stopThread = true;
-        m_dataAvailable.wakeOne();
+        m_dataAvailable.notify_one();
     }
-    if (waitForThread)
-        wait();
+    if (waitForThread && m_thread.joinable())
+        m_thread.join();
 }
 
 void CSVWriter::run()
 {
-    QFile file(m_filename);
+    std::ofstream file(m_filename, std::ios::out | std::ios::app);
 
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append)) {
-        QString errorMsg = "Unable to open file " + m_filename;
-        qCWarning(logCSVWriter).noquote() << errorMsg;
-        emit error(errorMsg);
-        emit finished();
+    if (!file.is_open()) {
+        const std::string errorMsg = "Unable to open file " + m_filename;
+        MS_LOG_WARNING(logCSVWriter, "{}", errorMsg);
+        if (m_errorCallback)
+            m_errorCallback(errorMsg);
         return;
     }
 
-    qCDebug(logCSVWriter).noquote() << "Writing CSV file:" << m_filename;
+    MS_LOG_DEBUG(logCSVWriter, "Writing CSV file: {}", m_filename);
 
-    QTextStream out(&file);
     while (true) {
-        QStringList rowData;
+        std::vector<std::string> rowData;
         {
-            QMutexLocker locker(&m_mutex);
+            std::unique_lock<std::mutex> locker(m_mutex);
             if (m_stopThread)
                 break;
 
-            if (m_dataQueue.isEmpty()) {
-                m_dataAvailable.wait(&m_mutex);
+            if (m_dataQueue.empty()) {
+                m_dataAvailable.wait(locker);
                 continue;
             }
 
-            rowData = m_dataQueue.dequeue();
+            rowData = m_dataQueue.front();
+            m_dataQueue.pop_front();
         }
 
-        out << rowData.join(";") << "\n";
+        std::string line;
+        for (size_t i = 0; i < rowData.size(); ++i) {
+            if (i > 0)
+                line += ";";
+            line += rowData[i];
+        }
+        file << line << "\n";
     }
 
     file.close();
 
-    qCDebug(logCSVWriter).noquote() << "Writer thread stopped.";
+    MS_LOG_DEBUG(logCSVWriter, "Writer thread stopped.");
 }

@@ -87,10 +87,12 @@ If you want to cite PoMiDAQ, please use its Zenodo DOI:
 ### Dependencies
 
  * CMake (>= 3.16)
- * Qt6 (>= 6.8)
+ * A C++23 capable compiler (GCC >= 14, Clang >= 17)
  * FFmpeg (>= 6.1)
  * OpenCV (>= 4.8)
- * KF6ConfigWidgets (on Linux)
+ * [nlohmann-json](https://github.com/nlohmann/json) (>= 3.10)
+ * Qt6 (>= 6.8) (for the GUI only, `libminiscope` itself does not depend on Qt)
+ * KF6ConfigWidgets (on Linux, for the GUI only)
  * [pyBind11](https://github.com/pybind/pybind11) (optional)
 
 Before attempting to build PoMiDAQ, ensure all dependencies (and their development files) are installed on your system.
@@ -100,7 +102,7 @@ On Debian-based Linux systems, all dependencies can be installed from the packag
 ```bash
 sudo apt install build-essential cmake ninja-build qt6-base-dev qt6-svg-dev \
                  libkf6configwidgets-dev libopencv-dev libavcodec-dev libavformat-dev libswscale-dev \
-                 pybind11-dev python3-dev python3-numpy
+                 nlohmann-json3-dev pybind11-dev python3-dev python3-numpy
 ```
 The software can then be built like this, for an optimized release build with debug infos included:
 ```bash

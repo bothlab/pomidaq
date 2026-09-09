@@ -20,35 +20,32 @@
 #ifndef MINISCOPE_H
 #define MINISCOPE_H
 
-#include <QMetaObject>
-#include <QLoggingCategory>
-#include <QFuture>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 #include <opencv2/core.hpp>
 
 #include "mediatypes.h"
+#include "logging.h"
+#include "asynctask.h"
 
-#ifdef Q_OS_WIN
+#ifdef _WIN32
 #define MS_LIB_EXPORT __declspec(dllexport)
 #else
 #define MS_LIB_EXPORT __attribute__((visibility("default")))
 #endif
 
-namespace MScope
+namespace Miniscope
 {
-#ifndef Q_OS_WIN
-#pragma GCC visibility push(default)
-#endif
-Q_NAMESPACE
-
-Q_DECLARE_LOGGING_CATEGORY(logMScope)
-#ifndef Q_OS_WIN
-#pragma GCC visibility pop
-#endif
 
 using milliseconds_t = std::chrono::milliseconds;
 
-using StatusMessageCallback = std::function<void(const QString &, void *)>;
-using ControlChangeCallback = std::function<void(const QString &, double, double, void *)>;
+using StatusMessageCallback = std::function<void(const std::string &, void *)>;
+using ControlChangeCallback = std::function<void(const std::string &, double, double, void *)>;
 using RawDataCallback = std::function<void(
     const cv::Mat &,
     milliseconds_t &,
@@ -62,7 +59,6 @@ enum class DisplayMode {
     RawFrames,
     BackgroundDiff
 };
-Q_ENUM_NS(DisplayMode)
 
 /**
  * @brief Set which type of control is needed
@@ -72,7 +68,6 @@ enum class ControlKind {
     Selector, /// switch between a set of predefined values
     Slider    /// slide between an min and a max value
 };
-Q_ENUM_NS(ControlKind)
 
 /**
  * @brief Miniscope control definition
@@ -87,15 +82,15 @@ public:
     }
 
     ControlKind kind;
-    QString id;
-    QString name;
+    std::string id;
+    std::string name;
 
     int valueMin;
     int valueMax;
     double valueStart;
     int stepSize;
 
-    QStringList labels;
+    std::vector<std::string> labels;
     std::vector<double> values;
 };
 
@@ -108,9 +103,9 @@ public:
     explicit Miniscope();
     ~Miniscope();
 
-    QStringList availableDeviceTypes() const;
-    bool loadDeviceConfig(const QString &deviceType);
-    QString deviceType() const;
+    std::vector<std::string> availableDeviceTypes() const;
+    bool loadDeviceConfig(const std::string &deviceType);
+    std::string deviceType() const;
 
     void setScopeCamId(int id);
     int scopeCamId() const;
@@ -120,22 +115,27 @@ public:
     bool hardReset();
 
     std::vector<ControlDefinition> controls() const;
-    double controlValue(const QString &id);
-    void setControlValue(const QString &id, double value);
+    double controlValue(const std::string &id);
+    void setControlValue(const std::string &id, double value);
 
     bool run();
     void stop();
-    bool startRecording(const QString &fname = "");
+    bool startRecording(const std::string &fname = "");
     void stopRecording();
-    QFuture<bool> acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename);
-    QFuture<bool> accumulate3DView(
+    AsyncTask acquireZStack(
         int fromEWL,
         int toEWL,
-        uint step,
-        uint count,
+        unsigned int step,
+        unsigned int averageCount,
+        const std::string &outFilename);
+    AsyncTask accumulate3DView(
+        int fromEWL,
+        int toEWL,
+        unsigned int step,
+        unsigned int count,
         bool saveRaw,
-        const QString &outDir,
-        const QString &outName);
+        const std::string &outDir,
+        const std::string &outName);
 
     bool isConnected() const;
     bool isRunning() const;
@@ -204,7 +204,7 @@ public:
      */
     bool fetchLastRawFrame(cv::Mat &output);
 
-    uint currentFps() const;
+    unsigned int currentFps() const;
     size_t droppedFramesCount() const;
 
     double fps() const;
@@ -217,8 +217,8 @@ public:
     bool externalRecordTrigger() const;
     void setExternalRecordTrigger(bool enabled);
 
-    QString videoFilename() const;
-    void setVideoFilename(const QString &fname);
+    std::string videoFilename() const;
+    void setVideoFilename(const std::string &fname);
 
     VideoCodec videoCodec() const;
     void setVideoCodec(VideoCodec codec);
@@ -251,12 +251,12 @@ public:
     double bgAccumulateAlpha() const;
     void setBgAccumulateAlpha(double value);
 
-    uint recordingSliceInterval() const;
-    void setRecordingSliceInterval(uint minutes);
+    unsigned int recordingSliceInterval() const;
+    void setRecordingSliceInterval(unsigned int minutes);
 
     void setPrintExtraDebug(bool enabled);
 
-    QString lastError() const;
+    std::string lastError() const;
 
     milliseconds_t lastRecordedFrameTime() const;
 
@@ -268,15 +268,16 @@ public:
      * @return True if we waited for the appropriate amount of frames,
      *         False in case of an error.
      */
-    bool waitForAcquiredFrameCount(uint count);
+    bool waitForAcquiredFrameCount(unsigned int count);
 
 private:
     class Private;
-    Q_DISABLE_COPY(Miniscope)
+    Miniscope(const Miniscope &) = delete;
+    Miniscope &operator=(const Miniscope &) = delete;
     std::unique_ptr<Private> d;
 
     bool openCamera();
-    void enqueueI2CCommand(long preambleKey, std::vector<quint8> packet);
+    void enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet);
     void sendCommandsToDevice();
     void addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp);
     void setLastRawFrame(const cv::Mat &frame);
@@ -284,8 +285,8 @@ private:
     void startCaptureThread();
     void finishCaptureThread();
     milliseconds_t getCurrentFrameTimestamp();
-    void statusMessage(const QString &msg);
-    void fail(const QString &msg);
+    void statusMessage(const std::string &msg);
+    void fail(const std::string &msg);
 };
 
 /**
@@ -293,13 +294,8 @@ private:
  * This function is only supported on some operating systems, currently only on Linux.
  */
 MS_LIB_EXPORT
-QString videoDeviceNameFromId(int id);
+std::string videoDeviceNameFromId(int id);
 
-} // namespace MScope
-
-/**
- * \brief Call this in main() to initialize resources. Only needed when using static linking.
- */
-#define MSCOPE_RES_INIT Q_INIT_RESOURCE(mscopelr)
+} // namespace Miniscope
 
 #endif // MINISCOPE_H

@@ -19,29 +19,29 @@
 
 #pragma once
 
-#include <QFuture>
+#include <string>
 
 #include "miniscope.h"
 
-namespace MScope
+namespace Miniscope
 {
 
-QFuture<bool> launchZStackCapture(
+AsyncTask launchZStackCapture(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint averageCount,
-    const QString &outFilename);
+    unsigned int step,
+    unsigned int averageCount,
+    const std::string &outFilename);
 
-QFuture<bool> launch3DAccumulation(
+AsyncTask launch3DAccumulation(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint count,
+    unsigned int step,
+    unsigned int count,
     bool saveRaw,
-    const QString &outDir,
-    const QString &outName);
+    const std::string &outDir,
+    const std::string &outName);
 
-} // namespace MScope
+} // namespace Miniscope

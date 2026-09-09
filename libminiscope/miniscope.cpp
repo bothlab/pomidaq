@@ -20,26 +20,28 @@
 #include "miniscope.h"
 
 #define _USE_MATH_DEFINES
-#include <chrono>
-#include <thread>
-#include <mutex>
+#include <algorithm>
 #include <atomic>
+#include <cctype>
+#include <charconv>
+#include <chrono>
 #include <cmath>
-#include <QDebug>
-#include <QQueue>
-#include <QFile>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QHash>
-#include <QDateTime>
+#include <cstdlib>
+#include <deque>
+#include <format>
+#include <fstream>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <thread>
+#include <unordered_map>
+#include <nlohmann/json.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/opencv_modules.hpp>
 #include <opencv2/videoio.hpp>
 
-#ifdef Q_OS_LINUX
+#ifdef __linux__
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -47,19 +49,137 @@
 #endif
 
 #include "scopeintf.h"
+#include "loginternal.h"
+#include "resources.h"
 #include "videowriter.h"
 #include "csvwriter.h"
 #include "zstackcapture.h"
 
-void initLibraryResources()
+using json = nlohmann::json;
+
+namespace Miniscope
 {
-    Q_INIT_RESOURCE(mscopelr);
+
+MS_DEFINE_LOG_CATEGORY(logMScope, "miniscope");
+
+/**
+ * @brief Format double into a string ('g' format, precision 6)
+ */
+static std::string fmtDouble(double value)
+{
+    return std::format("{:g}", value);
 }
 
-namespace MScope
-{
+/*
+ * JSON helpers.
+ */
 
-Q_LOGGING_CATEGORY(logMScope, "miniscope")
+static int jsonInt(const json &v, int defaultValue = 0)
+{
+    if (v.is_number_integer())
+        return v.get<int>();
+    if (v.is_number_float()) {
+        const auto d = v.get<double>();
+        if (d == std::floor(d))
+            return static_cast<int>(d);
+    }
+    return defaultValue;
+}
+
+static double jsonDouble(const json &v, double defaultValue = 0)
+{
+    if (v.is_number())
+        return v.get<double>();
+    return defaultValue;
+}
+
+static bool jsonBool(const json &v, bool defaultValue = false)
+{
+    if (v.is_boolean())
+        return v.get<bool>();
+    return defaultValue;
+}
+
+static std::string jsonString(const json &v, const std::string &defaultValue = std::string())
+{
+    if (v.is_string())
+        return v.get<std::string>();
+    return defaultValue;
+}
+
+/**
+ * @brief Get a member of a JSON object, or a null value if it does not exist.
+ */
+static const json &jsonMember(const json &obj, const char *key)
+{
+    static const json nullValue;
+    const auto it = obj.find(key);
+    if (it == obj.end())
+        return nullValue;
+    return *it;
+}
+
+static json jsonArray(const json &v)
+{
+    if (v.is_array())
+        return v;
+    return json::array();
+}
+
+static json jsonObject(const json &v)
+{
+    if (v.is_object())
+        return v;
+    return json::object();
+}
+
+/**
+ * @brief Return the value of a key in a map, or a default if the key does not exist.
+ */
+template<typename Map>
+static typename Map::mapped_type mapValueOr(
+    const Map &map,
+    const typename Map::key_type &key,
+    const typename Map::mapped_type &defaultValue = typename Map::mapped_type())
+{
+    const auto it = map.find(key);
+    if (it == map.end())
+        return defaultValue;
+    return it->second;
+}
+
+static std::string asciiToLower(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return s;
+}
+
+/**
+ * @brief Length of the file suffix (characters after the last dot) of a filename.
+ */
+static size_t fileSuffixLength(const std::string &fname)
+{
+    const auto dotPos = fname.rfind('.');
+    if (dotPos == std::string::npos)
+        return fname.length();
+    return fname.length() - dotPos - 1;
+}
+
+static std::string stringTrimmed(const std::string &s)
+{
+    const auto isSpace = [](unsigned char c) {
+        return std::isspace(c) != 0;
+    };
+    auto start = s.begin();
+    while (start != s.end() && isSpace(*start))
+        ++start;
+    auto end = s.end();
+    while (end != start && isSpace(*(end - 1)))
+        --end;
+    return std::string(start, end);
+}
 
 /**
  * @brief Defines a rule to scale values and convert them to a packet
@@ -73,7 +193,7 @@ public:
           valueBitshift(0)
     {
     }
-    std::vector<QHash<QString, int>> commands;
+    std::vector<std::unordered_map<std::string, int>> commands;
     double valueScale;
     double valueOffset;
     int valueBitshift;
@@ -141,21 +261,21 @@ public:
     int scopeCamId;
     bool emulateTimestamps;
 
-    QJsonObject deviceConfig;
-    QString deviceType;
+    json deviceConfig;
+    std::string deviceType;
     cv::Size resolution;
     bool supportsColor;
-    QString sensorType;
+    std::string sensorType;
     double pixelClock;
 
     std::vector<ControlDefinition> controls;
-    QHash<QString, ControlCommandRule> controlRules;
-    QHash<QString, double> controlValueCache;
+    std::unordered_map<std::string, ControlCommandRule> controlRules;
+    std::unordered_map<std::string, double> controlValueCache;
 
-    QQueue<QPair<long, std::vector<quint8>>> commandQueue;
+    std::deque<std::pair<long, std::vector<uint8_t>>> commandQueue;
 
     double fps;
-    QString videoFname;
+    std::string videoFname;
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
     std::chrono::time_point<std::chrono::steady_clock> startTimepoint;
@@ -183,7 +303,7 @@ public:
     cv::Mat lastRawFrame;
     bool rawFrameRetrieved;
 
-    QQueue<cv::Mat> displayQueue;
+    std::deque<cv::Mat> displayQueue;
     std::pair<RawDataCallback, void *> frameCallback;
     std::pair<DisplayFrameCallback, void *> displayFrameCallback;
 
@@ -198,33 +318,29 @@ public:
     VideoCodec videoCodec;
     VideoContainer videoContainer;
     bool recordLossless;
-    uint recordingSliceInterval;
+    unsigned int recordingSliceInterval;
 
     bool printExtraDebug;
-    QString lastError;
+    std::string lastError;
 };
 #pragma GCC diagnostic pop
 
-} // end of namespace MScope
-
-typedef QHash<QString, QString> ControlIdToNameHash;
-Q_GLOBAL_STATIC_WITH_ARGS(
-    ControlIdToNameHash,
-    g_controlIdToName,
-    ({
-        {QLatin1String("frameRate"), QLatin1String("Framerate") },
-        {QLatin1String("led0"),      QLatin1String("Excitation")},
-        {QLatin1String("gain"),      QLatin1String("Gain")      },
-        {QLatin1String("ewl"),       QLatin1String("EWL")       },
-}));
+static const std::unordered_map<std::string, std::string> &controlIdToNameMap()
+{
+    static const std::unordered_map<std::string, std::string> map = {
+        {"frameRate", "Framerate" },
+        {"led0",      "Excitation"},
+        {"gain",      "Gain"      },
+        {"ewl",       "EWL"       },
+    };
+    return map;
+}
 
 Miniscope::Miniscope()
     : d(new Miniscope::Private())
 {
-    initLibraryResources();
-
     d->fps = 20;
-    d->deviceConfig = QJsonObject();
+    d->deviceConfig = json::object();
 }
 
 Miniscope::~Miniscope()
@@ -233,41 +349,60 @@ Miniscope::~Miniscope()
     disconnect();
 }
 
-static void msgInfo(const QString &msg)
+static void msgInfo(const std::string &msg)
 {
-    qCInfo(logMScope).noquote() << msg;
+    MS_LOG_INFO(logMScope, "{}", msg);
 }
 
-static QJsonObject msconfGetDevicesJson()
+static json msconfGetDevicesJson()
 {
-    QFile msTypesRc(QStringLiteral(":/config/miniscopes.json"));
-    if (!msTypesRc.open(QIODevice::ReadOnly)) {
-        qCWarning(logMScope).noquote() << "Unable to find Miniscope hardware definitions!";
-        return QJsonObject();
+    try {
+        const auto jDoc = json::parse(
+            Res::miniscopes_json, Res::miniscopes_json + Res::miniscopes_json_len, nullptr, true, true);
+        if (jDoc.is_object())
+            return jDoc;
+    } catch (const json::exception &e) {
+        MS_LOG_WARNING(logMScope, "Unable to parse Miniscope hardware definitions: {}", e.what());
+        return json::object();
     }
-    const auto jDoc = QJsonDocument::fromJson(msTypesRc.readAll());
 
-    return jDoc.object();
+    MS_LOG_WARNING(logMScope, "Unable to find Miniscope hardware definitions!");
+    return json::object();
 }
 
-static int msconfStringToInt(const QString &s)
+/**
+ * @brief Parse an unsigned integer with the given base, like QString::toUInt() would.
+ */
+static bool parseUInt(std::string_view s, int base, unsigned int &result)
+{
+    if (s.empty())
+        return false;
+    const auto res = std::from_chars(s.data(), s.data() + s.size(), result, base);
+    return res.ec == std::errc() && res.ptr == s.data() + s.size();
+}
+
+static int msconfStringToInt(const std::string &s)
 {
     // Should return a uint8 type of value (0 to 255)
     bool ok = false;
+    unsigned int uvalue = 0;
     int value;
-    int size = s.size();
+    const auto size = s.size();
     if (size == 0) {
-        qCDebug(logMScope) << "No data in string to convert to int";
+        MS_LOG_DEBUG(logMScope, "No data in string to convert to int");
         value = SEND_COMMAND_ERROR;
         ok = false;
-    } else if (s.left(2) == "0x") {
+    } else if (s.starts_with("0x")) {
         // HEX
-        value = s.right(size - 2).toUInt(&ok, 16);
-    } else if (s.left(2) == "0b") {
+        ok = parseUInt(std::string_view(s).substr(2), 16, uvalue);
+        value = static_cast<int>(uvalue);
+    } else if (s.starts_with("0b")) {
         // Binary
-        value = s.right(size - 2).toUInt(&ok, 2);
+        ok = parseUInt(std::string_view(s).substr(2), 2, uvalue);
+        value = static_cast<int>(uvalue);
     } else {
-        value = s.toUInt(&ok, 10);
+        ok = parseUInt(s, 10, uvalue);
+        value = static_cast<int>(uvalue);
         if (ok == false) {
             // This is then a string
             if (s == "I2C")
@@ -300,24 +435,23 @@ static int msconfStringToInt(const QString &s)
         return SEND_COMMAND_ERROR;
 }
 
-static std::vector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray &sendCommand)
+static std::vector<std::unordered_map<std::string, int>> msconfParseSendCommand(const json &sendCommand)
 {
     // creates a mapping to handle future I2C/SPI slider value send commands
-    std::vector<QHash<QString, int>> output;
-    QHash<QString, int> commandStructure;
-    QJsonObject jObj;
-    QStringList keys;
+    std::vector<std::unordered_map<std::string, int>> output;
+    // NOTE: The command structure is intentionally not cleared between array elements,
+    // so that later elements inherit keys from previous ones.
+    std::unordered_map<std::string, int> commandStructure;
 
-    for (int i = 0; i < sendCommand.size(); i++) {
-        jObj = sendCommand[i].toObject();
-        keys = jObj.keys();
+    for (const auto &element : jsonArray(sendCommand)) {
+        const auto jObj = jsonObject(element);
 
-        for (int j = 0; j < keys.size(); j++) {
+        for (const auto &[key, jValue] : jObj.items()) {
             // -1 = controlValue, -2 = error
-            if (jObj[keys[j]].isString())
-                commandStructure[keys[j]] = msconfStringToInt(jObj[keys[j]].toString());
-            else if (jObj[keys[j]].isDouble())
-                commandStructure[keys[j]] = jObj[keys[j]].toInt();
+            if (jValue.is_string())
+                commandStructure[key] = msconfStringToInt(jValue.get<std::string>());
+            else if (jValue.is_number())
+                commandStructure[key] = jsonInt(jValue);
         }
         output.push_back(commandStructure);
     }
@@ -325,14 +459,16 @@ static std::vector<QHash<QString, int>> msconfParseSendCommand(const QJsonArray 
     return output;
 }
 
-QStringList Miniscope::availableDeviceTypes() const
+std::vector<std::string> Miniscope::availableDeviceTypes() const
 {
-    auto deviceTypes = msconfGetDevicesJson().keys();
+    std::vector<std::string> deviceTypes;
+    for (const auto &[key, value] : msconfGetDevicesJson().items())
+        deviceTypes.push_back(key);
     std::sort(deviceTypes.begin(), deviceTypes.end());
     return deviceTypes;
 }
 
-bool Miniscope::loadDeviceConfig(const QString &deviceType)
+bool Miniscope::loadDeviceConfig(const std::string &deviceType)
 {
     // automatically disconnect in case we were connected
     if (d->connected)
@@ -341,90 +477,91 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
     // load new device data
     const auto allDevConfigs = msconfGetDevicesJson();
     if (!allDevConfigs.contains(deviceType)) {
-        d->lastError = QStringLiteral("Unable to find device configuration with name '%1'").arg(deviceType);
+        d->lastError = std::format("Unable to find device configuration with name '{}'", deviceType);
         return false;
     }
-    d->deviceConfig = allDevConfigs[deviceType].toObject();
+    d->deviceConfig = jsonObject(allDevConfigs[deviceType]);
     d->deviceType = deviceType;
 
     // load basic settings
-    d->resolution = cv::Size(d->deviceConfig["width"].toInt(-1), d->deviceConfig["height"].toInt(-1));
-    d->supportsColor = d->deviceConfig["isColor"].toBool(false);
-    d->sensorType = d->deviceConfig["sensor"].toString("unknown");
-    d->pixelClock = d->deviceConfig["pixelClock"].toDouble(-1);
-    d->hasHeadOrientation = d->deviceConfig["headOrientation"].toBool(false);
+    d->resolution = cv::Size(
+        jsonInt(jsonMember(d->deviceConfig, "width"), -1), jsonInt(jsonMember(d->deviceConfig, "height"), -1));
+    d->supportsColor = jsonBool(jsonMember(d->deviceConfig, "isColor"), false);
+    d->sensorType = jsonString(jsonMember(d->deviceConfig, "sensor"), "unknown");
+    d->pixelClock = jsonDouble(jsonMember(d->deviceConfig, "pixelClock"), -1);
+    d->hasHeadOrientation = jsonBool(jsonMember(d->deviceConfig, "headOrientation"), false);
 
     // load information about available controls
     d->controls.clear();
     d->controlRules.clear();
-    const auto controlSettings = d->deviceConfig["controlSettings"].toObject();
-    if (controlSettings.isEmpty()) {
-        qCWarning(logMScope) << "controlSettings missing from miniscopes.json for deviceType = " << d->deviceType;
+    const auto controlSettings = jsonObject(jsonMember(d->deviceConfig, "controlSettings"));
+    if (controlSettings.empty()) {
+        MS_LOG_WARNING(
+            logMScope, "controlSettings missing from miniscopes.json for deviceType =  \"{}\"", d->deviceType);
         return true;
     }
 
-    for (const QString &controlKey : controlSettings.keys()) {
-        const auto values = controlSettings.value(controlKey).toObject();
-        const auto keys = values.keys();
+    for (const auto &[controlKey, controlValue] : controlSettings.items()) {
+        const auto values = jsonObject(controlValue);
         ControlCommandRule commandRule;
         ControlDefinition control;
         control.id = controlKey;
-        control.name = g_controlIdToName->value(control.id, control.id);
+        control.name = mapValueOr(controlIdToNameMap(), control.id, control.id);
 
-        QJsonValue startValue;
-        for (const auto &key : values.keys()) {
-            const auto value = values[key];
+        json startValue;
+        for (const auto &[key, value] : values.items()) {
             if (key == "sendCommand") {
-                commandRule.commands = msconfParseSendCommand(value.toArray());
+                commandRule.commands = msconfParseSendCommand(value);
             } else if (key == "min") {
-                control.valueMin = value.toInt();
+                control.valueMin = jsonInt(value);
             } else if (key == "max") {
-                control.valueMax = value.toInt();
+                control.valueMax = jsonInt(value);
             } else if (key == "stepSize") {
-                control.stepSize = value.toInt();
+                control.stepSize = jsonInt(value);
             } else if (key == "startValue") {
                 startValue = value;
             } else if (key == "displayValueScale") {
-                commandRule.valueScale = value.toDouble(1);
+                commandRule.valueScale = jsonDouble(value, 1);
             } else if (key == "displayValueOffset") {
-                commandRule.valueOffset = value.toDouble(0);
+                commandRule.valueOffset = jsonDouble(value, 0);
             } else if (key == "displayValueBitShift") {
-                commandRule.valueBitshift = value.toInt(0);
+                commandRule.valueBitshift = jsonInt(value, 0);
             } else if (key == "displaySpinBoxValues") {
-                QStringList labels;
-                for (const auto &text : value.toArray())
-                    labels.append(text.toString());
+                std::vector<std::string> labels;
+                for (const auto &text : jsonArray(value))
+                    labels.push_back(jsonString(text));
                 control.labels = labels;
             } else if (key == "outputValues") {
                 std::vector<double> outVals;
-                for (const auto &v : value.toArray())
-                    outVals.push_back(v.toDouble());
+                for (const auto &v : jsonArray(value))
+                    outVals.push_back(jsonDouble(v));
                 commandRule.valueMap = outVals;
             } else if (key == "displayTextValues") {
                 std::vector<double> numLabels;
-                for (const auto &n : value.toArray())
-                    numLabels.push_back(n.toDouble());
+                for (const auto &n : jsonArray(value))
+                    numLabels.push_back(jsonDouble(n));
                 commandRule.numLabelMap = numLabels;
             }
         }
 
         // if we have a list of labels, we are a selector, otherwise
         // we assume a sliding-value controller
-        if (control.labels.isEmpty()) {
+        if (control.labels.empty()) {
             control.kind = ControlKind::Slider;
         } else {
             control.kind = ControlKind::Selector;
             control.valueMin = 0;
-            control.valueMax = control.labels.length() - 1;
+            control.valueMax = static_cast<int>(control.labels.size()) - 1;
             commandRule.valueScale = 1;
         }
 
         // set the start value
-        if (!startValue.isNull()) {
-            if (startValue.isString()) {
-                control.valueStart = control.labels.indexOf(startValue.toString());
+        if (!startValue.is_null()) {
+            if (startValue.is_string()) {
+                const auto it = std::find(control.labels.begin(), control.labels.end(), startValue.get<std::string>());
+                control.valueStart = (it == control.labels.end()) ? -1 : std::distance(control.labels.begin(), it);
             } else {
-                control.valueStart = startValue.toInt();
+                control.valueStart = jsonInt(startValue);
             }
         }
 
@@ -451,13 +588,13 @@ bool Miniscope::loadDeviceConfig(const QString &deviceType)
             return true;
         if (lhs.kind < rhs.kind)
             return false;
-        return lhs.name.compare(rhs.name, Qt::CaseInsensitive) > 0;
+        return asciiToLower(lhs.name).compare(asciiToLower(rhs.name)) > 0;
     });
 
     return true;
 }
 
-QString Miniscope::deviceType() const
+std::string Miniscope::deviceType() const
 {
     return d->deviceType;
 }
@@ -480,23 +617,23 @@ void Miniscope::finishCaptureThread()
     }
 }
 
-void Miniscope::statusMessage(const QString &msg)
+void Miniscope::statusMessage(const std::string &msg)
 {
-    qCInfo(logMScope).noquote() << "Status:" << msg;
+    MS_LOG_INFO(logMScope, "Status: {}", msg);
 
     const auto statusCB = d->statusCallback.first;
     if (statusCB != nullptr)
         statusCB(msg, d->statusCallback.second);
 }
 
-void Miniscope::fail(const QString &msg)
+void Miniscope::fail(const std::string &msg)
 {
     d->recording = false;
     d->running = false;
     d->failed = true;
     d->lastError = msg;
 
-    qCWarning(logMScope).noquote() << msg;
+    MS_LOG_WARNING(logMScope, "{}", msg);
 }
 
 void Miniscope::setScopeCamId(int id)
@@ -509,12 +646,12 @@ int Miniscope::scopeCamId() const
     return d->scopeCamId;
 }
 
-void Miniscope::enqueueI2CCommand(long preambleKey, std::vector<quint8> packet)
+void Miniscope::enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet)
 {
     std::lock_guard<std::mutex> lock(d->cmdMutex);
 
     // add packet to the queue to send to the camera for control modification
-    d->commandQueue.enqueue(qMakePair(preambleKey, packet));
+    d->commandQueue.emplace_back(preambleKey, packet);
 }
 
 static bool scopeDAQSendBytes(cv::VideoCapture *cam, double head, double middle, double tail)
@@ -543,64 +680,65 @@ void Miniscope::sendCommandsToDevice()
 {
     std::lock_guard<std::mutex> lock(d->cmdMutex);
 
-    while (!d->commandQueue.isEmpty()) {
+    while (!d->commandQueue.empty()) {
         // Slow down command submission to give the DAQ board time to process
         // some of them. Connection instability increases if we are sending a
         // large set of packets in a short time.
         if ((d->commandQueue.size() % 4) == 0)
             std::this_thread::sleep_for(milliseconds_t(10));
 
-        const auto pair = d->commandQueue.dequeue();
+        const auto pair = d->commandQueue.front();
+        d->commandQueue.pop_front();
         const auto packet = pair.second;
         bool success = false;
-        quint64 tempPacket;
+        uint64_t tempPacket;
 
         if (packet.size() < 6) {
-            tempPacket = (quint64)packet[0];                      // address
-            tempPacket |= (((quint64)packet.size()) & 0xFF) << 8; // data length
+            tempPacket = (uint64_t)packet[0];                      // address
+            tempPacket |= (((uint64_t)packet.size()) & 0xFF) << 8; // data length
 
             for (size_t j = 1; j < packet.size(); j++)
-                tempPacket |= ((quint64)packet[j]) << (8 * (j + 1));
+                tempPacket |= ((uint64_t)packet[j]) << (8 * (j + 1));
 
             if (d->printExtraDebug)
-                qCDebug(logMScope).noquote().nospace() << "Send 1-5: 0x" << QString::number(tempPacket, 16);
+                MS_LOG_DEBUG(logMScope, "Send 1-5: 0x{:x}", tempPacket);
             success = scopeDAQSendBytes(
                 &d->cam,
                 tempPacket & 0x00000000FFFF,
                 (tempPacket & 0x0000FFFF0000) >> 16,
                 (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qCWarning(logMScope) << "Unable to send short control packet";
+                MS_LOG_WARNING(logMScope, "Unable to send short control packet");
         } else if (packet.size() == 6) {
-            tempPacket = (quint64)packet[0]
+            tempPacket = (uint64_t)packet[0]
                          | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
 
             for (size_t j = 1; j < packet.size(); j++)
-                tempPacket |= ((quint64)packet[j]) << (8 * (j));
+                tempPacket |= ((uint64_t)packet[j]) << (8 * (j));
 
             if (d->printExtraDebug)
-                qCDebug(logMScope).noquote().nospace() << "Send 6: 0x" << QString::number(tempPacket, 16);
+                MS_LOG_DEBUG(logMScope, "Send 6: 0x{:x}", tempPacket);
             success = scopeDAQSendBytes(
                 &d->cam,
                 tempPacket & 0x00000000FFFF,
                 (tempPacket & 0x0000FFFF0000) >> 16,
                 (tempPacket & 0xFFFF00000000) >> 32);
             if (!success)
-                qCDebug(logMScope).noquote() << "Unable to send long control packet";
+                MS_LOG_DEBUG(logMScope, "Unable to send long control packet");
         } else {
             // TODO: Handle packets longer than 6 bytes
-            qCWarning(logMScope) << "Can not handle packets longer than 6 bytes!";
+            MS_LOG_WARNING(logMScope, "Can not handle packets longer than 6 bytes!");
         }
     }
 }
 
-#ifdef Q_OS_LINUX
+#ifdef __linux__
 static void resetV4L2State(int devIdx)
 {
-    auto devicePath = QStringLiteral("/dev/video%1").arg(devIdx);
-    int fd = open(qPrintable(devicePath), O_RDWR);
+    const auto devicePath = std::format("/dev/video{}", devIdx);
+    int fd = open(devicePath.c_str(), O_RDWR);
     if (fd == -1) {
-        qCWarning(logMScope).noquote() << "Unable to open video device" << devicePath << "for reset.";
+        MS_LOG_WARNING(logMScope, "Unable to open video device {} for reset.", devicePath);
         return;
     }
 
@@ -618,8 +756,7 @@ static void resetV4L2State(int devIdx)
 bool Miniscope::openCamera()
 {
     if (d->connected) {
-        qCWarning(logMScope).noquote()
-            << "Trying to open an already opened camera connection. This is likely not intended.";
+        MS_LOG_WARNING(logMScope, "Trying to open an already opened camera connection. This is likely not intended.");
         disconnect();
     }
 
@@ -629,21 +766,21 @@ bool Miniscope::openCamera()
     // If any of them fail, just try the API autodetection in OpenCV.
     auto apiPreference = cv::CAP_ANY;
     bool ret;
-#ifdef Q_OS_LINUX
+#ifdef __linux__
     apiPreference = cv::CAP_V4L2;
-#elif defined(Q_OS_WIN)
+#elif defined(_WIN32)
     apiPreference = cv::CAP_MSMF;
 #endif
     ret = d->cam.open(d->scopeCamId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
-        qCWarning(logMScope).noquote() << "Unable to use preferred camera backend, falling back to autodetection.";
+        MS_LOG_WARNING(logMScope, "Unable to use preferred camera backend, falling back to autodetection.");
         ret = d->cam.open(d->scopeCamId);
     }
 
     if (!ret)
         return ret;
-    qCInfo(logMScope).noquote() << "Using backend API:" << QString::fromStdString(d->cam.getBackendName());
+    MS_LOG_INFO(logMScope, "Using backend API: {}", d->cam.getBackendName());
 
     // set height/width for new DAQ firmware versions which can support
     // multiple Miniscope device types
@@ -658,12 +795,12 @@ bool Miniscope::openCamera()
     for (int i = 0; i < 5; i++) {
         if (fwABIVersion != 0)
             break;
-        QThread::msleep(50);
-        fwABIVersion = static_cast<quint16>(d->cam.get(cv::CAP_PROP_HUE));
+        std::this_thread::sleep_for(milliseconds_t(50));
+        fwABIVersion = static_cast<uint16_t>(d->cam.get(cv::CAP_PROP_HUE));
     }
-    msgInfo(QStringLiteral("DAQ firmware ABI version: %1").arg(fwABIVersion));
+    msgInfo(std::format("DAQ firmware ABI version: {}", fwABIVersion));
     if (fwABIVersion < 2)
-        qCWarning(logMScope).noquote() << "Firmware version is too low, some features may be unavailable.";
+        MS_LOG_WARNING(logMScope, "Firmware version is too low, some features may be unavailable.");
 
     // ensure sync pulses are disabled at this point
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
@@ -678,9 +815,9 @@ bool Miniscope::openCamera()
     // We need to make sure the MODE of the SERDES is correct
     // This needs to be done before any other commands are sent over SERDES
     // Currently this is for the 913/914 TI SERES
-    qCDebug(logMScope).noquote() << "Pixel Clock is" << d->pixelClock;
+    MS_LOG_DEBUG(logMScope, "Pixel Clock is {:g}", d->pixelClock);
     if (d->pixelClock > 0) {
-        std::vector<quint8> packet;
+        std::vector<uint8_t> packet;
 
         if (d->pixelClock <= 50) {
             // Set to 12bit low frequency in this case
@@ -741,29 +878,29 @@ bool Miniscope::openCamera()
     }
 
     // prepare all commands to initialize the Miniscope hardware
-    const auto initCommands = msconfParseSendCommand(d->deviceConfig["initialize"].toArray());
+    const auto initCommands = msconfParseSendCommand(jsonMember(d->deviceConfig, "initialize"));
     for (const auto &command : initCommands) {
-        std::vector<quint8> packet;
+        std::vector<uint8_t> packet;
 
-        if (command["protocol"] == PROTOCOL_I2C) {
+        if (mapValueOr(command, "protocol") == PROTOCOL_I2C) {
             int preambleKey = 0;
 
-            packet.push_back(command["addressW"]);
+            packet.push_back(mapValueOr(command, "addressW"));
             preambleKey = (preambleKey << 8) | packet.back();
 
-            for (int i = 0; i < command["regLength"]; i++) {
-                packet.push_back(command["reg" + QString::number(i)]);
+            for (int i = 0; i < mapValueOr(command, "regLength"); i++) {
+                packet.push_back(mapValueOr(command, "reg" + std::to_string(i)));
                 preambleKey = (preambleKey << 8) | packet.back();
             }
-            for (int i = 0; i < command["dataLength"]; i++) {
-                int tempValue = command["data" + QString::number(i)];
+            for (int i = 0; i < mapValueOr(command, "dataLength"); i++) {
+                int tempValue = mapValueOr(command, "data" + std::to_string(i));
                 packet.push_back(tempValue);
                 preambleKey = (preambleKey << 8) | packet.back();
             }
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            qCDebug(logMScope) << command["protocol"] << " initialization protocol not yet supported";
+            MS_LOG_DEBUG(logMScope, "{}  initialization protocol not yet supported", mapValueOr(command, "protocol"));
         }
     }
 
@@ -771,7 +908,7 @@ bool Miniscope::openCamera()
     // if we have cached any
     for (const auto &ctl : d->controls) {
         if (d->controlValueCache.contains(ctl.id))
-            setControlValue(ctl.id, d->controlValueCache[ctl.id]);
+            setControlValue(ctl.id, d->controlValueCache.at(ctl.id));
         else
             setControlValue(ctl.id, ctl.valueStart);
     }
@@ -798,7 +935,7 @@ bool Miniscope::connect()
         }
     }
 
-    if (d->deviceConfig.isEmpty() || d->deviceType.isEmpty()) {
+    if (d->deviceConfig.empty() || d->deviceType.empty()) {
         fail("Unable to connect to Miniscope: No device type to connect to was selected.");
         return false;
     }
@@ -814,7 +951,7 @@ bool Miniscope::connect()
     d->failed = false;
     d->connected = true;
 
-    statusMessage(QStringLiteral("Initialized camera %1").arg(d->scopeCamId));
+    statusMessage(std::format("Initialized camera {}", d->scopeCamId));
     return true;
 }
 
@@ -823,38 +960,38 @@ void Miniscope::disconnect()
     stop();
     d->cam.release();
     if (d->connected) {
-#ifdef Q_OS_LINUX
+#ifdef __linux__
         // Cleanup V4L state.
         // If this is omitted, subsequent reconnect attempts will fail.
         resetV4L2State(d->scopeCamId);
 #endif
-        statusMessage(QStringLiteral("Disconnected camera %1").arg(d->scopeCamId));
+        statusMessage(std::format("Disconnected camera {}", d->scopeCamId));
     }
     d->connected = false;
 }
 
 bool Miniscope::hardReset()
 {
-    statusMessage(QStringLiteral("Performing hard reset of device %1").arg(d->scopeCamId));
+    statusMessage(std::format("Performing hard reset of device {}", d->scopeCamId));
     if (d->connected)
         disconnect();
 
     auto apiPreference = cv::CAP_ANY;
     bool ret;
-#ifdef Q_OS_LINUX
+#ifdef __linux__
     apiPreference = cv::CAP_V4L2;
-#elif defined(Q_OS_WIN)
+#elif defined(_WIN32)
     apiPreference = cv::CAP_MSMF;
 #endif
     ret = d->cam.open(d->scopeCamId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
-        qCWarning(logMScope).noquote() << "Unable to use preferred camera backend, falling back to autodetection.";
+        MS_LOG_WARNING(logMScope, "Unable to use preferred camera backend, falling back to autodetection.");
         ret = d->cam.open(d->scopeCamId);
     }
 
     if (!ret) {
-        statusMessage(QStringLiteral("Reset of %1 failed.").arg(d->scopeCamId));
+        statusMessage(std::format("Reset of {} failed.", d->scopeCamId));
         return ret;
     }
 
@@ -869,11 +1006,11 @@ bool Miniscope::hardReset()
 
     // cleanup
     d->cam.release();
-#ifdef Q_OS_LINUX
+#ifdef __linux__
     resetV4L2State(d->scopeCamId);
 #endif
 
-    statusMessage(QStringLiteral("Device %1 has been reset.").arg(d->scopeCamId));
+    statusMessage(std::format("Device {} has been reset.", d->scopeCamId));
     return true;
 }
 
@@ -882,10 +1019,10 @@ std::vector<ControlDefinition> Miniscope::controls() const
     return d->controls;
 }
 
-double Miniscope::controlValue(const QString &id)
+double Miniscope::controlValue(const std::string &id)
 {
     if (!d->controlRules.contains(id)) {
-        qCWarning(logMScope).noquote() << QStringLiteral("Unable to get value for nonexisting control %1").arg(id);
+        MS_LOG_WARNING(logMScope, "Unable to get value for nonexisting control {}", id);
         return -1;
     }
 
@@ -896,11 +1033,10 @@ double Miniscope::controlValue(const QString &id)
     return 0;
 }
 
-void Miniscope::setControlValue(const QString &id, double value)
+void Miniscope::setControlValue(const std::string &id, double value)
 {
     if (!d->controlRules.contains(id)) {
-        qCWarning(logMScope).noquote()
-            << QStringLiteral("Unable to set nonexisting control %1 to %2").arg(id).arg(value);
+        MS_LOG_WARNING(logMScope, "Unable to set nonexisting control {} to {}", id, fmtDouble(value));
         return;
     }
 
@@ -908,7 +1044,7 @@ void Miniscope::setControlValue(const QString &id, double value)
     d->controlValueCache[id] = value;
 
     // convert API value to device-specific command
-    const auto rule = d->controlRules[id];
+    const auto rule = d->controlRules.at(id);
     double devValue = value;
     if (!rule.valueMap.empty()) {
         // sanity check, the fetch the real value
@@ -916,42 +1052,42 @@ void Miniscope::setControlValue(const QString &id, double value)
             devValue = rule.valueMap[value];
     }
 
-    double i2cValue = qRound(devValue * rule.valueScale - rule.valueOffset) << rule.valueBitshift;
+    double i2cValue = std::lround(devValue * rule.valueScale - rule.valueOffset) << rule.valueBitshift;
     double i2cValue2 = 0;
 
     // TODO: Handle int values greater than 8 bits
     for (size_t i = 0; i < rule.commands.size(); i++) {
         const auto command = rule.commands[i];
-        std::vector<quint8> packet;
+        std::vector<uint8_t> packet;
         long preambleKey; // Holds a value that represents the address and reg
 
-        if (command["protocol"] == PROTOCOL_I2C) {
+        if (mapValueOr(command, "protocol") == PROTOCOL_I2C) {
             preambleKey = 0;
 
-            packet.push_back(command["addressW"]);
+            packet.push_back(mapValueOr(command, "addressW"));
             preambleKey = (preambleKey << 8) | packet.back();
 
-            for (int j = 0; j < command["regLength"]; j++) {
-                packet.push_back(command["reg" + QString::number(j)]);
+            for (int j = 0; j < mapValueOr(command, "regLength"); j++) {
+                packet.push_back(mapValueOr(command, "reg" + std::to_string(j)));
                 preambleKey = (preambleKey << 8) | packet.back();
             }
 
-            for (int j = 0; j < command["dataLength"]; j++) {
-                const auto tempValue = command["data" + QString::number(j)];
+            for (int j = 0; j < mapValueOr(command, "dataLength"); j++) {
+                const auto tempValue = mapValueOr(command, "data" + std::to_string(j));
 
                 // TODO: Handle value1 through value3
                 if (tempValue == SEND_COMMAND_VALUE_H24) {
-                    packet.push_back((static_cast<quint32>(i2cValue) >> 24) & 0xFF);
+                    packet.push_back((static_cast<uint32_t>(i2cValue) >> 24) & 0xFF);
                 } else if (tempValue == SEND_COMMAND_VALUE_H16) {
-                    packet.push_back((static_cast<quint32>(i2cValue) >> 16) & 0xFF);
+                    packet.push_back((static_cast<uint32_t>(i2cValue) >> 16) & 0xFF);
                 } else if (tempValue == SEND_COMMAND_VALUE_H) {
-                    packet.push_back((static_cast<quint32>(i2cValue) >> 8) & 0xFF);
+                    packet.push_back((static_cast<uint32_t>(i2cValue) >> 8) & 0xFF);
                 } else if (tempValue == SEND_COMMAND_VALUE_L) {
-                    packet.push_back(static_cast<quint32>(i2cValue) & 0xFF);
+                    packet.push_back(static_cast<uint32_t>(i2cValue) & 0xFF);
                 } else if (tempValue == SEND_COMMAND_VALUE2_H) {
-                    packet.push_back((static_cast<quint32>(i2cValue2) >> 8) & 0xFF);
+                    packet.push_back((static_cast<uint32_t>(i2cValue2) >> 8) & 0xFF);
                 } else if (tempValue == SEND_COMMAND_VALUE2_L) {
-                    packet.push_back(static_cast<quint32>(i2cValue2) & 0xFF);
+                    packet.push_back(static_cast<uint32_t>(i2cValue2) & 0xFF);
                 } else {
                     packet.push_back(tempValue);
                     preambleKey = (preambleKey << 8) | packet.back();
@@ -960,7 +1096,7 @@ void Miniscope::setControlValue(const QString &id, double value)
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            qCDebug(logMScope) << command["protocol"] << " protocol for " << id << " not yet supported";
+            MS_LOG_DEBUG(logMScope, "{} protocol for \"{}\" not yet supported", mapValueOr(command, "protocol"), id);
         }
     }
 
@@ -970,7 +1106,7 @@ void Miniscope::setControlValue(const QString &id, double value)
         dispValue = rule.numLabelMap[value];
 
     // write a message to the log
-    msgInfo(QStringLiteral("Control %1 value changed to %2").arg(id).arg(dispValue));
+    msgInfo(std::format("Control {} value changed to {}", id, fmtDouble(dispValue)));
 
     // emit a machine-readable message about this control change
     const auto cchangeCB = d->controlChangeCallback.first;
@@ -1014,7 +1150,7 @@ void Miniscope::stop()
     finishCaptureThread();
 }
 
-bool Miniscope::startRecording(const QString &fname)
+bool Miniscope::startRecording(const std::string &fname)
 {
     if (!d->connected)
         return false;
@@ -1023,7 +1159,7 @@ bool Miniscope::startRecording(const QString &fname)
             return false;
     }
 
-    if (!fname.isEmpty())
+    if (!fname.empty())
         d->videoFname = fname;
     d->recording = true;
     statusMessage("Video recording started.");
@@ -1037,19 +1173,24 @@ void Miniscope::stopRecording()
     statusMessage("Video recording stopped.");
 }
 
-QFuture<bool> Miniscope::acquireZStack(int fromEWL, int toEWL, uint step, uint averageCount, const QString &outFilename)
+AsyncTask Miniscope::acquireZStack(
+    int fromEWL,
+    int toEWL,
+    unsigned int step,
+    unsigned int averageCount,
+    const std::string &outFilename)
 {
     return launchZStackCapture(this, fromEWL, toEWL, step, averageCount, outFilename);
 }
 
-QFuture<bool> Miniscope::accumulate3DView(
+AsyncTask Miniscope::accumulate3DView(
     int fromEWL,
     int toEWL,
-    uint step,
-    uint count,
+    unsigned int step,
+    unsigned int count,
     bool saveRaw,
-    const QString &outDir,
-    const QString &outName)
+    const std::string &outDir,
+    const std::string &outName)
 {
     return launch3DAccumulation(this, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
 }
@@ -1106,7 +1247,7 @@ void Miniscope::setOnControlValueChange(ControlChangeCallback callback, void *ud
     d->controlChangeCallback = std::make_pair(callback, udata);
 }
 
-void Miniscope::setOnFrame(MScope::RawDataCallback callback, void *udata)
+void Miniscope::setOnFrame(RawDataCallback callback, void *udata)
 {
     d->frameCallback = std::make_pair(callback, udata);
 }
@@ -1123,7 +1264,9 @@ cv::Mat Miniscope::currentDisplayFrame()
     const auto queueSize = d->displayQueue.size();
     if (queueSize == 0)
         return frame;
-    return d->displayQueue.dequeue();
+    auto front = d->displayQueue.front();
+    d->displayQueue.pop_front();
+    return front;
 }
 
 bool Miniscope::fetchLastRawFrame(cv::Mat &output)
@@ -1136,7 +1279,7 @@ bool Miniscope::fetchLastRawFrame(cv::Mat &output)
     return true;
 }
 
-uint Miniscope::currentFps() const
+unsigned int Miniscope::currentFps() const
 {
     return d->currentFPS;
 }
@@ -1194,12 +1337,12 @@ void Miniscope::setExternalRecordTrigger(bool enabled)
     d->checkRecTrigger = enabled;
 }
 
-QString Miniscope::videoFilename() const
+std::string Miniscope::videoFilename() const
 {
     return d->videoFname;
 }
 
-void Miniscope::setVideoFilename(const QString &fname)
+void Miniscope::setVideoFilename(const std::string &fname)
 {
     // TODO: Maybe mutex this, to prevent API users from doing the wrong thing
     // and checking the value directly after the recording was started?
@@ -1266,7 +1409,7 @@ int Miniscope::maxFluor() const
     return d->maxFluor;
 }
 
-MScope::DisplayMode Miniscope::displayMode() const
+DisplayMode Miniscope::displayMode() const
 {
     return d->displayMode;
 }
@@ -1313,12 +1456,12 @@ void Miniscope::setBgAccumulateAlpha(double value)
     d->bgAccumulateAlpha = value;
 }
 
-uint Miniscope::recordingSliceInterval() const
+unsigned int Miniscope::recordingSliceInterval() const
 {
     return d->recordingSliceInterval;
 }
 
-void Miniscope::setRecordingSliceInterval(uint minutes)
+void Miniscope::setRecordingSliceInterval(unsigned int minutes)
 {
     d->recordingSliceInterval = minutes;
 }
@@ -1328,7 +1471,7 @@ void Miniscope::setPrintExtraDebug(bool enabled)
     d->printExtraDebug = enabled;
 }
 
-QString Miniscope::lastError() const
+std::string Miniscope::lastError() const
 {
     return d->lastError;
 }
@@ -1345,10 +1488,10 @@ long Miniscope::acquiredFrameCount() const
     return static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
 }
 
-bool Miniscope::waitForAcquiredFrameCount(uint count)
+bool Miniscope::waitForAcquiredFrameCount(unsigned int count)
 {
     if (!d->running) {
-        d->lastError = QStringLiteral("Miniscope was not running.");
+        d->lastError = "Miniscope was not running.";
         return false;
     }
     if (count == 0)
@@ -1362,7 +1505,7 @@ bool Miniscope::waitForAcquiredFrameCount(uint count)
     // we either wait for the selected amount of frames *or* a maximum time, because
     // older Miniscope firmware will not give us reliable frame counts.
     const auto maxIterations = count * 2.2;
-    for (uint i = 0; i < maxIterations; i++) {
+    for (unsigned int i = 0; i < maxIterations; i++) {
         auto framesCounted = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE)) - initialFrameCount;
         if (framesCounted >= count)
             break;
@@ -1385,7 +1528,7 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
 
     // drop frames if we are displaying too slowly, otherwise add new stuff to queue
     if (d->displayQueue.size() < 48)
-        d->displayQueue.enqueue(frame);
+        d->displayQueue.push_back(frame);
 }
 
 void Miniscope::setLastRawFrame(const cv::Mat &frame)
@@ -1398,7 +1541,7 @@ void Miniscope::setLastRawFrame(const cv::Mat &frame)
 inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
 {
     if (d->emulateTimestamps)
-        return milliseconds_t(QDateTime().currentMSecsSinceEpoch());
+        return std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
     return milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 }
 
@@ -1418,8 +1561,8 @@ static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point &l
 
             double opacity = ((double)overlay->data[fY * overlay->step + fX * overlay->channels() + 3]) / 255;
             for (int c = 0; opacity > 0 && c < src->channels(); ++c) {
-                uchar overlayPx = overlay->data[fY * overlay->step + fX * overlay->channels() + c];
-                uchar srcPx = src->data[y * src->step + x * src->channels() + c];
+                uint8_t overlayPx = overlay->data[fY * overlay->step + fX * overlay->channels() + c];
+                uint8_t srcPx = src->data[y * src->step + x * src->channels() + c];
                 src->data[y * src->step + src->channels() * x + c] = srcPx * (1. - opacity) + overlayPx * opacity;
             }
         }
@@ -1551,31 +1694,31 @@ void Miniscope::captureThread(void *msPtr)
         cv::Scalar(255, 255, 255));
 
     d->droppedFramesCount = 0;
-    d->currentFPS = static_cast<uint>(d->fps);
+    d->currentFPS = static_cast<unsigned int>(d->fps);
 
     // load orientation sensor indicator images
     cv::Mat bnoIndGood;
     cv::Mat bnoIndBad;
     {
-        QFile oiGoodFile(QStringLiteral(":/graphics/orientation-indicator-good.png"));
-        if (oiGoodFile.open(QIODevice::ReadOnly)) {
-            const auto pngBytes = oiGoodFile.readAll();
-            bnoIndGood = cv::imdecode(
-                cv::Mat(1, pngBytes.size(), CV_8UC1, (void *)pngBytes.data()), cv::IMREAD_UNCHANGED);
-        } else {
-            qCWarning(logMScope).noquote()
-                << "Unable to find BNO indicator image resource 1:" << oiGoodFile.errorString();
-        }
+        bnoIndGood = cv::imdecode(
+            cv::Mat(
+                1,
+                static_cast<int>(Res::orientation_indicator_good_png_len),
+                CV_8UC1,
+                const_cast<unsigned char *>(Res::orientation_indicator_good_png)),
+            cv::IMREAD_UNCHANGED);
+        if (bnoIndGood.empty())
+            MS_LOG_WARNING(logMScope, "Unable to load BNO indicator image resource 1");
 
-        QFile oiBadFile(QStringLiteral(":/graphics/orientation-indicator-bad.png"));
-        if (oiBadFile.open(QIODevice::ReadOnly)) {
-            const auto pngBytes = oiBadFile.readAll();
-            bnoIndBad = cv::imdecode(
-                cv::Mat(1, pngBytes.size(), CV_8UC1, (void *)pngBytes.data()), cv::IMREAD_UNCHANGED);
-        } else {
-            qCWarning(logMScope).noquote()
-                << "Unable to find BNO indicator image resource 2:" << oiBadFile.errorString();
-        }
+        bnoIndBad = cv::imdecode(
+            cv::Mat(
+                1,
+                static_cast<int>(Res::orientation_indicator_bad_png_len),
+                CV_8UC1,
+                const_cast<unsigned char *>(Res::orientation_indicator_bad_png)),
+            cv::IMREAD_UNCHANGED);
+        if (bnoIndBad.empty())
+            MS_LOG_WARNING(logMScope, "Unable to load BNO indicator image resource 2");
     }
 
     // reset errors
@@ -1593,7 +1736,7 @@ void Miniscope::captureThread(void *msPtr)
     auto bnoIndicatorVisible = hasHeadOrientationSupport && self->isBNOIndicatorVisible();
     auto saveOrientationData = hasHeadOrientationSupport && self->saveOrientationData();
 
-    qCDebug(logMScope) << "Save HOD:" << saveOrientationData;
+    MS_LOG_DEBUG(logMScope, "Save HOD: {}", saveOrientationData);
 
     // save BNO data in a CSV table, if needed
     std::unique_ptr<CSVWriter> bnoWriter;
@@ -1648,7 +1791,7 @@ void Miniscope::captureThread(void *msPtr)
             (__stime
              + std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - threadStartTime))
             / 2.0);
-#ifdef Q_OS_LINUX
+#ifdef __linux__
         const auto driverFrameTimestamp = milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 #else
         const auto driverFrameTimestamp = self->getCurrentFrameTimestamp();
@@ -1671,12 +1814,13 @@ void Miniscope::captureThread(void *msPtr)
                             "to resolve this issue)");
                         break;
                     } else if (d->droppedFramesCount >= d->fps) {
-#ifdef Q_OS_WIN
+#ifdef _WIN32
                         if (!d->emulateTimestamps) {
                             d->emulateTimestamps = true;
                             d->droppedFramesCount = 0;
-                            qCWarning(logMScope).noquote()
-                                << "Unable to get valid driver timestamps. Falling back to timestamp emulation.";
+                            MS_LOG_WARNING(
+                                logMScope,
+                                "Unable to get valid driver timestamps. Falling back to timestamp emulation.");
                             continue;
                         }
 #endif
@@ -1726,21 +1870,21 @@ void Miniscope::captureThread(void *msPtr)
         // determine device position in space
         std::vector<float> bnoVec(5);
         if (hasHeadOrientationSupport) {
-#ifdef Q_OS_WIN
+#ifdef _WIN32
             // on Windows, PAN/TILT is not properly recognized, so we use the legacy properties
-            double w = static_cast<qint16>(d->cam.get(cv::CAP_PROP_SATURATION));
-            double x = static_cast<qint16>(d->cam.get(cv::CAP_PROP_HUE));
-            double y = static_cast<qint16>(d->cam.get(cv::CAP_PROP_GAIN));
-            double z = static_cast<qint16>(d->cam.get(cv::CAP_PROP_BRIGHTNESS));
+            double w = static_cast<int16_t>(d->cam.get(cv::CAP_PROP_SATURATION));
+            double x = static_cast<int16_t>(d->cam.get(cv::CAP_PROP_HUE));
+            double y = static_cast<int16_t>(d->cam.get(cv::CAP_PROP_GAIN));
+            double z = static_cast<int16_t>(d->cam.get(cv::CAP_PROP_BRIGHTNESS));
 #else
             // unpack BNO quaternions
-            auto wx = static_cast<quint32>(d->cam.get(cv::CAP_PROP_PAN));
-            auto yz = static_cast<quint32>(d->cam.get(cv::CAP_PROP_TILT));
+            auto wx = static_cast<uint32_t>(d->cam.get(cv::CAP_PROP_PAN));
+            auto yz = static_cast<uint32_t>(d->cam.get(cv::CAP_PROP_TILT));
 
-            double w = (qint16)(wx & 0xFFFF);
-            double x = (qint16)((wx >> 16) & 0xFFFF);
-            double y = (qint16)(yz & 0xFFFF);
-            double z = (qint16)((yz >> 16) & 0xFFFF);
+            double w = (int16_t)(wx & 0xFFFF);
+            double x = (int16_t)((wx >> 16) & 0xFFFF);
+            double y = (int16_t)(yz & 0xFFFF);
+            double z = (int16_t)((yz >> 16) & 0xFFFF);
 #endif
 
             // BNO output is a unit quaternion after 2^14 division
@@ -1803,31 +1947,27 @@ void Miniscope::captureThread(void *msPtr)
                 vwriter->setLossless(d->recordLossless);
 
                 auto vidFnameBase = d->videoFname;
-                if (vidFnameBase.mid(vidFnameBase.lastIndexOf(".") + 1).length() == 3)
-                    vidFnameBase = vidFnameBase.left(vidFnameBase.length() - 4); // remove 3-char suffix from filename
+                if (fileSuffixLength(vidFnameBase) == 3)
+                    vidFnameBase = vidFnameBase.substr(
+                        0, vidFnameBase.length() - 4); // remove 3-char suffix from filename
 
                 try {
                     vwriter->initialize(
                         vidFnameBase, frame.cols, frame.rows, static_cast<int>(d->fps), frame.channels() == 3);
                 } catch (const std::runtime_error &e) {
-                    self->fail(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
+                    self->fail(std::format("Unable to initialize recording: {}", e.what()));
                     break;
                 }
 
                 saveOrientationData = hasHeadOrientationSupport && self->saveOrientationData();
                 if (saveOrientationData) {
-                    qCDebug(logMScope) << "Will save orientation data.";
+                    MS_LOG_DEBUG(logMScope, "Will save orientation data.");
                     bnoWriter = std::make_unique<CSVWriter>(vidFnameBase + "_orientation.csv");
-                    QObject::connect(bnoWriter.get(), &CSVWriter::error, [&](const QString &errorMessage) {
-                        self->fail(QStringLiteral("Unable to write orientation data: %1").arg(errorMessage));
+                    bnoWriter->setErrorCallback([&](const std::string &errorMessage) {
+                        self->fail(std::format("Unable to write orientation data: {}", errorMessage));
                     });
                     bnoWriter->start();
-                    bnoWriter->addRow(
-                        QStringList() << "Time [ms]"
-                                      << "qw"
-                                      << "qx"
-                                      << "qy"
-                                      << "qz");
+                    bnoWriter->addRow({"Time [ms]", "qw", "qx", "qy", "qz"});
                 }
 
                 // we are set for recording and initialized the video writer,
@@ -1957,7 +2097,7 @@ void Miniscope::captureThread(void *msPtr)
         self->addDisplayFrameToBuffer(displayFrame, frameTimestamp);
         if (recordFrames) {
             if (!vwriter->pushFrame(frame, frameTimestamp))
-                self->fail(QStringLiteral("Unable to send frames to encoder: %1").arg(vwriter->lastError()));
+                self->fail(std::format("Unable to send frames to encoder: {}", vwriter->lastError()));
             if (saveOrientationData) {
                 if (prevBnoVec != bnoVec && bnoVec[4] < 0.05)
                     bnoWriter->addRow(frameTimestamp, bnoVec);
@@ -1967,12 +2107,12 @@ void Miniscope::captureThread(void *msPtr)
         }
 
         // apply all settings changes we have queued
-        if (!d->commandQueue.isEmpty())
+        if (!d->commandQueue.empty())
             self->sendCommandsToDevice();
 
         const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - cycleStartTime);
-        d->currentFPS = static_cast<uint>(1 / (totalTime.count() / static_cast<double>(1000)));
+        d->currentFPS = static_cast<unsigned int>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 
     // let DAQ board know that we aren't acquiring data anymore
@@ -1989,18 +2129,22 @@ void Miniscope::captureThread(void *msPtr)
     }
 }
 
-QString MScope::videoDeviceNameFromId(int id)
+std::string videoDeviceNameFromId(int id)
 {
-#ifndef Q_OS_LINUX
+#ifndef __linux__
     // we only support this feature on Linux, currently
-    return QString();
+    return std::string();
 #endif
     if (id < 0)
-        return QString();
-    QFile v4lName(QStringLiteral("/sys/class/video4linux/video%1/name").arg(id));
-    if (!v4lName.open(QIODevice::ReadOnly)) {
-        qCWarning(logMScope).noquote() << "Unable to read V4L device name for ID" << id;
-        return QString();
+        return std::string();
+    std::ifstream v4lName(std::format("/sys/class/video4linux/video{}/name", id), std::ios::in | std::ios::binary);
+    if (!v4lName.is_open()) {
+        MS_LOG_WARNING(logMScope, "Unable to read V4L device name for ID {}", id);
+        return std::string();
     }
-    return QString::fromUtf8(v4lName.readAll()).trimmed();
+    std::stringstream buffer;
+    buffer << v4lName.rdbuf();
+    return stringTrimmed(buffer.str());
 }
+
+} // namespace Miniscope

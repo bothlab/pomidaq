@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,18 +17,36 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mainwindow.h"
-#include <QApplication>
+#pragma once
 
-int main(int argc, char *argv[])
+#include <functional>
+#include <string>
+
+#include "asynctask.h"
+
+namespace Miniscope
 {
-    QApplication a(argc, argv);
 
-    a.setApplicationName(QStringLiteral("PoMiDAQ"));
-    a.setOrganizationName(QStringLiteral("DraguhnLab"));
+/**
+ * @brief Progress reporting interface.
+ */
+class TaskProgress
+{
+public:
+    explicit TaskProgress(AsyncTask::Private *d);
 
-    MainWindow w;
-    w.show();
+    void setValue(int value);
+    void setValueAndText(int value, const std::string &text);
 
-    return a.exec();
-}
+private:
+    AsyncTask::Private *m_d;
+};
+
+/**
+ * @brief Run the given function in a new thread and return a handle to it.
+ *
+ * Any exception thrown by the function is captured and rethrown from AsyncTask::waitForFinished().
+ */
+AsyncTask launchAsyncTask(std::function<bool(TaskProgress &)> body);
+
+} // namespace Miniscope

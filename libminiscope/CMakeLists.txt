@@ -5,21 +5,53 @@ set(LIBMINISCOPE_SRC
     videowriter.cpp
     csvwriter.cpp
     zstackcapture.cpp
+    asynctask.cpp
+    logging.cpp
 )
 
 set(LIBMINISCOPE_PRIV_HEADERS
     scopeintf.h
+    loginternal.h
+    resources.h
     videowriter.h
     csvwriter.h
     zstackcapture.h
+    asynctask-private.h
 )
 
 set(LIBMINISCOPE_HEADERS
+    asynctask.h
     miniscope.h
     mediatypes.h
+    logging.h
 )
 
-qt6_add_resources(LIBMINISCOPE_RES_SRC mscopelr.qrc)
+#
+# Embedded resources
+#
+set(LIBMINISCOPE_RES_INPUTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/miniscopes.json
+    ${CMAKE_SOURCE_DIR}/data/png/orientation-indicator-good.png
+    ${CMAKE_SOURCE_DIR}/data/png/orientation-indicator-bad.png
+)
+set(LIBMINISCOPE_RES_SYMBOLS
+    miniscopes_json
+    orientation_indicator_good_png
+    orientation_indicator_bad_png
+)
+set(LIBMINISCOPE_RES_SRC ${CMAKE_CURRENT_BINARY_DIR}/mscope_resources.cpp)
+add_custom_command(
+    OUTPUT ${LIBMINISCOPE_RES_SRC}
+    COMMAND ${CMAKE_COMMAND}
+            "-DOUTPUT=${LIBMINISCOPE_RES_SRC}"
+            "-DNAMESPACE=Miniscope::Res"
+            "-DINPUTS=${LIBMINISCOPE_RES_INPUTS}"
+            "-DSYMBOLS=${LIBMINISCOPE_RES_SYMBOLS}"
+            -P ${CMAKE_SOURCE_DIR}/contrib/cmake/EmbedResources.cmake
+    DEPENDS ${LIBMINISCOPE_RES_INPUTS} ${CMAKE_SOURCE_DIR}/contrib/cmake/EmbedResources.cmake
+    COMMENT "Embedding libminiscope resources"
+    VERBATIM
+)
 
 add_library(miniscope
     ${LIBMINISCOPE_SRC}
@@ -41,12 +73,12 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/miniscope.pc.in
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miniscope.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 target_link_libraries(miniscope
-    ${CMAKE_THREAD_LIBS_INIT}
-    Qt6::Core
-    Qt6::Concurrent
-    ${OpenCV_LIBS}
-    ${OPENGL_LIBRARIES}
-    ${FFMPEG_LIBRARIES}
+    PUBLIC
+        ${OpenCV_LIBS}
+    PRIVATE
+        Threads::Threads
+        nlohmann_json::nlohmann_json
+        ${FFMPEG_LIBRARIES}
 )
 
 include_directories(SYSTEM

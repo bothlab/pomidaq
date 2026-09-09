@@ -27,7 +27,7 @@ class ImageViewWidget;
 class MSControlWidget;
 class QLabel;
 class QProgressBar;
-namespace MScope
+namespace Miniscope
 {
 class Miniscope;
 }
@@ -90,7 +90,7 @@ private:
     QLabel *m_statusBarLabel;
     QProgressBar *m_statusProgress;
 
-    MScope::Miniscope *m_mscope;
+    Miniscope::Miniscope *m_mscope;
     QList<MSControlWidget *> m_controls;
     QVBoxLayout *m_controlsLayout;
     ImageViewWidget *m_scopeView;

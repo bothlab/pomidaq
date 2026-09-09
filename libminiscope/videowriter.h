@@ -20,12 +20,13 @@
 #ifndef VIDEOWRITER_H
 #define VIDEOWRITER_H
 
-#include <QObject>
 #include <chrono>
+#include <memory>
+#include <string>
 #include <opencv2/core.hpp>
 #include "mediatypes.h"
 
-using namespace MScope;
+using namespace Miniscope;
 
 /**
  * @brief The VideoWriter class
@@ -41,7 +42,13 @@ public:
     VideoWriter();
     ~VideoWriter();
 
-    void initialize(const QString &fname, int width, int height, int fps, bool hasColor, bool saveTimestamps = true);
+    void initialize(
+        const std::string &fname,
+        int width,
+        int height,
+        int fps,
+        bool hasColor,
+        bool saveTimestamps = true);
     void finalize();
     bool initialized() const;
 
@@ -63,15 +70,16 @@ public:
     bool lossless() const;
     void setLossless(bool enabled);
 
-    uint fileSliceInterval() const;
-    void setFileSliceInterval(uint minutes);
+    unsigned int fileSliceInterval() const;
+    void setFileSliceInterval(unsigned int minutes);
 
-    QString lastError() const;
+    std::string lastError() const;
 
 private:
     class Private;
-    Q_DISABLE_COPY(VideoWriter)
-    QScopedPointer<Private> d;
+    VideoWriter(const VideoWriter &) = delete;
+    VideoWriter &operator=(const VideoWriter &) = delete;
+    std::unique_ptr<Private> d;
 
     void initializeInternal();
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);

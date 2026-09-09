@@ -22,7 +22,7 @@
 
 #include <string>
 
-namespace MScope
+namespace Miniscope
 {
 
 /**
@@ -65,6 +65,6 @@ enum class VideoCodec {
 std::string videoCodecToString(VideoCodec codec);
 VideoCodec stringToVideoCodec(const std::string &str);
 
-} // namespace MScope
+} // namespace Miniscope
 
 #endif // MEDIATYPES_H

@@ -26,23 +26,23 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 
-MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent)
+MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWidget *parent)
     : QWidget(parent)
 {
-    m_controlId = ctlDef.id;
+    m_controlId = QString::fromStdString(ctlDef.id);
 
     const auto layout = new QVBoxLayout(this);
     layout->setContentsMargins(2, 2, 2, 2);
     layout->setSpacing(2);
 
     auto lblTitle = new QLabel(this);
-    lblTitle->setText(ctlDef.name);
+    lblTitle->setText(QString::fromStdString(ctlDef.name));
     layout->addWidget(lblTitle);
 
-    if (ctlDef.kind == MScope::ControlKind::Selector) {
+    if (ctlDef.kind == Miniscope::ControlKind::Selector) {
         const auto sc = new QWidget(this);
         const auto selLayout = new QGridLayout(sc);
-        const auto valuesCount = ctlDef.labels.length();
+        const auto valuesCount = static_cast<int>(ctlDef.labels.size());
         m_slider = new QSlider(Qt::Horizontal, sc);
         selLayout->setContentsMargins(0, 0, 0, 0);
         selLayout->setSpacing(2);
@@ -53,7 +53,8 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
         selLayout->addWidget(m_slider, 0, 0, 1, valuesCount);
 
         for (int i = 0; i < valuesCount; ++i) {
-            const auto lbl = new QLabel(QStringLiteral("<html><i>%1</i>").arg(ctlDef.labels[i]), sc);
+            const auto lbl = new QLabel(
+                QStringLiteral("<html><i>%1</i>").arg(QString::fromStdString(ctlDef.labels[i])), sc);
             if (i == 0)
                 lbl->setAlignment(Qt::AlignLeft);
             else if (i == valuesCount - 1)

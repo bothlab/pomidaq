@@ -17,58 +17,60 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <QtConcurrent>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <format>
+#include <stdexcept>
 #include <opencv2/imgcodecs.hpp>
 
 #include "zstackcapture.h"
+#include "asynctask-private.h"
+#include "loginternal.h"
 
-namespace MScope
+namespace fs = std::filesystem;
+
+namespace Miniscope
 {
 
-class ZStackException : public QException
+MS_DEFINE_LOG_CATEGORY(logMScope, "miniscope");
+
+class ZStackException : public std::runtime_error
 {
 public:
-    explicit ZStackException(const QString &message)
-        : msg(message)
+    explicit ZStackException(const std::string &message)
+        : std::runtime_error(message)
     {
     }
     explicit ZStackException(const char *message)
-        : msg(QString::fromUtf8(message))
+        : std::runtime_error(message)
     {
     }
     explicit ZStackException(const std::exception &error)
-        : msg(QString::fromUtf8(error.what()))
+        : std::runtime_error(error.what())
     {
     }
-
-    void raise() const override
-    {
-        throw *this;
-    }
-
-    QException *clone() const override
-    {
-        return new ZStackException(*this);
-    }
-
-    const char *what() const noexcept override
-    {
-        return qPrintable(msg);
-    }
-
-private:
-    QString msg;
 };
+
+static bool nameContainsEWL(const std::string &name)
+{
+    std::string lower = name;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return lower.find("ewl") != std::string::npos;
+}
 
 static std::vector<cv::Mat> acquire3DData(
     Miniscope *mscope,
     const ControlDefinition &ewlControl,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint averageCount,
-    uint adjFrameWaitTime = 2,
-    QPromise<bool> *promise = nullptr)
+    unsigned int step,
+    unsigned int averageCount,
+    unsigned int adjFrameWaitTime = 2,
+    TaskProgress *progress = nullptr)
 {
     if (fromEWL - toEWL == 0)
         throw ZStackException("EWL start and end positions must be different.");
@@ -109,7 +111,7 @@ static std::vector<cv::Mat> acquire3DData(
         // but this feature is not yet iplemented in the library (we currently always
         // return the initial value)
 
-        for (uint i = 0; i < averageCount; i++) {
+        for (unsigned int i = 0; i < averageCount; i++) {
             cv::Mat raw;
             while (true) {
                 if (mscope->fetchLastRawFrame(raw))
@@ -133,39 +135,38 @@ static std::vector<cv::Mat> acquire3DData(
         accMat.convertTo(accMat, CV_8U, 1. / currentMats.size());
         stack.push_back(accMat);
 
-        if (promise != nullptr)
-            promise->setProgressValue((100.0 / maxProgress) * stack.size());
+        if (progress != nullptr)
+            progress->setValue((100.0 / maxProgress) * stack.size());
     }
 
     return stack;
 }
 
-static void captureZStack(
-    QPromise<bool> &promise,
+static bool captureZStack(
+    TaskProgress &progress,
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint averageCount,
-    const QString &outFilename)
+    unsigned int step,
+    unsigned int averageCount,
+    const std::string &outFilename)
 {
-    promise.setProgressRange(0, 100);
-    promise.start();
+    progress.setValue(0);
 
     ControlDefinition ewlControl;
     const auto controls = mscope->controls();
     for (const auto &ctl : controls) {
-        if (ctl.name.toLower().contains("ewl")) {
+        if (nameContainsEWL(ctl.name)) {
             ewlControl = ctl;
             break;
         }
     }
 
-    QString outFilenameReal = outFilename;
-    if (!outFilename.endsWith(".tiff") && !outFilename.endsWith(".tif"))
-        outFilenameReal = QStringLiteral("%1.tiff").arg(outFilename);
+    std::string outFilenameReal = outFilename;
+    if (!outFilename.ends_with(".tiff") && !outFilename.ends_with(".tif"))
+        outFilenameReal = std::format("{}.tiff", outFilename);
 
-    if (ewlControl.name.isEmpty())
+    if (ewlControl.name.empty())
         throw ZStackException("Could not find EWL controller to acquire Z-Stack!");
     if (!mscope->isRunning())
         throw ZStackException("Can not acquire Z-Stack while Miniscope is not running.");
@@ -174,49 +175,49 @@ static void captureZStack(
     mscope->setControlValue(ewlControl.id, fromEWL);
     mscope->waitForAcquiredFrameCount(5);
 
-    auto stack = acquire3DData(mscope, ewlControl, fromEWL, toEWL, step, averageCount, 2, &promise);
+    auto stack = acquire3DData(mscope, ewlControl, fromEWL, toEWL, step, averageCount, 2, &progress);
 
     std::vector<int> tiffParams;
     tiffParams.push_back(cv::IMWRITE_TIFF_COMPRESSION);
     tiffParams.push_back(5 /* zlib compression */);
 
     try {
-        cv::imwrite(outFilenameReal.toStdString(), stack, tiffParams);
+        cv::imwrite(outFilenameReal, stack, tiffParams);
     } catch (const std::exception &e) {
         throw ZStackException(e);
     }
 
-    promise.setProgressValue(100);
-    promise.addResult(true);
+    progress.setValue(100);
+    return true;
 }
 
-QFuture<bool> launchZStackCapture(
+AsyncTask launchZStackCapture(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint averageCount,
-    const QString &outFilename)
+    unsigned int step,
+    unsigned int averageCount,
+    const std::string &outFilename)
 {
-    return QtConcurrent::run([=](QPromise<bool> &promise) {
-        captureZStack(promise, mscope, fromEWL, toEWL, step, averageCount, outFilename);
+    return launchAsyncTask([=](TaskProgress &progress) {
+        return captureZStack(progress, mscope, fromEWL, toEWL, step, averageCount, outFilename);
     });
 }
 
 struct Accu3DProgress {
     int maxSteps{1};
     int currentStep{0};
-    QPromise<bool> *promise;
+    TaskProgress *progress;
 
-    explicit Accu3DProgress(QPromise<bool> *p)
-        : promise(p)
+    explicit Accu3DProgress(TaskProgress *p)
+        : progress(p)
     {
     }
 
-    void progressStep(uint stride = 1)
+    void progressStep(unsigned int stride = 1)
     {
-        for (uint i = 0; i < stride; ++i)
-            promise->setProgressValue((100.0 / maxSteps) * currentStep++);
+        for (unsigned int i = 0; i < stride; ++i)
+            progress->setValue((100.0 / maxSteps) * currentStep++);
     }
 };
 
@@ -234,7 +235,7 @@ static double medianBrightness(const cv::Mat &img)
 }
 
 static std::vector<double> globalSliceBrightnessMedianForFiles(
-    const QStringList &rawImageFiles,
+    const std::vector<std::string> &rawImageFiles,
     std::vector<std::vector<double>> &fileStackMedians)
 {
     std::vector<double> result;
@@ -242,20 +243,20 @@ static std::vector<double> globalSliceBrightnessMedianForFiles(
     for (const auto &path : rawImageFiles) {
         std::vector<cv::Mat> stack;
         std::vector<double> stackMedians;
-        cv::imreadmulti(path.toStdString(), stack, cv::IMREAD_GRAYSCALE);
+        cv::imreadmulti(path, stack, cv::IMREAD_GRAYSCALE);
         if (stack.empty() || stack[0].empty())
             continue;
 
-        for (uint i = 0; i < stack.size(); ++i)
+        for (unsigned int i = 0; i < stack.size(); ++i)
             stackMedians.push_back(medianBrightness(stack[i]));
 
         fileStackMedians.push_back(stackMedians);
     }
 
     // compute the median of medians for each slice
-    for (uint i = 0; i < fileStackMedians[0].size(); ++i) {
+    for (unsigned int i = 0; i < fileStackMedians[0].size(); ++i) {
         std::vector<double> sliceMedians;
-        for (uint k = 0; k < fileStackMedians.size(); ++k)
+        for (unsigned int k = 0; k < fileStackMedians.size(); ++k)
             sliceMedians.push_back(fileStackMedians[k][i]);
 
         std::sort(sliceMedians.begin(), sliceMedians.end());
@@ -266,7 +267,9 @@ static std::vector<double> globalSliceBrightnessMedianForFiles(
     return result;
 }
 
-static std::vector<cv::Mat> computeBalanced3DMIP(const QStringList &rawImageFiles, Accu3DProgress &progress)
+static std::vector<cv::Mat> computeBalanced3DMIP(
+    const std::vector<std::string> &rawImageFiles,
+    Accu3DProgress &progress)
 {
     // we load the data from disk twice to (cheaply) save on used memory
     std::vector<std::vector<double>> fileStackMedians;
@@ -275,20 +278,20 @@ static std::vector<cv::Mat> computeBalanced3DMIP(const QStringList &rawImageFile
     progress.progressStep();
 
     std::vector<cv::Mat> mipStack;
-    for (int i = 0; i < rawImageFiles.length(); ++i) {
+    for (size_t i = 0; i < rawImageFiles.size(); ++i) {
         std::vector<cv::Mat> stack;
-        cv::imreadmulti(rawImageFiles[i].toStdString(), stack, cv::IMREAD_GRAYSCALE);
+        cv::imreadmulti(rawImageFiles[i], stack, cv::IMREAD_GRAYSCALE);
         if (stack.empty()) {
-            qWarning().noquote() << "Read empty stack from" << rawImageFiles[i] << "This may be a bug!";
+            MS_LOG_WARNING(logMScope, "Read empty stack from {} This may be a bug!", rawImageFiles[i]);
             continue;
         }
         if (i == 0) {
             // initialize the MIP stack
-            for (uint s = 0; s < sliceMedMed.size(); ++s)
+            for (unsigned int s = 0; s < sliceMedMed.size(); ++s)
                 mipStack.push_back(cv::Mat());
         }
 
-        for (uint s = 0; s < sliceMedMed.size(); ++s) {
+        for (unsigned int s = 0; s < sliceMedMed.size(); ++s) {
             // check if within 20% of the global median
             if (fileStackMedians[i][s] <= sliceMedMed[s] * 1.2) {
                 if (mipStack[s].empty())
@@ -296,8 +299,8 @@ static std::vector<cv::Mat> computeBalanced3DMIP(const QStringList &rawImageFile
                 else
                     cv::max(mipStack[s], stack[s], mipStack[s]);
             } else {
-                qDebug().noquote() << "Filtered out slice" << s << "with suspicious brightness from"
-                                   << rawImageFiles[i];
+                MS_LOG_DEBUG(
+                    logMScope, "Filtered out slice {} with suspicious brightness from {}", s, rawImageFiles[i]);
             }
         }
         progress.progressStep();
@@ -306,37 +309,39 @@ static std::vector<cv::Mat> computeBalanced3DMIP(const QStringList &rawImageFile
     return mipStack;
 }
 
-static void acquire3DAccumulation(
-    QPromise<bool> &promise,
+static bool acquire3DAccumulation(
+    TaskProgress &progress,
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint count,
+    unsigned int step,
+    unsigned int count,
     bool saveRaw,
-    const QString &outDir,
-    const QString &outName)
+    const std::string &outDir,
+    const std::string &outName)
 {
-    promise.setProgressRange(0, 100);
+    progress.setValue(0);
 
     ControlDefinition ewlControl;
     const auto controls = mscope->controls();
     for (const auto &ctl : controls) {
-        if (ctl.name.toLower().contains("ewl")) {
+        if (nameContainsEWL(ctl.name)) {
             ewlControl = ctl;
             break;
         }
     }
 
-    if (ewlControl.name.isEmpty())
+    if (ewlControl.name.empty())
         throw ZStackException("Could not find EWL controller to acquire Z-Stack!");
     if (!mscope->isRunning())
         throw ZStackException("Can not acquire Z-Stack while Miniscope is not running.");
 
-    QDir outDirNamed(QStringLiteral("%1/%2/").arg(outDir, outName));
-    QDir outDirRaw(QStringLiteral("%1/raw").arg(outDirNamed.absolutePath()));
-    if (!outDirRaw.mkpath(outDirRaw.absolutePath()))
-        throw ZStackException(QStringLiteral("Unable to create directory '%1'.").arg(outDirRaw.absolutePath()));
+    const fs::path outDirNamed = fs::absolute(fs::path(outDir) / outName);
+    const fs::path outDirRaw = outDirNamed / "raw";
+    std::error_code ec;
+    fs::create_directories(outDirRaw, ec);
+    if (ec || !fs::is_directory(outDirRaw))
+        throw ZStackException(std::format("Unable to create directory '{}'.", outDirRaw.string()));
 
     // TIFF storage settings
     std::vector<int> tiffSaveParams;
@@ -345,7 +350,7 @@ static void acquire3DAccumulation(
     tiffSaveParams.push_back(317 /* TIFFTAG_PREDICTOR */);
     tiffSaveParams.push_back(2 /* PREDICTOR_HORIZONTAL */);
 
-    Accu3DProgress aprog(&promise);
+    Accu3DProgress aprog(&progress);
     aprog.maxSteps = (count * 3) + 2 + 1 + count + 2;
 
     // move in range already, in case we have a big jump from the current EWL setting
@@ -353,10 +358,10 @@ static void acquire3DAccumulation(
     mscope->setControlValue(ewlControl.id, fromEWL);
     mscope->waitForAcquiredFrameCount(5);
 
-    promise.setProgressValueAndText(aprog.currentStep, "Acquiring data...");
-    QStringList rawFileList;
-    for (uint i = 0; i < count; ++i) {
-        auto fnameRaw = QStringLiteral("%1/%2_zstack_%3.tiff").arg(outDirRaw.absolutePath(), outName).arg(i);
+    progress.setValueAndText(aprog.currentStep, "Acquiring data...");
+    std::vector<std::string> rawFileList;
+    for (unsigned int i = 0; i < count; ++i) {
+        auto fnameRaw = (outDirRaw / std::format("{}_zstack_{}.tiff", outName, i)).string();
 
         int hwFromEWL;
         int hwToEWL;
@@ -388,20 +393,20 @@ static void acquire3DAccumulation(
 
         // store raw data for future use
         try {
-            cv::imwrite(fnameRaw.toStdString(), stack, tiffSaveParams);
+            cv::imwrite(fnameRaw, stack, tiffSaveParams);
         } catch (const std::exception &e) {
             throw ZStackException(e);
         }
 
-        rawFileList.append(fnameRaw);
+        rawFileList.push_back(fnameRaw);
         aprog.progressStep();
     }
 
-    promise.setProgressValueAndText(aprog.currentStep, "Computing MIPs...");
+    progress.setValueAndText(aprog.currentStep, "Computing MIPs...");
     auto balancedMipStack = computeBalanced3DMIP(rawFileList, aprog);
-    const auto mipStackFname = QStringLiteral("%1/%2_mip3D.tiff").arg(outDirNamed.absolutePath(), outName);
+    const auto mipStackFname = (outDirNamed / std::format("{}_mip3D.tiff", outName)).string();
     try {
-        cv::imwrite(mipStackFname.toStdString(), balancedMipStack, tiffSaveParams);
+        cv::imwrite(mipStackFname, balancedMipStack, tiffSaveParams);
     } catch (const std::exception &e) {
         throw ZStackException(e);
     }
@@ -409,30 +414,28 @@ static void acquire3DAccumulation(
 
     // cleanup temporary raw data, if requested
     if (!saveRaw) {
-        for (const auto &fname : rawFileList) {
-            QFile f(fname);
-            f.remove();
-        }
-        outDirRaw.rmpath(outDirRaw.absolutePath());
+        for (const auto &fname : rawFileList)
+            fs::remove(fname, ec);
+        fs::remove(outDirRaw, ec);
     }
 
-    promise.setProgressValue(100);
-    promise.addResult(true);
+    progress.setValue(100);
+    return true;
 }
 
-QFuture<bool> launch3DAccumulation(
+AsyncTask launch3DAccumulation(
     Miniscope *mscope,
     int fromEWL,
     int toEWL,
-    uint step,
-    uint count,
+    unsigned int step,
+    unsigned int count,
     bool saveRaw,
-    const QString &outDir,
-    const QString &outName)
+    const std::string &outDir,
+    const std::string &outName)
 {
-    return QtConcurrent::run([=](QPromise<bool> &promise) {
-        acquire3DAccumulation(promise, mscope, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
+    return launchAsyncTask([=](TaskProgress &progress) {
+        return acquire3DAccumulation(progress, mscope, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
     });
 }
 
-} // namespace MScope
+} // namespace Miniscope
