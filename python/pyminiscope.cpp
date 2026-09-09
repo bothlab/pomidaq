@@ -177,8 +177,7 @@ PYBIND11_MODULE(miniscope, m)
 
         .def_property_readonly(
             "available_device_types",
-            &Miniscope::Miniscope::availableDeviceTypes,
-            py::call_guard<py::gil_scoped_release>(),
+            py::cpp_function(&Miniscope::Miniscope::availableDeviceTypes, py::call_guard<py::gil_scoped_release>()),
             "Get a list of all Miniscope variants we can communicate with")
         .def(
             "load_device_config",
