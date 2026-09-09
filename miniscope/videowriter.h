@@ -26,7 +26,6 @@
 #include <opencv2/core.hpp>
 #include "mediatypes.h"
 
-
 /**
  * @brief The VideoWriter class
  *

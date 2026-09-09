@@ -69,8 +69,8 @@ void dispatchLog(const LogCategory &cat, LogSeverity sev, const std::string &mes
  */
 #define MS_DECLARE_LOG_CATEGORY(varname) extern ::Miniscope::LogCategory varname
 
-#define MS_LOG(cat, sev, ...)                                              \
-    do {                                                                   \
+#define MS_LOG(cat, sev, ...)                                                 \
+    do {                                                                      \
         if (::Miniscope::shouldLog((cat), (sev)))                             \
             ::Miniscope::dispatchLog((cat), (sev), std::format(__VA_ARGS__)); \
     } while (0)

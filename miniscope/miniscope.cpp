@@ -359,7 +359,8 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
 
     // load basic settings
     d->resolution = cv::Size(
-        Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "width"), -1), Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "height"), -1));
+        Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "width"), -1),
+        Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "height"), -1));
     d->supportsColor = Utils::jsonBool(Utils::jsonMember(d->deviceConfig, "isColor"), false);
     d->sensorType = Utils::jsonString(Utils::jsonMember(d->deviceConfig, "sensor"), "unknown");
     d->pixelClock = Utils::jsonDouble(Utils::jsonMember(d->deviceConfig, "pixelClock"), -1);
@@ -774,7 +775,8 @@ bool Miniscope::openCamera()
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            MS_LOG_DEBUG(logMScope, "{}  initialization protocol not yet supported", Utils::mapValueOr(command, "protocol"));
+            MS_LOG_DEBUG(
+                logMScope, "{}  initialization protocol not yet supported", Utils::mapValueOr(command, "protocol"));
         }
     }
 
@@ -970,7 +972,8 @@ void Miniscope::setControlValue(const std::string &id, double value)
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            MS_LOG_DEBUG(logMScope, "{} protocol for \"{}\" not yet supported", Utils::mapValueOr(command, "protocol"), id);
+            MS_LOG_DEBUG(
+                logMScope, "{} protocol for \"{}\" not yet supported", Utils::mapValueOr(command, "protocol"), id);
         }
     }
 

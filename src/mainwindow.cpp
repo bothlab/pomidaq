@@ -45,7 +45,6 @@
 #include <KColorScheme>
 #endif
 
-
 static bool darkColorSchemeAvailable()
 {
 #ifdef Q_OS_LINUX
