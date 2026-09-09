@@ -542,7 +542,7 @@ void MainWindow::processMiniscopeDisplay()
     ui->toolBox->setCurrentIndex(0);
 }
 
-void MainWindow::on_sbCamId_valueChanged(int arg1)
+void MainWindow::on_sbCamId_valueChanged([[maybe_unused]] int arg1)
 {
 #ifdef Q_OS_LINUX
     const auto devName = QString::fromStdString(Miniscope::videoDeviceNameFromId(arg1));
@@ -1018,7 +1018,7 @@ void MainWindow::on_actionShowMiniscopeLog_toggled(bool arg1)
     ui->logTextList->setVisible(arg1);
 }
 
-void MainWindow::on_actionUseDarkTheme_toggled(bool arg1)
+void MainWindow::on_actionUseDarkTheme_toggled([[maybe_unused]] bool arg1)
 {
 #ifdef Q_OS_LINUX
     changeColorsDarkmode(arg1);

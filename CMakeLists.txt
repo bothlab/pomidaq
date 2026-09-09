@@ -35,7 +35,7 @@ add_definitions("-Wall")
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_definitions("-Wextra")
 endif()
-if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     add_definitions("-Wno-c++98-compat" "-Wno-c++98-compat-pedantic")
 endif()
 
