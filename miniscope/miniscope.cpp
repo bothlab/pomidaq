@@ -40,6 +40,10 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
+#if __has_include(<opencv2/geometry.hpp>)
+// OpenCV 5 moved getPerspectiveTransform into the new geometry module
+#include <opencv2/geometry.hpp>
+#endif
 
 #ifdef __linux__
 #include <linux/videodev2.h>
@@ -1508,7 +1512,7 @@ bool Miniscope::waitForAcquiredFrameCount(unsigned int count)
     const auto maxIterations = count * 2.2;
     for (unsigned int i = 0; i < maxIterations; i++) {
         auto framesCounted = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE)) - initialFrameCount;
-        if (framesCounted >= count)
+        if (framesCounted >= static_cast<long>(count))
             break;
 
         std::this_thread::sleep_for(milliseconds_t(waitTimeMsec));
