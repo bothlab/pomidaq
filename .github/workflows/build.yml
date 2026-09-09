@@ -34,6 +34,9 @@ jobs:
     name: ${{ matrix.display_name }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: revision
+    # experimental entries (e.g. Debian Testing) only serve as an early warning,
+    # their failure must neither fail the CI run nor block a release
+    continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +69,14 @@ jobs:
             components: main universe
             runner: ubuntu-24.04-arm
             arch: arm64
+          - display_name: Debian Testing
+            artifact_label: debian-testing
+            version_slug: deb14
+            suite: testing
+            components: main
+            runner: ubuntu-latest
+            arch: amd64
+            experimental: true
 
     steps:
     - uses: actions/checkout@v7

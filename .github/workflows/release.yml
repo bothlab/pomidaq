@@ -69,6 +69,10 @@ jobs:
           for artifact_dir in artifacts/*/; do
             name=$(basename "$artifact_dir")
             case "$name" in
+              *.debian-testing_*.zip)
+                # CI-only build, not a release target
+                echo "Skipping $name"
+                ;;
               *.debian*.zip|*.ubuntu*.zip)
                 zip -j "$GITHUB_WORKSPACE/release_assets/${name}" "$artifact_dir"/*.deb
                 ;;
