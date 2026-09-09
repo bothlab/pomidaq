@@ -23,5 +23,5 @@ include_directories(SYSTEM
     ${NUMPY_INCLUDE_DIRS}
 )
 include_directories(
-    ../libminiscope/
+    ../
 )

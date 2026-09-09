@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -25,7 +25,7 @@
 #include <pybind11/stl_bind.h>
 #include <pybind11/chrono.h>
 #include "cvmatndsliceconvert.h"
-#include "miniscope.h"
+#include <miniscope/miniscope.h>
 
 namespace py = pybind11;
 
