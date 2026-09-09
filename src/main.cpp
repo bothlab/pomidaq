@@ -17,8 +17,10 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mainwindow.h"
 #include <QApplication>
+#include <QStyleHints>
+
+#include "mainwindow.h"
 
 int main(int argc, char *argv[])
 {
@@ -26,6 +28,9 @@ int main(int argc, char *argv[])
 
     a.setApplicationName(QStringLiteral("PoMiDAQ"));
     a.setOrganizationName(QStringLiteral("DraguhnLab"));
+
+    // prefer dark color scheme
+    a.styleHints()->setColorScheme(Qt::ColorScheme::Dark);
 
     MainWindow w;
     w.show();
