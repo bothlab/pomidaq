@@ -10,11 +10,15 @@
 
 import sys
 import cv2
-from miniscope import Miniscope, ControlKind
+from miniscope import Miniscope, ControlKind, LogSeverity, set_log_severity
 
 MINISCOPE_DEVICE = 'Miniscope_V4'  # The device type we want to connect to
 DEVICE_ID = 0  # the video device ID of our DAQ box
 VIDEO_FILENAME = '/tmp/miniscope-test.mkv'  # name of the saved video
+
+
+# drop debug chatter
+set_log_severity(LogSeverity.INFO)
 
 # create new Miniscope instance
 mscope = Miniscope()

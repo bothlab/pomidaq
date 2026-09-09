@@ -78,6 +78,11 @@ void setLogHandler(LogHandlerFn handler)
     g_handlerActive.store(bool(detail::g_handler), std::memory_order_release);
 }
 
+void resetLogHandler()
+{
+    setLogHandler(detail::defaultHandler);
+}
+
 void setLogSeverity(LogSeverity min)
 {
     auto cat = g_categoryListHead.load(std::memory_order_acquire);

@@ -71,6 +71,13 @@ using LogHandlerFn = std::function<void(const LogMessage &)>;
 MS_LIB_EXPORT void setLogHandler(LogHandlerFn handler);
 
 /**
+ * @brief Reinstall the built-in stdout/stderr log handler.
+ *
+ * Undoes any previous setLogHandler() call. Same concurrency caveats as setLogHandler().
+ */
+MS_LIB_EXPORT void resetLogHandler();
+
+/**
  * @brief Set the minimum log severity globally across all libminiscope categories.
  *
  * Messages below @p min are discarded before formatting.

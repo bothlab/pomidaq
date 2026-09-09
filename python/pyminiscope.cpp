@@ -17,6 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <memory>
 #include <string>
 #include <sstream>
 
@@ -31,6 +32,66 @@ namespace py = pybind11;
 
 PYBIND11_MAKE_OPAQUE(std::vector<Miniscope::ControlDefinition>);
 PYBIND11_MAKE_OPAQUE(std::vector<double>);
+
+/**
+ * Deleter that releases the GIL while the Miniscope is destroyed.
+ * Destruction disconnects the device and joins the capture thread, which may
+ * still be calling into a Python log handler and therefore needs the GIL.
+ */
+struct GilReleasingDeleter {
+    void operator()(Miniscope::Miniscope *mscope) const
+    {
+        py::gil_scoped_release release;
+        delete mscope;
+    }
+};
+using MiniscopeHolder = std::unique_ptr<Miniscope::Miniscope, GilReleasingDeleter>;
+
+static bool pyIsFinalizing()
+{
+#if PY_VERSION_HEX >= 0x030D0000
+    return Py_IsFinalizing() != 0;
+#else
+    return _Py_IsFinalizing() != 0;
+#endif
+}
+
+/**
+ * Install a Python callable as libminiscope log handler.
+ * The callable is invoked from arbitrary library threads with the GIL held.
+ */
+static void setPyLogHandler(const py::object &handler)
+{
+    if (handler.is_none()) {
+        Miniscope::resetLogHandler();
+        return;
+    }
+    if (!py::isinstance<py::function>(handler) && !py::hasattr(handler, "__call__"))
+        throw py::type_error("Log handler must be callable or None");
+
+    Miniscope::setLogHandler([fn = handler](const Miniscope::LogMessage &lm) {
+        // never try to grab the GIL while the interpreter shuts down
+        if (pyIsFinalizing())
+            return;
+
+        py::gil_scoped_acquire gil;
+        try {
+            fn(lm.severity, py::str(lm.category), py::str(lm.message.data(), lm.message.size()));
+        } catch (py::error_already_set &e) {
+            e.discard_as_unraisable("miniscope log handler");
+        }
+    });
+}
+
+/**
+ * Drop any Python log handler when the module is unloaded, so the library
+ * never calls into a torn-down interpreter and the handler's Python object
+ * is released while the GIL is still held.
+ */
+static void logHandlerModuleCleanup()
+{
+    Miniscope::resetLogHandler();
+}
 
 PYBIND11_MODULE(miniscope, m)
 {
@@ -58,6 +119,35 @@ PYBIND11_MODULE(miniscope, m)
         .value("RAW_FRAMES", Miniscope::DisplayMode::RawFrames)
         .value("BACKGROUND_DIFF", Miniscope::DisplayMode::BackgroundDiff);
 
+    py::enum_<Miniscope::LogSeverity>(m, "LogSeverity", py::arithmetic())
+        .value("DEBUG", Miniscope::LogSeverity::Debug)
+        .value("INFO", Miniscope::LogSeverity::Info)
+        .value("WARNING", Miniscope::LogSeverity::Warning)
+        .value("ERROR", Miniscope::LogSeverity::Error)
+        .value("CRITICAL", Miniscope::LogSeverity::Critical);
+
+    m.def(
+        "set_log_severity",
+        py::overload_cast<Miniscope::LogSeverity>(&Miniscope::setLogSeverity),
+        py::arg("min_severity"),
+        "Set the minimum severity of messages emitted by all libminiscope log categories");
+    m.def(
+        "set_log_severity",
+        [](const std::string &category, Miniscope::LogSeverity min) {
+            Miniscope::setLogSeverity(category.c_str(), min);
+        },
+        py::arg("category"),
+        py::arg("min_severity"),
+        "Set the minimum severity of messages emitted by a specific libminiscope log category");
+    m.def(
+        "set_log_handler",
+        &setPyLogHandler,
+        py::arg("handler"),
+        "Install a callable receiving all libminiscope log messages as (severity, category, message).\n"
+        "The callable is invoked from library threads. Pass None to restore the default handler,\n"
+        "which prints to stdout/stderr.");
+    m.add_object("_log_handler_cleanup", py::capsule(&logHandlerModuleCleanup));
+
     py::enum_<Miniscope::ControlKind>(m, "ControlKind", py::arithmetic())
         .value("UNKNOWN", Miniscope::ControlKind::Unknown)
         .value("SELECTOR", Miniscope::ControlKind::Selector)
@@ -82,33 +172,69 @@ PYBIND11_MODULE(miniscope, m)
             "control value)")
         .def_readwrite("values", &Miniscope::ControlDefinition::values, "Possible values for this control");
 
-    py::class_<Miniscope::Miniscope>(m, "Miniscope")
+    py::class_<Miniscope::Miniscope, MiniscopeHolder>(m, "Miniscope")
         .def(py::init<>())
 
         .def_property_readonly(
             "available_device_types",
             &Miniscope::Miniscope::availableDeviceTypes,
+            py::call_guard<py::gil_scoped_release>(),
             "Get a list of all Miniscope variants we can communicate with")
         .def(
             "load_device_config",
             &Miniscope::Miniscope::loadDeviceConfig,
-            "Load harware definition for a given Miniscope device type")
+            py::call_guard<py::gil_scoped_release>(),
+            "Load hardware definition for a given Miniscope device type")
 
         .def_property_readonly(
-            "device_type", &Miniscope::Miniscope::deviceType, "get the name of the currently loaded Miniscope device type")
+            "device_type",
+            &Miniscope::Miniscope::deviceType,
+            "get the name of the currently loaded Miniscope device type")
         .def("set_cam_id", &Miniscope::Miniscope::setScopeCamId, "Set the Miniscope camera ID")
 
-        .def("connect", &Miniscope::Miniscope::connect, "Connect the selected Miniscope")
-        .def("disconnect", &Miniscope::Miniscope::disconnect, "Disconnect the selected Miniscope and stop all operations")
-        .def("hard_reset", &Miniscope::Miniscope::hardReset, "Forcefully reset the selected Miniscope DAQ box and make it reboot")
-        .def("run", &Miniscope::Miniscope::run, "Start image acquisition with the selected settings")
-        .def("stop", &Miniscope::Miniscope::stop, "Stop image acquisition")
-        .def("start_recording", &Miniscope::Miniscope::startRecording, "Start recording a video file")
-        .def("stop_recording", &Miniscope::Miniscope::stopRecording, "Finish the current recording")
+        .def(
+            "connect",
+            &Miniscope::Miniscope::connect,
+            py::call_guard<py::gil_scoped_release>(),
+            "Connect the selected Miniscope")
+        .def(
+            "disconnect",
+            &Miniscope::Miniscope::disconnect,
+            py::call_guard<py::gil_scoped_release>(),
+            "Disconnect the selected Miniscope and stop all operations")
+        .def(
+            "hard_reset",
+            &Miniscope::Miniscope::hardReset,
+            py::call_guard<py::gil_scoped_release>(),
+            "Forcefully reset the selected Miniscope DAQ box and make it reboot")
+        .def(
+            "run",
+            &Miniscope::Miniscope::run,
+            py::call_guard<py::gil_scoped_release>(),
+            "Start image acquisition with the selected settings")
+        .def("stop", &Miniscope::Miniscope::stop, py::call_guard<py::gil_scoped_release>(), "Stop image acquisition")
+        .def(
+            "start_recording",
+            &Miniscope::Miniscope::startRecording,
+            py::call_guard<py::gil_scoped_release>(),
+            "Start recording a video file")
+        .def(
+            "stop_recording",
+            &Miniscope::Miniscope::stopRecording,
+            py::call_guard<py::gil_scoped_release>(),
+            "Finish the current recording")
 
         .def_property_readonly("controls", &Miniscope::Miniscope::controls, "Get available controls for this device")
-        .def("control_value", &Miniscope::Miniscope::controlValue, "Retrieve current control value for the given control ID")
-        .def("set_control_value", &Miniscope::Miniscope::setControlValue, "Set new value for control with the given ID")
+        .def(
+            "control_value",
+            &Miniscope::Miniscope::controlValue,
+            py::call_guard<py::gil_scoped_release>(),
+            "Retrieve current control value for the given control ID")
+        .def(
+            "set_control_value",
+            &Miniscope::Miniscope::setControlValue,
+            py::call_guard<py::gil_scoped_release>(),
+            "Set new value for control with the given ID")
 
         .def(
             "set_visible_channels",
@@ -118,7 +244,8 @@ PYBIND11_MODULE(miniscope, m)
         .def_property_readonly("show_green_channels", &Miniscope::Miniscope::showGreenChannel)
         .def_property_readonly("show_blue_channels", &Miniscope::Miniscope::showBlueChannel)
 
-        .def_property_readonly("is_connected", &Miniscope::Miniscope::isConnected, "Is True if a Miniscope is connected")
+        .def_property_readonly(
+            "is_connected", &Miniscope::Miniscope::isConnected, "Is True if a Miniscope is connected")
         .def_property_readonly(
             "is_running", &Miniscope::Miniscope::isRunning, "Is True if we are acquiring images from the Miniscope")
         .def_property_readonly("is_recording", &Miniscope::Miniscope::isRecording, "Is True if we are recording data")
@@ -132,10 +259,20 @@ PYBIND11_MODULE(miniscope, m)
         .def_property_readonly("last_recorded_frame_time", &Miniscope::Miniscope::lastRecordedFrameTime)
 
         .def_property(
-            "video_filename", &Miniscope::Miniscope::videoFilename, &Miniscope::Miniscope::setVideoFilename, "The name of the saved video")
-        .def_property("video_codec", &Miniscope::Miniscope::videoCodec, &Miniscope::Miniscope::setVideoCodec, "The video codec to use")
+            "video_filename",
+            &Miniscope::Miniscope::videoFilename,
+            &Miniscope::Miniscope::setVideoFilename,
+            "The name of the saved video")
         .def_property(
-            "video_container", &Miniscope::Miniscope::videoContainer, &Miniscope::Miniscope::setVideoContainer, "The video container to use")
+            "video_codec",
+            &Miniscope::Miniscope::videoCodec,
+            &Miniscope::Miniscope::setVideoCodec,
+            "The video codec to use")
+        .def_property(
+            "video_container",
+            &Miniscope::Miniscope::videoContainer,
+            &Miniscope::Miniscope::setVideoContainer,
+            "The video container to use")
         .def_property(
             "record_lossless",
             &Miniscope::Miniscope::recordLossless,
@@ -162,7 +299,10 @@ PYBIND11_MODULE(miniscope, m)
             &Miniscope::Miniscope::displayMode,
             &Miniscope::Miniscope::setDisplayMode,
             "Set styling mode for the displayed images")
-        .def_property("bg_accumulate_alpha", &Miniscope::Miniscope::bgAccumulateAlpha, &Miniscope::Miniscope::setBgAccumulateAlpha)
+        .def_property(
+            "bg_accumulate_alpha",
+            &Miniscope::Miniscope::bgAccumulateAlpha,
+            &Miniscope::Miniscope::setBgAccumulateAlpha)
 
         .def_property(
             "recording_slice_interval",
@@ -189,5 +329,6 @@ PYBIND11_MODULE(miniscope, m)
             "set_print_extra_debug",
             &Miniscope::Miniscope::setPrintExtraDebug,
             "Set whether protocol transmission debug messages should be printed to stdout")
-        .def_property_readonly("last_error", &Miniscope::Miniscope::lastError, "Message of the last error, if there was one");
+        .def_property_readonly(
+            "last_error", &Miniscope::Miniscope::lastError, "Message of the last error, if there was one");
 }
