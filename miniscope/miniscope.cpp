@@ -22,8 +22,6 @@
 #define _USE_MATH_DEFINES
 #include <algorithm>
 #include <atomic>
-#include <cctype>
-#include <charconv>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -55,6 +53,7 @@
 #include "scopeintf.h"
 #include "loginternal.h"
 #include "resources.h"
+#include "utils.h"
 #include "videowriter.h"
 #include "csvwriter.h"
 #include "zstackcapture.h"
@@ -65,125 +64,6 @@ namespace Miniscope
 {
 
 MS_DEFINE_LOG_CATEGORY(logMScope, "miniscope");
-
-/**
- * @brief Format double into a string ('g' format, precision 6)
- */
-static std::string fmtDouble(double value)
-{
-    return std::format("{:g}", value);
-}
-
-/*
- * JSON helpers.
- */
-
-static int jsonInt(const json &v, int defaultValue = 0)
-{
-    if (v.is_number_integer())
-        return v.get<int>();
-    if (v.is_number_float()) {
-        const auto d = v.get<double>();
-        if (d == std::floor(d))
-            return static_cast<int>(d);
-    }
-    return defaultValue;
-}
-
-static double jsonDouble(const json &v, double defaultValue = 0)
-{
-    if (v.is_number())
-        return v.get<double>();
-    return defaultValue;
-}
-
-static bool jsonBool(const json &v, bool defaultValue = false)
-{
-    if (v.is_boolean())
-        return v.get<bool>();
-    return defaultValue;
-}
-
-static std::string jsonString(const json &v, const std::string &defaultValue = std::string())
-{
-    if (v.is_string())
-        return v.get<std::string>();
-    return defaultValue;
-}
-
-/**
- * @brief Get a member of a JSON object, or a null value if it does not exist.
- */
-static const json &jsonMember(const json &obj, const char *key)
-{
-    static const json nullValue;
-    const auto it = obj.find(key);
-    if (it == obj.end())
-        return nullValue;
-    return *it;
-}
-
-static json jsonArray(const json &v)
-{
-    if (v.is_array())
-        return v;
-    return json::array();
-}
-
-static json jsonObject(const json &v)
-{
-    if (v.is_object())
-        return v;
-    return json::object();
-}
-
-/**
- * @brief Return the value of a key in a map, or a default if the key does not exist.
- */
-template<typename Map>
-static typename Map::mapped_type mapValueOr(
-    const Map &map,
-    const typename Map::key_type &key,
-    const typename Map::mapped_type &defaultValue = typename Map::mapped_type())
-{
-    const auto it = map.find(key);
-    if (it == map.end())
-        return defaultValue;
-    return it->second;
-}
-
-static std::string asciiToLower(std::string s)
-{
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-    return s;
-}
-
-/**
- * @brief Length of the file suffix (characters after the last dot) of a filename.
- */
-static size_t fileSuffixLength(const std::string &fname)
-{
-    const auto dotPos = fname.rfind('.');
-    if (dotPos == std::string::npos)
-        return fname.length();
-    return fname.length() - dotPos - 1;
-}
-
-static std::string stringTrimmed(const std::string &s)
-{
-    const auto isSpace = [](unsigned char c) {
-        return std::isspace(c) != 0;
-    };
-    auto start = s.begin();
-    while (start != s.end() && isSpace(*start))
-        ++start;
-    auto end = s.end();
-    while (end != start && isSpace(*(end - 1)))
-        --end;
-    return std::string(start, end);
-}
 
 /**
  * @brief Defines a rule to scale values and convert them to a packet
@@ -374,17 +254,6 @@ static json msconfGetDevicesJson()
     return json::object();
 }
 
-/**
- * @brief Parse an unsigned integer with the given base, like QString::toUInt() would.
- */
-static bool parseUInt(std::string_view s, int base, unsigned int &result)
-{
-    if (s.empty())
-        return false;
-    const auto res = std::from_chars(s.data(), s.data() + s.size(), result, base);
-    return res.ec == std::errc() && res.ptr == s.data() + s.size();
-}
-
 static int msconfStringToInt(const std::string &s)
 {
     // Should return a uint8 type of value (0 to 255)
@@ -398,14 +267,14 @@ static int msconfStringToInt(const std::string &s)
         ok = false;
     } else if (s.starts_with("0x")) {
         // HEX
-        ok = parseUInt(std::string_view(s).substr(2), 16, uvalue);
+        ok = Utils::parseUInt(std::string_view(s).substr(2), 16, uvalue);
         value = static_cast<int>(uvalue);
     } else if (s.starts_with("0b")) {
         // Binary
-        ok = parseUInt(std::string_view(s).substr(2), 2, uvalue);
+        ok = Utils::parseUInt(std::string_view(s).substr(2), 2, uvalue);
         value = static_cast<int>(uvalue);
     } else {
-        ok = parseUInt(s, 10, uvalue);
+        ok = Utils::parseUInt(s, 10, uvalue);
         value = static_cast<int>(uvalue);
         if (ok == false) {
             // This is then a string
@@ -447,15 +316,15 @@ static std::vector<std::unordered_map<std::string, int>> msconfParseSendCommand(
     // so that later elements inherit keys from previous ones.
     std::unordered_map<std::string, int> commandStructure;
 
-    for (const auto &element : jsonArray(sendCommand)) {
-        const auto jObj = jsonObject(element);
+    for (const auto &element : Utils::jsonArray(sendCommand)) {
+        const auto jObj = Utils::jsonObject(element);
 
         for (const auto &[key, jValue] : jObj.items()) {
             // -1 = controlValue, -2 = error
             if (jValue.is_string())
                 commandStructure[key] = msconfStringToInt(jValue.get<std::string>());
             else if (jValue.is_number())
-                commandStructure[key] = jsonInt(jValue);
+                commandStructure[key] = Utils::jsonInt(jValue);
         }
         output.push_back(commandStructure);
     }
@@ -485,21 +354,21 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
         d->lastError = std::format("Unable to find device configuration with name '{}'", deviceType);
         return false;
     }
-    d->deviceConfig = jsonObject(allDevConfigs[deviceType]);
+    d->deviceConfig = Utils::jsonObject(allDevConfigs[deviceType]);
     d->deviceType = deviceType;
 
     // load basic settings
     d->resolution = cv::Size(
-        jsonInt(jsonMember(d->deviceConfig, "width"), -1), jsonInt(jsonMember(d->deviceConfig, "height"), -1));
-    d->supportsColor = jsonBool(jsonMember(d->deviceConfig, "isColor"), false);
-    d->sensorType = jsonString(jsonMember(d->deviceConfig, "sensor"), "unknown");
-    d->pixelClock = jsonDouble(jsonMember(d->deviceConfig, "pixelClock"), -1);
-    d->hasHeadOrientation = jsonBool(jsonMember(d->deviceConfig, "headOrientation"), false);
+        Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "width"), -1), Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "height"), -1));
+    d->supportsColor = Utils::jsonBool(Utils::jsonMember(d->deviceConfig, "isColor"), false);
+    d->sensorType = Utils::jsonString(Utils::jsonMember(d->deviceConfig, "sensor"), "unknown");
+    d->pixelClock = Utils::jsonDouble(Utils::jsonMember(d->deviceConfig, "pixelClock"), -1);
+    d->hasHeadOrientation = Utils::jsonBool(Utils::jsonMember(d->deviceConfig, "headOrientation"), false);
 
     // load information about available controls
     d->controls.clear();
     d->controlRules.clear();
-    const auto controlSettings = jsonObject(jsonMember(d->deviceConfig, "controlSettings"));
+    const auto controlSettings = Utils::jsonObject(Utils::jsonMember(d->deviceConfig, "controlSettings"));
     if (controlSettings.empty()) {
         MS_LOG_WARNING(
             logMScope, "controlSettings missing from miniscopes.json for deviceType = \"{}\"", d->deviceType);
@@ -507,44 +376,44 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
     }
 
     for (const auto &[controlKey, controlValue] : controlSettings.items()) {
-        const auto values = jsonObject(controlValue);
+        const auto values = Utils::jsonObject(controlValue);
         ControlCommandRule commandRule;
         ControlDefinition control;
         control.id = controlKey;
-        control.name = mapValueOr(controlIdToNameMap(), control.id, control.id);
+        control.name = Utils::mapValueOr(controlIdToNameMap(), control.id, control.id);
 
         json startValue;
         for (const auto &[key, value] : values.items()) {
             if (key == "sendCommand") {
                 commandRule.commands = msconfParseSendCommand(value);
             } else if (key == "min") {
-                control.valueMin = jsonInt(value);
+                control.valueMin = Utils::jsonInt(value);
             } else if (key == "max") {
-                control.valueMax = jsonInt(value);
+                control.valueMax = Utils::jsonInt(value);
             } else if (key == "stepSize") {
-                control.stepSize = jsonInt(value);
+                control.stepSize = Utils::jsonInt(value);
             } else if (key == "startValue") {
                 startValue = value;
             } else if (key == "displayValueScale") {
-                commandRule.valueScale = jsonDouble(value, 1);
+                commandRule.valueScale = Utils::jsonDouble(value, 1);
             } else if (key == "displayValueOffset") {
-                commandRule.valueOffset = jsonDouble(value, 0);
+                commandRule.valueOffset = Utils::jsonDouble(value, 0);
             } else if (key == "displayValueBitShift") {
-                commandRule.valueBitshift = jsonInt(value, 0);
+                commandRule.valueBitshift = Utils::jsonInt(value, 0);
             } else if (key == "displaySpinBoxValues") {
                 std::vector<std::string> labels;
-                for (const auto &text : jsonArray(value))
-                    labels.push_back(jsonString(text));
+                for (const auto &text : Utils::jsonArray(value))
+                    labels.push_back(Utils::jsonString(text));
                 control.labels = labels;
             } else if (key == "outputValues") {
                 std::vector<double> outVals;
-                for (const auto &v : jsonArray(value))
-                    outVals.push_back(jsonDouble(v));
+                for (const auto &v : Utils::jsonArray(value))
+                    outVals.push_back(Utils::jsonDouble(v));
                 commandRule.valueMap = outVals;
             } else if (key == "displayTextValues") {
                 std::vector<double> numLabels;
-                for (const auto &n : jsonArray(value))
-                    numLabels.push_back(jsonDouble(n));
+                for (const auto &n : Utils::jsonArray(value))
+                    numLabels.push_back(Utils::jsonDouble(n));
                 commandRule.numLabelMap = numLabels;
             }
         }
@@ -566,7 +435,7 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
                 const auto it = std::find(control.labels.begin(), control.labels.end(), startValue.get<std::string>());
                 control.valueStart = (it == control.labels.end()) ? -1 : std::distance(control.labels.begin(), it);
             } else {
-                control.valueStart = jsonInt(startValue);
+                control.valueStart = Utils::jsonInt(startValue);
             }
         }
 
@@ -593,7 +462,7 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
             return true;
         if (lhs.kind < rhs.kind)
             return false;
-        return asciiToLower(lhs.name).compare(asciiToLower(rhs.name)) > 0;
+        return Utils::asciiToLower(lhs.name).compare(Utils::asciiToLower(rhs.name)) > 0;
     });
 
     return true;
@@ -883,29 +752,29 @@ bool Miniscope::openCamera()
     }
 
     // prepare all commands to initialize the Miniscope hardware
-    const auto initCommands = msconfParseSendCommand(jsonMember(d->deviceConfig, "initialize"));
+    const auto initCommands = msconfParseSendCommand(Utils::jsonMember(d->deviceConfig, "initialize"));
     for (const auto &command : initCommands) {
         std::vector<uint8_t> packet;
 
-        if (mapValueOr(command, "protocol") == PROTOCOL_I2C) {
+        if (Utils::mapValueOr(command, "protocol") == PROTOCOL_I2C) {
             int preambleKey = 0;
 
-            packet.push_back(mapValueOr(command, "addressW"));
+            packet.push_back(Utils::mapValueOr(command, "addressW"));
             preambleKey = (preambleKey << 8) | packet.back();
 
-            for (int i = 0; i < mapValueOr(command, "regLength"); i++) {
-                packet.push_back(mapValueOr(command, "reg" + std::to_string(i)));
+            for (int i = 0; i < Utils::mapValueOr(command, "regLength"); i++) {
+                packet.push_back(Utils::mapValueOr(command, "reg" + std::to_string(i)));
                 preambleKey = (preambleKey << 8) | packet.back();
             }
-            for (int i = 0; i < mapValueOr(command, "dataLength"); i++) {
-                int tempValue = mapValueOr(command, "data" + std::to_string(i));
+            for (int i = 0; i < Utils::mapValueOr(command, "dataLength"); i++) {
+                int tempValue = Utils::mapValueOr(command, "data" + std::to_string(i));
                 packet.push_back(tempValue);
                 preambleKey = (preambleKey << 8) | packet.back();
             }
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            MS_LOG_DEBUG(logMScope, "{}  initialization protocol not yet supported", mapValueOr(command, "protocol"));
+            MS_LOG_DEBUG(logMScope, "{}  initialization protocol not yet supported", Utils::mapValueOr(command, "protocol"));
         }
     }
 
@@ -1041,7 +910,7 @@ double Miniscope::controlValue(const std::string &id)
 void Miniscope::setControlValue(const std::string &id, double value)
 {
     if (!d->controlRules.contains(id)) {
-        MS_LOG_WARNING(logMScope, "Unable to set nonexisting control {} to {}", id, fmtDouble(value));
+        MS_LOG_WARNING(logMScope, "Unable to set nonexisting control {} to {}", id, Utils::fmtDouble(value));
         return;
     }
 
@@ -1066,19 +935,19 @@ void Miniscope::setControlValue(const std::string &id, double value)
         std::vector<uint8_t> packet;
         long preambleKey; // Holds a value that represents the address and reg
 
-        if (mapValueOr(command, "protocol") == PROTOCOL_I2C) {
+        if (Utils::mapValueOr(command, "protocol") == PROTOCOL_I2C) {
             preambleKey = 0;
 
-            packet.push_back(mapValueOr(command, "addressW"));
+            packet.push_back(Utils::mapValueOr(command, "addressW"));
             preambleKey = (preambleKey << 8) | packet.back();
 
-            for (int j = 0; j < mapValueOr(command, "regLength"); j++) {
-                packet.push_back(mapValueOr(command, "reg" + std::to_string(j)));
+            for (int j = 0; j < Utils::mapValueOr(command, "regLength"); j++) {
+                packet.push_back(Utils::mapValueOr(command, "reg" + std::to_string(j)));
                 preambleKey = (preambleKey << 8) | packet.back();
             }
 
-            for (int j = 0; j < mapValueOr(command, "dataLength"); j++) {
-                const auto tempValue = mapValueOr(command, "data" + std::to_string(j));
+            for (int j = 0; j < Utils::mapValueOr(command, "dataLength"); j++) {
+                const auto tempValue = Utils::mapValueOr(command, "data" + std::to_string(j));
 
                 // TODO: Handle value1 through value3
                 if (tempValue == SEND_COMMAND_VALUE_H24) {
@@ -1101,7 +970,7 @@ void Miniscope::setControlValue(const std::string &id, double value)
 
             enqueueI2CCommand(preambleKey, packet);
         } else {
-            MS_LOG_DEBUG(logMScope, "{} protocol for \"{}\" not yet supported", mapValueOr(command, "protocol"), id);
+            MS_LOG_DEBUG(logMScope, "{} protocol for \"{}\" not yet supported", Utils::mapValueOr(command, "protocol"), id);
         }
     }
 
@@ -1111,7 +980,7 @@ void Miniscope::setControlValue(const std::string &id, double value)
         dispValue = rule.numLabelMap[value];
 
     // write a message to the log
-    msgInfo(std::format("Control {} value changed to {}", id, fmtDouble(dispValue)));
+    msgInfo(std::format("Control {} value changed to {}", id, Utils::fmtDouble(dispValue)));
 
     // emit a machine-readable message about this control change
     const auto cchangeCB = d->controlChangeCallback.first;
@@ -1952,7 +1821,7 @@ void Miniscope::captureThread(void *msPtr)
                 vwriter->setLossless(d->recordLossless);
 
                 auto vidFnameBase = d->videoFname;
-                if (fileSuffixLength(vidFnameBase) == 3)
+                if (Utils::fileSuffixLength(vidFnameBase) == 3)
                     vidFnameBase = vidFnameBase.substr(
                         0, vidFnameBase.length() - 4); // remove 3-char suffix from filename
 
@@ -2149,7 +2018,7 @@ std::string videoDeviceNameFromId(int id)
     }
     std::stringstream buffer;
     buffer << v4lName.rdbuf();
-    return stringTrimmed(buffer.str());
+    return Utils::stringTrimmed(buffer.str());
 }
 
 } // namespace Miniscope

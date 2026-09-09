@@ -7,6 +7,7 @@ set(LIBMINISCOPE_SRC
     zstackcapture.cpp
     asynctask.cpp
     logging.cpp
+    utils.cpp
 )
 
 set(LIBMINISCOPE_PRIV_HEADERS
@@ -17,6 +18,7 @@ set(LIBMINISCOPE_PRIV_HEADERS
     csvwriter.h
     zstackcapture.h
     asynctask-private.h
+    utils.h
 )
 
 set(LIBMINISCOPE_HEADERS

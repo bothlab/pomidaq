@@ -28,6 +28,7 @@
 #include "zstackcapture.h"
 #include "asynctask-private.h"
 #include "loginternal.h"
+#include "utils.h"
 
 namespace fs = std::filesystem;
 
@@ -55,11 +56,7 @@ public:
 
 static bool nameContainsEWL(const std::string &name)
 {
-    std::string lower = name;
-    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-    return lower.find("ewl") != std::string::npos;
+    return Utils::asciiToLower(name).find("ewl") != std::string::npos;
 }
 
 static std::vector<cv::Mat> acquire3DData(

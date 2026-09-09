@@ -18,6 +18,7 @@
  */
 
 #include "videowriter.h"
+#include "utils.h"
 
 #include <cassert>
 #include <cstring>
@@ -475,9 +476,7 @@ void VideoWriter::initialize(
     d->frames_n = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
-    const auto dotPos = fname.rfind('.');
-    const auto suffixLen = (dotPos == std::string::npos) ? fname.length() : fname.length() - dotPos - 1;
-    if (suffixLen == 3)
+    if (Miniscope::Utils::fileSuffixLength(fname) == 3)
         d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
     else
         d->fnameBase = fname;
