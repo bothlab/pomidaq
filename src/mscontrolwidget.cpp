@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -22,8 +22,6 @@
 #include <QSlider>
 #include <QSpinBox>
 #include <QLabel>
-#include <QGridLayout>
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 
 MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWidget *parent)
@@ -31,68 +29,64 @@ MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWi
 {
     m_controlId = QString::fromStdString(ctlDef.id);
 
-    const auto layout = new QVBoxLayout(this);
-    layout->setContentsMargins(2, 2, 2, 2);
-    layout->setSpacing(2);
+    // all controls are laid out in a single row: title | slider | value
+    const auto layout = new QHBoxLayout(this);
+    layout->setContentsMargins(2, 0, 2, 0);
+    layout->setSpacing(6);
 
-    auto lblTitle = new QLabel(this);
-    lblTitle->setText(QString::fromStdString(ctlDef.name));
+    auto lblTitle = new QLabel(QString::fromStdString(ctlDef.name), this);
+    // give titles a common minimum width, so sliders of consecutive controls line up
+    lblTitle->setMinimumWidth(fontMetrics().horizontalAdvance(QStringLiteral("Excitation")) + 4);
     layout->addWidget(lblTitle);
 
+    m_slider = new QSlider(Qt::Horizontal, this);
+    m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
+    m_slider->setValue(ctlDef.valueStart);
+    layout->addWidget(m_slider, 1);
+
     if (ctlDef.kind == Miniscope::ControlKind::Selector) {
-        const auto sc = new QWidget(this);
-        const auto selLayout = new QGridLayout(sc);
-        const auto valuesCount = static_cast<int>(ctlDef.labels.size());
-        m_slider = new QSlider(Qt::Horizontal, sc);
-        selLayout->setContentsMargins(0, 0, 0, 0);
-        selLayout->setSpacing(2);
+        QStringList labels;
+        for (const auto &label : ctlDef.labels)
+            labels.append(QString::fromStdString(label));
 
-        m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
         m_slider->setSingleStep(1);
-        m_slider->setValue(ctlDef.valueStart);
-        selLayout->addWidget(m_slider, 0, 0, 1, valuesCount);
+        m_slider->setPageStep(1);
+        m_slider->setTickPosition(QSlider::TicksBelow);
+        m_slider->setTickInterval(1);
 
-        for (int i = 0; i < valuesCount; ++i) {
-            const auto lbl = new QLabel(
-                QStringLiteral("<html><i>%1</i>").arg(QString::fromStdString(ctlDef.labels[i])), sc);
-            if (i == 0)
-                lbl->setAlignment(Qt::AlignLeft);
-            else if (i == valuesCount - 1)
-                lbl->setAlignment(Qt::AlignRight);
+        // label showing the name of the currently selected value
+        auto lblValue = new QLabel(this);
+        lblValue->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+        // reserve space for the widest label, so the slider does not jump around when the value changes
+        int maxLabelWidth = 0;
+        for (const auto &label : labels)
+            maxLabelWidth = std::max(maxLabelWidth, fontMetrics().horizontalAdvance(label));
+        lblValue->setMinimumWidth(maxLabelWidth + 4);
+        layout->addWidget(lblValue);
+
+        const auto valueMin = ctlDef.valueMin;
+        const auto updateValueLabel = [lblValue, labels, valueMin](int value) {
+            const auto idx = value - valueMin;
+            if (idx >= 0 && idx < labels.size())
+                lblValue->setText(labels[idx]);
             else
-                lbl->setAlignment(Qt::AlignCenter);
-            selLayout->addWidget(lbl, 1, i, 1, 1);
-        }
-
-        sc->setLayout(selLayout);
-        layout->addWidget(sc);
+                lblValue->setText(QString::number(value));
+        };
+        updateValueLabel(m_slider->value());
+        connect(m_slider, &QSlider::valueChanged, this, updateValueLabel);
     } else {
-        const auto slw = new QWidget(this);
-        auto slLayout = new QHBoxLayout(slw);
-        slLayout->setContentsMargins(0, 0, 0, 0);
-        slLayout->setSpacing(2);
-
-        m_slider = new QSlider(Qt::Horizontal, slw);
-        // just assume slider here, for now
-        m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
-        m_slider->setValue(ctlDef.valueStart);
         m_slider->setSingleStep(ctlDef.stepSize);
-        slLayout->addWidget(m_slider);
 
-        auto sb = new QSpinBox(slw);
+        auto sb = new QSpinBox(this);
         sb->setRange(ctlDef.valueMin, ctlDef.valueMax);
         sb->setValue(ctlDef.valueStart);
         sb->setSingleStep(ctlDef.stepSize);
         sb->setMinimumWidth(64);
-        slLayout->addWidget(sb);
+        layout->addWidget(sb);
 
         connect(sb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), m_slider, &QSlider::setValue);
         connect(m_slider, &QSlider::valueChanged, sb, &QSpinBox::setValue);
-
-        slLayout->setStretchFactor(sb, 1);
-        slLayout->setStretchFactor(m_slider, 4);
-        slw->setLayout(slLayout);
-        layout->addWidget(slw);
     }
 
     connect(m_slider, &QSlider::valueChanged, this, &MSControlWidget::recvSliderValueChange);
