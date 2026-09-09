@@ -65,7 +65,7 @@ using LogHandlerFn = std::function<void(const LogMessage &)>;
  * @p handler to stop logging. Intended to be called once during host process
  * initialization; not safe to call concurrently with active logging.
  *
- * If no handler is installed, messages of severity Info are printed to stdout,
+ * If no handler is installed, messages below Warning severity are printed to stdout,
  * more severe messages to stderr.
  */
 MS_LIB_EXPORT void setLogHandler(LogHandlerFn handler);

@@ -502,7 +502,7 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
     const auto controlSettings = jsonObject(jsonMember(d->deviceConfig, "controlSettings"));
     if (controlSettings.empty()) {
         MS_LOG_WARNING(
-            logMScope, "controlSettings missing from miniscopes.json for deviceType =  \"{}\"", d->deviceType);
+            logMScope, "controlSettings missing from miniscopes.json for deviceType = \"{}\"", d->deviceType);
         return true;
     }
 

@@ -40,7 +40,7 @@ PYBIND11_MODULE(miniscope, m)
     py::bind_vector<std::vector<double>>(m, "VectorDouble");
     py::bind_vector<std::vector<Miniscope::ControlDefinition>>(m, "VectorControlDefinition");
 
-    py::enum_<Miniscope::VideoCodec>(m, "Miniscope::VideoCodec", py::arithmetic())
+    py::enum_<Miniscope::VideoCodec>(m, "VideoCodec", py::arithmetic())
         .value("UNKNOWN", Miniscope::VideoCodec::Unknown)
         .value("RAW", Miniscope::VideoCodec::Raw)
         .value("FFV1", Miniscope::VideoCodec::FFV1)
@@ -49,21 +49,21 @@ PYBIND11_MODULE(miniscope, m)
         .value("HEVC", Miniscope::VideoCodec::HEVC)
         .value("MPEG4", Miniscope::VideoCodec::MPEG4);
 
-    py::enum_<Miniscope::VideoContainer>(m, "Miniscope::VideoContainer", py::arithmetic())
+    py::enum_<Miniscope::VideoContainer>(m, "VideoContainer", py::arithmetic())
         .value("UNKNOWN", Miniscope::VideoContainer::Unknown)
         .value("MATROSKA", Miniscope::VideoContainer::Matroska)
         .value("AVI", Miniscope::VideoContainer::AVI);
 
-    py::enum_<Miniscope::DisplayMode>(m, "Miniscope::DisplayMode", py::arithmetic())
+    py::enum_<Miniscope::DisplayMode>(m, "DisplayMode", py::arithmetic())
         .value("RAW_FRAMES", Miniscope::DisplayMode::RawFrames)
         .value("BACKGROUND_DIFF", Miniscope::DisplayMode::BackgroundDiff);
 
-    py::enum_<Miniscope::ControlKind>(m, "Miniscope::ControlKind", py::arithmetic())
+    py::enum_<Miniscope::ControlKind>(m, "ControlKind", py::arithmetic())
         .value("UNKNOWN", Miniscope::ControlKind::Unknown)
         .value("SELECTOR", Miniscope::ControlKind::Selector)
         .value("SLIDER", Miniscope::ControlKind::Slider);
 
-    py::class_<Miniscope::ControlDefinition>(m, "Miniscope::ControlDefinition")
+    py::class_<Miniscope::ControlDefinition>(m, "ControlDefinition")
         .def(py::init<>())
 
         .def_readwrite("kind", &Miniscope::ControlDefinition::kind, "Type of this control")
@@ -78,7 +78,7 @@ PYBIND11_MODULE(miniscope, m)
         .def_readwrite(
             "labels",
             &Miniscope::ControlDefinition::labels,
-            "Labels for individual values (mostly used for Miniscope::ControlKind.SELECTOR types, their index can be set as "
+            "Labels for individual values (mostly used for ControlKind.SELECTOR types, their index can be set as "
             "control value)")
         .def_readwrite("values", &Miniscope::ControlDefinition::values, "Possible values for this control");
 

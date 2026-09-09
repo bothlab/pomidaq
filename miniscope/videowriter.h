@@ -26,7 +26,6 @@
 #include <opencv2/core.hpp>
 #include "mediatypes.h"
 
-using namespace Miniscope;
 
 /**
  * @brief The VideoWriter class
@@ -57,11 +56,11 @@ public:
 
     bool pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time);
 
-    VideoCodec codec() const;
-    void setCodec(VideoCodec codec);
+    Miniscope::VideoCodec codec() const;
+    void setCodec(Miniscope::VideoCodec codec);
 
-    VideoContainer container() const;
-    void setContainer(VideoContainer container);
+    Miniscope::VideoContainer container() const;
+    void setContainer(Miniscope::VideoContainer container);
 
     int width() const;
     int height() const;

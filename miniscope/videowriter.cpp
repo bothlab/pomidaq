@@ -40,6 +40,9 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+using Miniscope::VideoCodec;
+using Miniscope::VideoContainer;
+
 /**
  * @brief FRAME_QUEUE_MAX_COUNT
  * The maximum number of frames we want to hold in the queue in memory

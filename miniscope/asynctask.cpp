@@ -55,7 +55,18 @@ AsyncTask::~AsyncTask()
 }
 
 AsyncTask::AsyncTask(AsyncTask &&other) noexcept = default;
-AsyncTask &AsyncTask::operator=(AsyncTask &&other) noexcept = default;
+
+AsyncTask &AsyncTask::operator=(AsyncTask &&other) noexcept
+{
+    if (this != &other) {
+        // wait for any task we currently own before it gets destroyed,
+        // destroying a joinable std::thread would terminate the process
+        if (d && d->thread.joinable())
+            d->thread.join();
+        d = std::move(other.d);
+    }
+    return *this;
+}
 
 bool AsyncTask::isFinished() const
 {
