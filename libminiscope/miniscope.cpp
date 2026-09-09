@@ -462,7 +462,8 @@ static std::vector<std::unordered_map<std::string, int>> msconfParseSendCommand(
 std::vector<std::string> Miniscope::availableDeviceTypes() const
 {
     std::vector<std::string> deviceTypes;
-    for (const auto &[key, value] : msconfGetDevicesJson().items())
+    const auto devicesJson = msconfGetDevicesJson();
+    for (const auto &[key, value] : devicesJson.items())
         deviceTypes.push_back(key);
     std::sort(deviceTypes.begin(), deviceTypes.end());
     return deviceTypes;

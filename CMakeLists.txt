@@ -71,7 +71,12 @@ if (GUI)
     find_package(Qt6 6.8 REQUIRED COMPONENTS Core Widgets Svg OpenGLWidgets)
 endif()
 
-find_package(OpenCV 4.8 REQUIRED)
+# OpenCV's version file only accepts the requested major version,
+# so probe for OpenCV 5 first and fall back to OpenCV 4
+find_package(OpenCV 5 QUIET)
+if (NOT OpenCV_FOUND)
+    find_package(OpenCV 4.8 REQUIRED)
+endif()
 find_package(OpenGL REQUIRED)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
