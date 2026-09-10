@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.18)
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "Prevented in-tree build. Please create a dedicated build directory and call cmake from there.")
 endif()
@@ -22,9 +22,10 @@ set(LIBSOVERSION 1)
 #
 # Options
 #
-option(MAINTAINER "Enable maintainer mode" OFF)
-option(GUI        "Build Qt user interface" ON)
-option(PYTHON     "Build Python module" ON)
+option(MAINTAINER        "Enable maintainer mode" OFF)
+option(GUI               "Build Qt user interface" ON)
+option(PYTHON            "Build Python module" ON)
+option(BUILD_SHARED_LIBS "Build libminiscope as shared library" ON)
 
 
 #
@@ -46,7 +47,6 @@ if (MAINTAINER)
 endif()
 
 # Windows compat stuff
-set(BUILD_SHARED_LIBS ON)
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
     # No shared libs for Windows (yet)
     set(BUILD_SHARED_LIBS OFF)

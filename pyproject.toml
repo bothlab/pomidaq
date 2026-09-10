@@ -1,0 +1,74 @@
+# Python packaging for the "miniscope" module (Python bindings for libminiscope).
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12", "numpy"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "miniscope"
+dynamic = ["version"]
+description = "Control and record from UCLA Miniscopes (Python bindings for libminiscope from PoMiDAQ)"
+readme = "python/README.md"
+license = "LGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Matthias Klumpp", email = "matthias@tenstral.net" },
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+]
+keywords = ["miniscope", "neuroscience", "microscopy", "data acquisition", "calcium imaging"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+[project.urls]
+Homepage = "https://github.com/bothlab/pomidaq"
+Source = "https://github.com/bothlab/pomidaq"
+Issues = "https://github.com/bothlab/pomidaq/issues"
+Changelog = "https://github.com/bothlab/pomidaq/blob/master/NEWS.md"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.18"
+cmake.build-type = "Release"
+build-dir = "build/skbuild/{wheel_tag}"
+
+# the repository contains a "miniscope" directory (the C++ library), which
+# must not be mistaken for a Python package
+wheel.packages = []
+# only install the Python module into the wheel, not the C++ library or headers
+install.components = ["python"]
+
+sdist.exclude = [
+    "/build",
+    "/dist",
+    "/.github",
+    "/contrib/screenshots",
+    "/contrib/debian",
+    "/contrib/flatpak",
+    "/contrib/ci",
+    "/contrib/win-installer.iss",
+    "/contrib/upload-ppa-package.sh",
+    "/firmware",
+    "/autoformat.sh",
+    "/RELEASE",
+]
+
+[tool.scikit-build.cmake.define]
+GUI = "OFF"
+PYTHON = "ON"
+# link libminiscope statically into the module, so the wheel is self-contained
+BUILD_SHARED_LIBS = "OFF"
+
+# take the version from the CMake project definition
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "CMakeLists.txt"
+regex = 'project\(PoMiDAQ[^)]*VERSION\s+(?P<value>[0-9]+\.[0-9]+\.[0-9]+)'

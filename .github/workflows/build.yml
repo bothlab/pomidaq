@@ -169,7 +169,7 @@ jobs:
         cmake -GNinja -Bbuild \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/PoMiDAQ-${{ needs.revision.outputs.version }}" \
-          -DPython3_EXECUTABLE="$(which python3)" \
+          -DPython_EXECUTABLE="$(which python3)" \
           -DGUI=ON \
           -DPYTHON=ON
 

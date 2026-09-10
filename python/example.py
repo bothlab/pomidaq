@@ -3,7 +3,8 @@
 #
 # Small example on how to use the Miniscope library from Python
 # In order to make this example work, first install the "miniscope" Python
-# module with CMake.
+# module, e.g. with `pip install .` from the PoMiDAQ source directory, or by
+# building PoMiDAQ with CMake (with the PYTHON option enabled).
 # Alternatively you can also place the compiled "miniscope" module into a
 # path you like and then change PYTHONPATH (sys.path) so Python can find it.
 #
@@ -34,9 +35,10 @@ for dname in mscope.available_device_types:
 
 print()
 print('Selecting: {}'.format(MINISCOPE_DEVICE))
-if not mscope.load_device_config(MINISCOPE_DEVICE):
-    print('Unable to load device configuration for {}: {}'.format(MINISCOPE_DEVICE, mscope.last_error),
-          file=sys.stderr)
+try:
+    mscope.load_device_config(MINISCOPE_DEVICE)
+except RuntimeError as e:
+    print('Unable to load device configuration for {}: {}'.format(MINISCOPE_DEVICE, e), file=sys.stderr)
     sys.exit(1)
 
 print('Available controls:')
@@ -55,12 +57,16 @@ for ctl in mscope.controls:
 
 print('Connecting to device with ID: {}\n'.format(DEVICE_ID))
 mscope.set_cam_id(DEVICE_ID)
-if not mscope.connect():
-    print('Unable to connect to Miniscope: {}'.format(mscope.last_error), file=sys.stderr)
+try:
+    mscope.connect()
+except RuntimeError as e:
+    print('Unable to connect to Miniscope: {}'.format(e), file=sys.stderr)
     sys.exit(1)
 
-if not mscope.run():
-    print('Unable to start data acquisition: {}'.format(mscope.last_error), file=sys.stderr)
+try:
+    mscope.run()
+except RuntimeError as e:
+    print('Unable to start data acquisition: {}'.format(e), file=sys.stderr)
     sys.exit(1)
 
 # adjust some controls
@@ -79,8 +85,10 @@ print('Container used for recording: {}'.format(mscope.video_container))
 print('Saving video in: {}'.format(VIDEO_FILENAME))
 print('--------\n')
 
-if not mscope.start_recording(VIDEO_FILENAME):
-    print('Unable to start video recording: {}'.format(mscope.last_error), file=sys.stderr)
+try:
+    mscope.start_recording(VIDEO_FILENAME)
+except RuntimeError as e:
+    print('Unable to start video recording: {}'.format(e), file=sys.stderr)
     sys.exit(1)
 
 try:

@@ -86,7 +86,7 @@ If you want to cite PoMiDAQ, please use its Zenodo DOI:
 
 ### Dependencies
 
- * CMake (>= 3.16)
+ * CMake (>= 3.18)
  * A C++23 capable compiler (GCC >= 14, Clang >= 17)
  * FFmpeg (>= 6.1)
  * OpenCV (>= 4.8)
@@ -112,5 +112,16 @@ ninja
 sudo ninja install
 sudo ldconfig
 ```
+
+### Python module
+
+The `miniscope` Python module can be built as part of the CMake build (`PYTHON` option, enabled by default),
+or packaged as a regular Python wheel using the `pyproject.toml` in the repository root:
+```bash
+pip install .             # build & install into the current Python environment
+python3 -m build --wheel  # or build a wheel into dist/
+```
+This needs the OpenCV, FFmpeg and nlohmann-json development files to be installed, but no Qt.
+See [python/README.md](python/README.md) for details.
 
 Pull-requests are very welcome! (Code should be valid C++14, use 4 spaces for indentation)

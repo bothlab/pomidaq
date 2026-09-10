@@ -17,10 +17,10 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <sstream>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -106,6 +106,7 @@ static void logHandlerModuleCleanup()
 PYBIND11_MODULE(miniscope, m)
 {
     m.doc() = "Access a Miniscope through Python"; // optional module docstring
+    m.attr("__version__") = PROJECT_VERSION;
 
     NDArrayConverter::initNDArray();
     py::bind_vector<std::vector<double>>(m, "VectorDouble");
