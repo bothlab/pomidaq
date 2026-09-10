@@ -472,12 +472,11 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(int index)
     m_controls.clear();
 
     // load new controls
-    if (!m_mscope->loadDeviceConfig(curValue.toStdString())) {
+    if (const auto res = m_mscope->loadDeviceConfig(curValue.toStdString()); !res) {
         QMessageBox::critical(
             this,
             QStringLiteral("Error"),
-            QStringLiteral("Unable to load device configuration: %1")
-                .arg(QString::fromStdString(m_mscope->lastError())));
+            QStringLiteral("Unable to load device configuration: %1").arg(QString::fromStdString(res.error())));
         return;
     }
 
@@ -534,8 +533,8 @@ void MainWindow::processMiniscopeDisplay()
     ui->deviceTypeComboBox->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
-    if (!m_mscope->lastError().empty())
-        QMessageBox::critical(this, "Error", QString::fromStdString(m_mscope->lastError()));
+    if (const auto error = m_mscope->lastError())
+        QMessageBox::critical(this, "Error", QString::fromStdString(*error));
 
     // switch back to connect page, as this is the
     // only useful page when no scope is connected
@@ -569,7 +568,7 @@ void MainWindow::on_btnDevConnect_clicked()
 
     ui->btnDevConnect->setEnabled(false);
     m_mscope->setScopeCamId(ui->sbCamId->value());
-    if (!m_mscope->connect()) {
+    if (const auto res = m_mscope->connect(); !res) {
         QMessageBox::critical(
             this,
             "Error",
@@ -589,7 +588,8 @@ void MainWindow::on_btnDevConnect_clicked()
         w->setValue(m_mscope->controlValue(w->controlId().toStdString()));
 
     // run and display images
-    m_mscope->run();
+    if (const auto res = m_mscope->run(); !res)
+        QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
 
     ui->btnDevConnect->setText("Disconnect");
     ui->btnDevConnect->setChecked(true);
@@ -659,11 +659,12 @@ void MainWindow::on_btnRecord_toggled(bool checked)
     if (checked) {
         const auto videoFname = QDir(m_dataDir).filePath(
             QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
-        if (m_mscope->startRecording(videoFname.toStdString())) {
+        if (const auto res = m_mscope->startRecording(videoFname.toStdString())) {
             ui->pageRecord->setEnabled(false);
             ui->btnDevConnect->setEnabled(false);
             ui->btnRecord->setText("Stop recording");
         } else {
+            QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
             ui->btnRecord->setChecked(false);
         }
         ui->btnAcquireZStack->setEnabled(false);
@@ -693,7 +694,8 @@ void MainWindow::on_btnHardReset_clicked()
 
     // issue a reset request
     m_mscope->setScopeCamId(scopeId);
-    m_mscope->hardReset();
+    if (const auto res = m_mscope->hardReset(); !res)
+        QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
 }
 
 void MainWindow::on_codecComboBox_currentIndexChanged(int index)
@@ -849,12 +851,11 @@ void MainWindow::on_btnAcquireZStack_clicked()
         QApplication::processEvents();
     }
 
-    try {
-        task.waitForFinished();
+    if (const auto res = task.waitForFinished()) {
         setStatusText("OK");
         setStatusProgressVisible(false);
-    } catch (const std::exception &e) {
-        QMessageBox::critical(this, QStringLiteral("Unable to acquite stack"), e.what());
+    } else {
+        QMessageBox::critical(this, QStringLiteral("Unable to acquire stack"), QString::fromStdString(res.error()));
         setStatusText("Z-stack failed.");
     }
     ui->btnAcquireZStack->setEnabled(true);
@@ -912,12 +913,12 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
         QApplication::processEvents();
     }
 
-    try {
-        task.waitForFinished();
+    if (const auto res = task.waitForFinished()) {
         setStatusText("OK");
         setStatusProgressVisible(false);
-    } catch (const std::exception &e) {
-        QMessageBox::critical(this, QStringLiteral("Unable to acquite stack for 3D accumulation"), e.what());
+    } else {
+        QMessageBox::critical(
+            this, QStringLiteral("Unable to acquire stack for 3D accumulation"), QString::fromStdString(res.error()));
         setStatusText("3D data accumulation failed.");
     }
     ui->btnAcquireZStack->setEnabled(true);

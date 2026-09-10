@@ -18,6 +18,7 @@
  */
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <sstream>
 
@@ -32,6 +33,15 @@ namespace py = pybind11;
 
 PYBIND11_MAKE_OPAQUE(std::vector<Miniscope::ControlDefinition>);
 PYBIND11_MAKE_OPAQUE(std::vector<double>);
+
+/**
+ * Turn a failed library call into a Python RuntimeError.
+ */
+static void raiseOnError(const Miniscope::Result &res)
+{
+    if (!res)
+        throw std::runtime_error(res.error());
+}
 
 /**
  * Deleter that releases the GIL while the Miniscope is destroyed.
@@ -181,9 +191,11 @@ PYBIND11_MODULE(miniscope, m)
             "Get a list of all Miniscope variants we can communicate with")
         .def(
             "load_device_config",
-            &Miniscope::Miniscope::loadDeviceConfig,
+            [](Miniscope::Miniscope &self, const std::string &deviceType) {
+                raiseOnError(self.loadDeviceConfig(deviceType));
+            },
             py::call_guard<py::gil_scoped_release>(),
-            "Load hardware definition for a given Miniscope device type")
+            "Load hardware definition for a given Miniscope device type (raises RuntimeError on failure)")
 
         .def_property_readonly(
             "device_type",
@@ -193,9 +205,11 @@ PYBIND11_MODULE(miniscope, m)
 
         .def(
             "connect",
-            &Miniscope::Miniscope::connect,
+            [](Miniscope::Miniscope &self) {
+                raiseOnError(self.connect());
+            },
             py::call_guard<py::gil_scoped_release>(),
-            "Connect the selected Miniscope")
+            "Connect the selected Miniscope (raises RuntimeError on failure)")
         .def(
             "disconnect",
             &Miniscope::Miniscope::disconnect,
@@ -203,20 +217,27 @@ PYBIND11_MODULE(miniscope, m)
             "Disconnect the selected Miniscope and stop all operations")
         .def(
             "hard_reset",
-            &Miniscope::Miniscope::hardReset,
+            [](Miniscope::Miniscope &self) {
+                raiseOnError(self.hardReset());
+            },
             py::call_guard<py::gil_scoped_release>(),
-            "Forcefully reset the selected Miniscope DAQ box and make it reboot")
+            "Forcefully reset the selected Miniscope DAQ box and make it reboot (raises RuntimeError on failure)")
         .def(
             "run",
-            &Miniscope::Miniscope::run,
+            [](Miniscope::Miniscope &self) {
+                raiseOnError(self.run());
+            },
             py::call_guard<py::gil_scoped_release>(),
-            "Start image acquisition with the selected settings")
+            "Start image acquisition with the selected settings (raises RuntimeError on failure)")
         .def("stop", &Miniscope::Miniscope::stop, py::call_guard<py::gil_scoped_release>(), "Stop image acquisition")
         .def(
             "start_recording",
-            &Miniscope::Miniscope::startRecording,
+            [](Miniscope::Miniscope &self, const std::string &fname) {
+                raiseOnError(self.startRecording(fname));
+            },
+            py::arg("fname") = "",
             py::call_guard<py::gil_scoped_release>(),
-            "Start recording a video file")
+            "Start recording a video file (raises RuntimeError on failure)")
         .def(
             "stop_recording",
             &Miniscope::Miniscope::stopRecording,
@@ -329,5 +350,7 @@ PYBIND11_MODULE(miniscope, m)
             &Miniscope::Miniscope::setPrintExtraDebug,
             "Set whether protocol transmission debug messages should be printed to stdout")
         .def_property_readonly(
-            "last_error", &Miniscope::Miniscope::lastError, "Message of the last error, if there was one");
+            "last_error",
+            &Miniscope::Miniscope::lastError,
+            "Message of the error that stopped acquisition, or None if there was none");
 }

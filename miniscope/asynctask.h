@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <expected>
 #include <functional>
 #include <memory>
 #include <string>
@@ -67,10 +68,10 @@ public:
     /**
      * @brief Block until the task has finished and return its result.
      *
-     * If the task failed, the exception it raised (usually a std::runtime_error)
-     * is rethrown here. May be called multiple times.
+     * Returns nothing on success, or the error message if the task failed
+     * (including any exception it raised). May be called multiple times.
      */
-    bool waitForFinished();
+    std::expected<void, std::string> waitForFinished();
 
 private:
     class Private;
@@ -78,7 +79,7 @@ private:
 
     AsyncTask();
     friend class TaskProgress;
-    friend AsyncTask launchAsyncTask(std::function<bool(TaskProgress &)> body);
+    friend AsyncTask launchAsyncTask(std::function<std::expected<void, std::string>(TaskProgress &)> body);
 };
 
 } // namespace Miniscope

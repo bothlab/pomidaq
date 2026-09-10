@@ -109,14 +109,14 @@ static std::vector<cv::Mat> acquire3DData(
         // return the initial value)
 
         for (unsigned int i = 0; i < averageCount; i++) {
-            cv::Mat raw;
             while (true) {
-                if (mscope->fetchLastRawFrame(raw))
+                if (auto raw = mscope->fetchLastRawFrame()) {
+                    currentMats.push_back(std::move(*raw));
                     break;
+                }
                 // wait a bit of time (~1 frame)
                 mscope->waitForAcquiredFrameCount(1);
             }
-            currentMats.push_back(raw);
         }
 
         // calculate image average
@@ -139,7 +139,7 @@ static std::vector<cv::Mat> acquire3DData(
     return stack;
 }
 
-static bool captureZStack(
+static void captureZStack(
     TaskProgress &progress,
     Miniscope *mscope,
     int fromEWL,
@@ -185,7 +185,6 @@ static bool captureZStack(
     }
 
     progress.setValue(100);
-    return true;
 }
 
 AsyncTask launchZStackCapture(
@@ -196,8 +195,9 @@ AsyncTask launchZStackCapture(
     unsigned int averageCount,
     const std::string &outFilename)
 {
-    return launchAsyncTask([=](TaskProgress &progress) {
-        return captureZStack(progress, mscope, fromEWL, toEWL, step, averageCount, outFilename);
+    return launchAsyncTask([=](TaskProgress &progress) -> Result {
+        captureZStack(progress, mscope, fromEWL, toEWL, step, averageCount, outFilename);
+        return {};
     });
 }
 
@@ -306,7 +306,7 @@ static std::vector<cv::Mat> computeBalanced3DMIP(
     return mipStack;
 }
 
-static bool acquire3DAccumulation(
+static void acquire3DAccumulation(
     TaskProgress &progress,
     Miniscope *mscope,
     int fromEWL,
@@ -417,7 +417,6 @@ static bool acquire3DAccumulation(
     }
 
     progress.setValue(100);
-    return true;
 }
 
 AsyncTask launch3DAccumulation(
@@ -430,8 +429,9 @@ AsyncTask launch3DAccumulation(
     const std::string &outDir,
     const std::string &outName)
 {
-    return launchAsyncTask([=](TaskProgress &progress) {
-        return acquire3DAccumulation(progress, mscope, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
+    return launchAsyncTask([=](TaskProgress &progress) -> Result {
+        acquire3DAccumulation(progress, mscope, fromEWL, toEWL, step, count, saveRaw, outDir, outName);
+        return {};
     });
 }
 

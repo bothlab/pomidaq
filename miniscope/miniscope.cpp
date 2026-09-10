@@ -342,7 +342,7 @@ std::vector<std::string> Miniscope::availableDeviceTypes() const
     return deviceTypes;
 }
 
-bool Miniscope::loadDeviceConfig(const std::string &deviceType)
+Result Miniscope::loadDeviceConfig(const std::string &deviceType)
 {
     // automatically disconnect in case we were connected
     if (d->connected)
@@ -352,7 +352,7 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
     const auto allDevConfigs = msconfGetDevicesJson();
     if (!allDevConfigs.contains(deviceType)) {
         d->lastError = std::format("Unable to find device configuration with name '{}'", deviceType);
-        return false;
+        return std::unexpected(d->lastError);
     }
     d->deviceConfig = Utils::jsonObject(allDevConfigs[deviceType]);
     d->deviceType = deviceType;
@@ -373,7 +373,7 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
     if (controlSettings.empty()) {
         MS_LOG_WARNING(
             logMScope, "controlSettings missing from miniscopes.json for deviceType = \"{}\"", d->deviceType);
-        return true;
+        return {};
     }
 
     for (const auto &[controlKey, controlValue] : controlSettings.items()) {
@@ -466,7 +466,7 @@ bool Miniscope::loadDeviceConfig(const std::string &deviceType)
         return Utils::asciiToLower(lhs.name).compare(Utils::asciiToLower(rhs.name)) > 0;
     });
 
-    return true;
+    return {};
 }
 
 std::string Miniscope::deviceType() const
@@ -800,20 +800,20 @@ bool Miniscope::openCamera()
     return ret;
 }
 
-bool Miniscope::connect()
+Result Miniscope::connect()
 {
     if (d->connected) {
         if (d->failed) {
             disconnect();
         } else {
             std::cerr << "Tried to reconnect already connected camera." << std::endl;
-            return false;
+            return std::unexpected("Tried to reconnect already connected camera.");
         }
     }
 
     if (d->deviceConfig.empty() || d->deviceType.empty()) {
         fail("Unable to connect to Miniscope: No device type to connect to was selected.");
-        return false;
+        return std::unexpected(d->lastError);
     }
 
     // reset cached control values, so we start with pristine defaults
@@ -821,14 +821,15 @@ bool Miniscope::connect()
 
     if (!openCamera()) {
         fail("Unable to connect to Miniscope camera. Is the DAQ board connected?");
-        return false;
+        return std::unexpected(d->lastError);
     }
 
     d->failed = false;
+    d->lastError.clear();
     d->connected = true;
 
     statusMessage(std::format("Initialized camera {}", d->scopeCamId));
-    return true;
+    return {};
 }
 
 void Miniscope::disconnect()
@@ -846,7 +847,7 @@ void Miniscope::disconnect()
     d->connected = false;
 }
 
-bool Miniscope::hardReset()
+Result Miniscope::hardReset()
 {
     statusMessage(std::format("Performing hard reset of device {}", d->scopeCamId));
     if (d->connected)
@@ -868,7 +869,7 @@ bool Miniscope::hardReset()
 
     if (!ret) {
         statusMessage(std::format("Reset of {} failed.", d->scopeCamId));
-        return ret;
+        return std::unexpected(std::format("Reset of {} failed: Unable to open the camera device.", d->scopeCamId));
     }
 
     // clear any old commands
@@ -887,7 +888,7 @@ bool Miniscope::hardReset()
 #endif
 
     statusMessage(std::format("Device {} has been reset.", d->scopeCamId));
-    return true;
+    return {};
 }
 
 std::vector<ControlDefinition> Miniscope::controls() const
@@ -1004,20 +1005,20 @@ void Miniscope::setControlValue(const std::string &id, double value)
     }
 }
 
-bool Miniscope::run()
+Result Miniscope::run()
 {
     if (!d->connected)
-        return false;
+        return std::unexpected("Can not start acquisition: Miniscope is not connected.");
     if (d->failed) {
         // try to recover from failed state by reconnecting
         msgInfo("Reconnecting to recover from previous failure.");
         disconnect();
-        if (!connect())
-            return false;
+        if (auto res = connect(); !res)
+            return res;
     }
 
     startCaptureThread();
-    return true;
+    return {};
 }
 
 void Miniscope::stop()
@@ -1027,13 +1028,13 @@ void Miniscope::stop()
     finishCaptureThread();
 }
 
-bool Miniscope::startRecording(const std::string &fname)
+Result Miniscope::startRecording(const std::string &fname)
 {
     if (!d->connected)
-        return false;
+        return std::unexpected("Can not start recording: Miniscope is not connected.");
     if (!d->running) {
-        if (!run())
-            return false;
+        if (auto res = run(); !res)
+            return res;
     }
 
     if (!fname.empty())
@@ -1041,7 +1042,7 @@ bool Miniscope::startRecording(const std::string &fname)
     d->recording = true;
     statusMessage("Video recording started.");
 
-    return true;
+    return {};
 }
 
 void Miniscope::stopRecording()
@@ -1146,14 +1147,16 @@ cv::Mat Miniscope::currentDisplayFrame()
     return front;
 }
 
-bool Miniscope::fetchLastRawFrame(cv::Mat &output)
+std::optional<cv::Mat> Miniscope::fetchLastRawFrame()
 {
     std::lock_guard<std::mutex> lock(d->rawFrameMutex);
-    d->lastRawFrame.copyTo(output);
     if (d->rawFrameRetrieved)
-        return false;
+        return std::nullopt;
     d->rawFrameRetrieved = true;
-    return true;
+
+    cv::Mat output;
+    d->lastRawFrame.copyTo(output);
+    return output;
 }
 
 unsigned int Miniscope::currentFps() const
@@ -1348,8 +1351,10 @@ void Miniscope::setPrintExtraDebug(bool enabled)
     d->printExtraDebug = enabled;
 }
 
-std::string Miniscope::lastError() const
+std::optional<std::string> Miniscope::lastError() const
 {
+    if (d->lastError.empty())
+        return std::nullopt;
     return d->lastError;
 }
 

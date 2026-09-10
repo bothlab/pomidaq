@@ -21,6 +21,7 @@
 #include "asynctask-private.h"
 
 #include <atomic>
+#include <exception>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -37,8 +38,8 @@ public:
     std::mutex textMutex;
     std::string progressText;
 
-    std::promise<bool> promise;
-    std::shared_future<bool> future;
+    std::promise<std::expected<void, std::string>> promise;
+    std::shared_future<std::expected<void, std::string>> future;
     std::thread thread;
 };
 
@@ -84,7 +85,7 @@ std::string AsyncTask::progressText() const
     return d->progressText;
 }
 
-bool AsyncTask::waitForFinished()
+std::expected<void, std::string> AsyncTask::waitForFinished()
 {
     if (d->thread.joinable())
         d->thread.join();
@@ -110,19 +111,22 @@ void TaskProgress::setValueAndText(int value, const std::string &text)
     m_d->progress = value;
 }
 
-AsyncTask launchAsyncTask(std::function<bool(TaskProgress &)> body)
+AsyncTask launchAsyncTask(std::function<std::expected<void, std::string>(TaskProgress &)> body)
 {
     AsyncTask task;
     auto *d = task.d.get();
 
     d->thread = std::thread([d, body = std::move(body)]() {
+        std::expected<void, std::string> result;
         try {
             TaskProgress progress(d);
-            const bool result = body(progress);
-            d->promise.set_value(result);
+            result = body(progress);
+        } catch (const std::exception &e) {
+            result = std::unexpected(e.what());
         } catch (...) {
-            d->promise.set_exception(std::current_exception());
+            result = std::unexpected("Unknown error");
         }
+        d->promise.set_value(std::move(result));
         d->finished = true;
     });
 

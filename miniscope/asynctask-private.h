@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <expected>
 #include <functional>
 #include <string>
 
@@ -47,6 +48,6 @@ private:
  *
  * Any exception thrown by the function is captured and rethrown from AsyncTask::waitForFinished().
  */
-AsyncTask launchAsyncTask(std::function<bool(TaskProgress &)> body);
+AsyncTask launchAsyncTask(std::function<std::expected<void, std::string>(TaskProgress &)> body);
 
 } // namespace Miniscope

@@ -23,8 +23,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <opencv2/core.hpp>
@@ -43,6 +45,14 @@ namespace Miniscope
 {
 
 using milliseconds_t = std::chrono::milliseconds;
+
+/**
+ * @brief Outcome of an operation that can fail.
+ *
+ * Holds nothing on success, or a human-readable error message on failure.
+ * Use `if (auto r = mscope.connect(); !r) show(r.error());` at the call site.
+ */
+using Result = std::expected<void, std::string>;
 
 using StatusMessageCallback = std::function<void(const std::string &, void *)>;
 using ControlChangeCallback = std::function<void(const std::string &, double, double, void *)>;
@@ -104,23 +114,53 @@ public:
     ~Miniscope();
 
     std::vector<std::string> availableDeviceTypes() const;
-    bool loadDeviceConfig(const std::string &deviceType);
+
+    /**
+     * @brief Load the hardware definition for the given device type.
+     *
+     * Disconnects any currently connected device first.
+     * Fails if no device with this name is known.
+     */
+    Result loadDeviceConfig(const std::string &deviceType);
     std::string deviceType() const;
 
     void setScopeCamId(int id);
     int scopeCamId() const;
 
-    bool connect();
+    /**
+     * @brief Open the camera connection to the selected device.
+     *
+     * Fails if no device type was loaded or the camera can not be opened.
+     */
+    Result connect();
     void disconnect();
-    bool hardReset();
+
+    /**
+     * @brief Request a hard reset of the DAQ board and reboot it.
+     */
+    Result hardReset();
 
     std::vector<ControlDefinition> controls() const;
     double controlValue(const std::string &id);
     void setControlValue(const std::string &id, double value);
 
-    bool run();
+    /**
+     * @brief Start frame acquisition in a background thread.
+     *
+     * Fails if no device is connected or a reconnect after a previous failure
+     * does not succeed. Errors that happen later during acquisition are not
+     * reported here, but via lastError().
+     */
+    Result run();
     void stop();
-    bool startRecording(const std::string &fname = "");
+
+    /**
+     * @brief Start recording acquired frames to disk.
+     *
+     * Starts the acquisition first if it is not running yet.
+     * Fails if no device is connected, or if acquisition can not be started.
+     */
+    Result startRecording(const std::string &fname = "");
     void stopRecording();
     AsyncTask acquireZStack(
         int fromEWL,
@@ -200,9 +240,9 @@ public:
      * function is called frequently. Use the callback set via  setOnFrame()
      * to retrieve all raw frames as they are received.
      *
-     * @return true if the frame was new, false if the frame has been retrived already.
+     * @return The frame if it was not retrieved before, or nothing if there is no new frame yet.
      */
-    bool fetchLastRawFrame(cv::Mat &output);
+    std::optional<cv::Mat> fetchLastRawFrame();
 
     unsigned int currentFps() const;
     size_t droppedFramesCount() const;
@@ -256,7 +296,15 @@ public:
 
     void setPrintExtraDebug(bool enabled);
 
-    std::string lastError() const;
+    /**
+     * @brief The error that stopped frame acquisition, if it failed.
+     *
+     * The acquisition thread reports errors (dropped frames, encoder problems, lost
+     * connection, ...) asynchronously: it stops and puts the device into a failed state.
+     * Poll this after noticing that isRunning() turned false. Errors of synchronous
+     * calls such as connect() are also retained here until the next successful connect().
+     */
+    std::optional<std::string> lastError() const;
 
     milliseconds_t lastRecordedFrameTime() const;
 
