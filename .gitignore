@@ -34,3 +34,7 @@ build/
 *.exe
 *.out
 *.app
+
+# Python packaging
+dist/
+*.egg-info/
