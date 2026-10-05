@@ -142,6 +142,12 @@ public:
 
     std::vector<ControlDefinition> controls() const;
     double controlValue(const std::string &id);
+
+    /**
+     * @brief Set a control of the Miniscope to a new value.
+     *
+     * This function may be called from any thread, calls are serialized.
+     */
     void setControlValue(const std::string &id, double value);
 
     /**
@@ -197,6 +203,12 @@ public:
 
     /**
      * @brief Called when a Miniscope setting is changes.
+     *
+     * The callback is run in the thread that set the value. That is the thread which called
+     * setControlValue(), but it can also be the DAQ thread, which sets all controls again when it
+     * had to reconnect to the device, or the thread of an async task like the z-stack capture.
+     * The callback is never run by two threads at the same time, and it may call setControlValue()
+     * itself.
      */
     void setOnControlValueChange(ControlChangeCallback callback, void *udata = nullptr);
 

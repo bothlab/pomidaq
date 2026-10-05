@@ -138,6 +138,9 @@ public:
     std::mutex timeMutex;
     std::mutex cmdMutex;
 
+    // Serializes setting control values
+    std::recursive_mutex ctlMutex;
+
     std::pair<StatusMessageCallback, void *> statusCallback;
     std::pair<ControlChangeCallback, void *> controlChangeCallback;
 
@@ -158,7 +161,7 @@ public:
 
     std::deque<std::pair<long, std::vector<uint8_t>>> commandQueue;
 
-    double fps;
+    std::atomic<double> fps;
     std::string videoFname;
     bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
@@ -782,11 +785,14 @@ bool Miniscope::openCamera()
 
     // reset all controls to default values, or last values
     // if we have cached any
-    for (const auto &ctl : d->controls) {
-        if (d->controlValueCache.contains(ctl.id))
-            setControlValue(ctl.id, d->controlValueCache.at(ctl.id));
-        else
-            setControlValue(ctl.id, ctl.valueStart);
+    {
+        const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
+        for (const auto &ctl : d->controls) {
+            if (d->controlValueCache.contains(ctl.id))
+                setControlValue(ctl.id, d->controlValueCache.at(ctl.id));
+            else
+                setControlValue(ctl.id, ctl.valueStart);
+        }
     }
 
     // send all commands to the device for initialization
@@ -817,7 +823,10 @@ Result Miniscope::connect()
     }
 
     // reset cached control values, so we start with pristine defaults
-    d->controlValueCache.clear();
+    {
+        const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
+        d->controlValueCache.clear();
+    }
 
     if (!openCamera()) {
         fail("Unable to connect to Miniscope camera. Is the DAQ board connected?");
@@ -912,6 +921,9 @@ double Miniscope::controlValue(const std::string &id)
 
 void Miniscope::setControlValue(const std::string &id, double value)
 {
+    // control values are also set by the DAQ thread and by async tasks, see ctlMutex
+    const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
+
     if (!d->controlRules.contains(id)) {
         MS_LOG_WARNING(logMScope, "Unable to set nonexisting control {} to {}", id, Utils::fmtDouble(value));
         return;
