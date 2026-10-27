@@ -278,6 +278,9 @@ public:
      */
     std::optional<cv::Mat> fetchLastRawFrame();
 
+    /**
+     * @brief The number of frames that were acquired in the last second.
+     */
     unsigned int currentFps() const;
     size_t droppedFramesCount() const;
 

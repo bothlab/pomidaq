@@ -1457,7 +1457,8 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
         return {};
 
     const auto initialFrameCount = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
-    milliseconds_t waitTimeMsec = milliseconds_t((1000 / (int)d->currentFPS) / 2);
+    // wait for about half a frame in each iteration (fps is always > 1)
+    milliseconds_t waitTimeMsec = milliseconds_t(static_cast<long>(1000.0 / d->fps / 2));
     if (waitTimeMsec.count() < 10)
         waitTimeMsec = milliseconds_t(10);
 
@@ -1721,10 +1722,13 @@ void Miniscope::captureThread(void *msPtr)
     // tell DAQ hardware that we are acquiring data now (enables sync trigger output)
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0001);
 
+    // we count the acquired frames to determine the current framerate
+    auto fpsWindowStart = std::chrono::steady_clock::now();
+    uint fpsWindowFrames = 0;
+
     // communicate with hardware until stopped or error
     while (d->running) {
         cv::Mat frame;
-        const auto cycleStartTime = std::chrono::steady_clock::now();
 
         // protect against race-condition when the `captureStartTimeInitialized` var is changed
         // while we are grabbing a frame, or in any other intermediate state before we have
@@ -2071,9 +2075,14 @@ void Miniscope::captureThread(void *msPtr)
         if (!d->commandQueue.empty())
             self->sendCommandsToDevice();
 
-        const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - cycleStartTime);
-        d->currentFPS = static_cast<unsigned int>(1 / (totalTime.count() / static_cast<double>(1000)));
+        // update the framerate with the number of frames we acquired in the last second
+        fpsWindowFrames++;
+        const auto fpsWindowTime = std::chrono::duration<double>(std::chrono::steady_clock::now() - fpsWindowStart);
+        if (fpsWindowTime >= std::chrono::seconds(1)) {
+            d->currentFPS = static_cast<unsigned int>(std::lround(fpsWindowFrames / fpsWindowTime.count()));
+            fpsWindowFrames = 0;
+            fpsWindowStart = std::chrono::steady_clock::now();
+        }
     }
 
     // let DAQ board know that we aren't acquiring data anymore
