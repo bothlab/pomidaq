@@ -222,7 +222,8 @@ PYBIND11_MODULE(miniscope, m)
         py::arg("handler"),
         "Install a callable receiving all libminiscope log messages as (severity, category, message).\n"
         "The callable is invoked from library threads. Pass None to restore the default handler,\n"
-        "which prints to stdout/stderr.");
+        "which prints to stdout/stderr.\n"
+        "This should be called once at startup: Changing the handler while acquisition is running is not safe.");
     m.add_object("_log_handler_cleanup", py::capsule(&logHandlerModuleCleanup));
 
     m.def(
