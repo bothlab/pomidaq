@@ -23,15 +23,15 @@ smaller video files at lossless quality that are safe to archive.
 PoMiDAQ also provides an experimental Python module to access a Miniscope easily from Python. This feature has
 currently only been tested on Linux (and may stay Linux-only) and is still considered a bit experimental.
 
-Some features like parallel behavior recording, are intentionally left out of PoMiDAQ.
-You may like to use [Syntalos](https://github.com/syntalos/syntalos) for advanced multimodal data acquisition
-with Miniscopes and a variety of cameras, or try
-[Miniscope-DAQ-QT-Software](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software) instead.
+Some features (like parallel behavior recording) are intentionally left out of PoMiDAQ.
+You may like to use [Syntalos](https://github.com/syntalos/syntalos) for advanced multimodal data acquisition with Miniscopes and a
+wide variety of cameras, or try [Miniscope-DAQ-QT-Software](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software)
+instead.
 
 
 ## Users
 
-The CI system provides up-to-date builds for PoMiDAQ for the **Windows** (64-bit), **Debian** and **Ubuntu** (amd64) platforms.
+The CI system provides up-to-date builds for PoMiDAQ for the **Windows** (64-bit), **Debian** and **Ubuntu** (amd64 and arm64) platforms.
 You can fetch builds from there or download prebuilt binaries from the [Github releases](https://github.com/bothlab/pomidaq/releases).
 Don't hesitate to file issues if you notice anything unusual.
 
@@ -56,7 +56,6 @@ sudo apt install pomidaq
 #### On Linux
  * The released binaries were built on Ubuntu 26.04 or Debian 13 respectively. They may work on other Debian-based distributions as well,
    but in case they don't, compiling the application from source is pretty easy to do (for short instructions see below).
- * For Ubuntu 26.04, PoMiDAQ can be installed from the Syntalos PPA (see above).
  * You need at least an OpenGL 4.1-capable graphics driver on your system to run this application.
 
 #### On Windows
@@ -70,7 +69,7 @@ sudo apt install pomidaq
 
 #### No BNO orientation information
 If you can't record any valid data from the Miniscope's BNO sensor, your firmware version may be too old.
-You can test for that by displaying the Minscope log (*Info → Show Miniscope Log*) and check for a warning mentioning
+You can test for that by displaying the Miniscope log (*Info → Show Miniscope Log*) and check for a warning mentioning
 a bad firmware version. If that is the case (or if you still don't get BNO information), please download the latest
 Miniscope DAQ box firmware from [here](https://github.com/bothlab/pomidaq/tree/master/firmware) and flash it to your DAQ box.
 
@@ -124,4 +123,7 @@ python3 -m build --wheel  # or build a wheel into dist/
 This needs the OpenCV, FFmpeg and nlohmann-json development files to be installed, but no Qt.
 See [python/README.md](python/README.md) for details.
 
-Pull-requests are very welcome! (Code should be valid C++14, use 4 spaces for indentation)
+### Contributing
+
+Pull-requests are very welcome! Code should be valid C++23 and use 4 spaces for indentation.
+Please run `./autoformat.sh` (uses `clang-format`) to format your changes before submitting them.
