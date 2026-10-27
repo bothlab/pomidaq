@@ -2008,8 +2008,9 @@ void Miniscope::captureThread(void *msPtr)
             if (auto res = vwriter->pushFrame(frame, frameTimestamp); !res)
                 self->fail(std::format("Unable to send frames to encoder: {}", res.error()));
             if (saveOrientationData) {
+                // only store the quaternion, the last element is the norm error we filter by
                 if (prevBnoVec != bnoVec && bnoVec[4] < 0.05)
-                    bnoWriter->addRow(frameTimestamp, bnoVec);
+                    bnoWriter->addRow(frameTimestamp, std::vector<float>(bnoVec.begin(), bnoVec.begin() + 4));
                 prevBnoVec = bnoVec;
             }
             d->lastRecordedFrameTime = frameTimestamp;
