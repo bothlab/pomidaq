@@ -194,20 +194,6 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
         break;
     }
 
-    // open output format context
-    int ret;
-    d->octx = nullptr;
-    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
-    if (ret < 0)
-        return std::unexpected(std::format("Failed to allocate output context: {}", ret));
-
-    // open output IO context
-    ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
-    if (ret < 0) {
-        finalizeInternal(false, false);
-        return std::unexpected(std::format("Failed to open output I/O context: {}", ret));
-    }
-
     auto codecId = AV_CODEC_ID_AV1;
     switch (d->codec) {
     case VideoCodec::Raw:
@@ -233,8 +219,27 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
         break;
     }
 
-    // initialize codec and context
+    // check for the encoder before creating any file, as FFmpeg may have been built without it
     auto vcodec = avcodec_find_encoder(codecId);
+    if (vcodec == nullptr)
+        return std::unexpected(
+            std::format("Video encoder for '{}' is not available in this FFmpeg build.", avcodec_get_name(codecId)));
+
+    // open output format context
+    int ret;
+    d->octx = nullptr;
+    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
+    if (ret < 0)
+        return std::unexpected(std::format("Failed to allocate output context: {}", ret));
+
+    // open output IO context
+    ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
+    if (ret < 0) {
+        finalizeInternal(false, false);
+        return std::unexpected(std::format("Failed to open output I/O context: {}", ret));
+    }
+
+    // initialize codec and context
     d->cctx = avcodec_alloc_context3(vcodec);
 
     // create new video stream
