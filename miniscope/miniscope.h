@@ -145,9 +145,11 @@ public:
     /**
      * @brief Set a control of the Miniscope to a new value.
      *
+     * Fails if the control does not exist, or if the value is out of the control's
+     * range (for selector controls, the value must be the index of one of its labels).
      * This function may be called from any thread, calls are serialized.
      */
-    void setControlValue(const std::string &id, double value);
+    Result setControlValue(const std::string &id, double value);
 
     /**
      * @brief Start frame acquisition in a background thread.

@@ -69,6 +69,15 @@ static void waitForFrames(Miniscope *mscope, unsigned int count)
 }
 
 /**
+ * Move the EWL to a new position.
+ */
+static void setEWLPosition(Miniscope *mscope, const ControlDefinition &ewlControl, int position)
+{
+    if (const auto res = mscope->setControlValue(ewlControl.id, position); !res)
+        throw ZStackException(res.error());
+}
+
+/**
  * Get the EWL positions of a stack, going from the start position towards the end position
  * in evenly spaced steps. The end position is included if it is on the step grid, but we
  * never move past it.
@@ -119,7 +128,7 @@ static std::vector<cv::Mat> acquire3DData(
         std::vector<cv::Mat> currentMats;
 
         // adjust
-        mscope->setControlValue(ewlControl.id, position);
+        setEWLPosition(mscope, ewlControl, position);
         // wait for some frames to give the EWL time to adjust
         waitForFrames(mscope, adjFrameWaitTime);
 
@@ -190,7 +199,7 @@ static void captureZStack(
     const auto positions = ewlStackPositions(ewlControl, fromEWL, toEWL, step);
 
     // move in range already, in case we have a big jump from the current EWL setting
-    mscope->setControlValue(ewlControl.id, positions.front());
+    setEWLPosition(mscope, ewlControl, positions.front());
     waitForFrames(mscope, 5);
 
     auto stack = acquire3DData(mscope, ewlControl, positions, averageCount, 2, &progress);
@@ -377,7 +386,7 @@ static void acquire3DAccumulation(
 
     // move in range already, in case we have a big jump from the current EWL setting
     aprog.progressStep();
-    mscope->setControlValue(ewlControl.id, positions.front());
+    setEWLPosition(mscope, ewlControl, positions.front());
     waitForFrames(mscope, 5);
 
     progress.setValueAndText(aprog.currentStep, "Acquiring data...");

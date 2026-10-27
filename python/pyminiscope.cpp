@@ -273,9 +273,11 @@ PYBIND11_MODULE(miniscope, m)
             "Retrieve current control value for the given control ID")
         .def(
             "set_control_value",
-            &Miniscope::Miniscope::setControlValue,
+            [](Miniscope::Miniscope &self, const std::string &id, double value) {
+                raiseOnError(self.setControlValue(id, value));
+            },
             py::call_guard<py::gil_scoped_release>(),
-            "Set new value for control with the given ID")
+            "Set new value for control with the given ID (raises RuntimeError on failure)")
 
         .def(
             "set_visible_channels",

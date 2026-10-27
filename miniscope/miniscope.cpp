@@ -344,6 +344,25 @@ std::vector<std::string> Miniscope::availableDeviceTypes() const
     return deviceTypes;
 }
 
+static Result validateControlValue(const ControlDefinition &ctl, double value)
+{
+    if (value < ctl.valueMin || value > ctl.valueMax)
+        return std::unexpected(
+            std::format(
+                "Value {} for control {} is out of range ({} to {}).",
+                Utils::fmtDouble(value),
+                ctl.id,
+                ctl.valueMin,
+                ctl.valueMax));
+
+    // selector values are indices into the list of labels
+    if (ctl.kind == ControlKind::Selector && value != std::floor(value))
+        return std::unexpected(
+            std::format("Value {} for selector control {} is not a valid index.", Utils::fmtDouble(value), ctl.id));
+
+    return {};
+}
+
 Result Miniscope::loadDeviceConfig(const std::string &deviceType)
 {
     // automatically disconnect in case we were connected
@@ -365,6 +384,15 @@ Result Miniscope::loadDeviceConfig(const std::string &deviceType)
     d->sensorType = Utils::jsonString(Utils::jsonMember(d->deviceConfig, "sensor"), "unknown");
     d->pixelClock = Utils::jsonDouble(Utils::jsonMember(d->deviceConfig, "pixelClock"), -1);
     d->hasHeadOrientation = Utils::jsonBool(Utils::jsonMember(d->deviceConfig, "headOrientation"), false);
+
+    // the device definitions are built in, so an invalid one is a bug and we refuse to load it
+    const auto failLoad = [this](const std::string &msg) -> Result {
+        d->deviceConfig = json::object();
+        d->deviceType.clear();
+        d->controls.clear();
+        d->controlRules.clear();
+        return std::unexpected(msg);
+    };
 
     // load information about available controls
     d->controls.clear();
@@ -430,15 +458,34 @@ Result Miniscope::loadDeviceConfig(const std::string &deviceType)
             commandRule.valueScale = 1;
         }
 
+        // value maps are indexed by the selector position, so they need one entry per label
+        const auto labelCount = control.labels.size();
+        if ((!commandRule.valueMap.empty() && commandRule.valueMap.size() != labelCount)
+            || (!commandRule.numLabelMap.empty() && commandRule.numLabelMap.size() != labelCount))
+            return failLoad(
+                std::format(
+                    "Value mapping of control '{}' does not match its labels for device '{}'.",
+                    controlKey,
+                    deviceType));
+
         // set the start value
-        if (!startValue.is_null()) {
-            if (startValue.is_string()) {
-                const auto it = std::find(control.labels.begin(), control.labels.end(), startValue.get<std::string>());
-                control.valueStart = (it == control.labels.end()) ? -1 : std::distance(control.labels.begin(), it);
-            } else {
-                control.valueStart = Utils::jsonInt(startValue);
-            }
+        if (startValue.is_string()) {
+            const auto it = std::find(control.labels.begin(), control.labels.end(), startValue.get<std::string>());
+            if (it == control.labels.end())
+                return failLoad(
+                    std::format(
+                        "Unknown start value '{}' for control '{}' of device '{}'.",
+                        startValue.get<std::string>(),
+                        controlKey,
+                        deviceType));
+            control.valueStart = std::distance(control.labels.begin(), it);
+        } else if (startValue.is_number()) {
+            control.valueStart = Utils::jsonInt(startValue);
+        } else {
+            return failLoad(std::format("Control '{}' of device '{}' has no start value.", controlKey, deviceType));
         }
+        if (const auto res = validateControlValue(control, control.valueStart); !res)
+            return failLoad(std::format("Invalid start value for device '{}': {}", deviceType, res.error()));
 
         // the framerate is a special case, as we control that in software
         // we set the default here
@@ -446,7 +493,7 @@ Result Miniscope::loadDeviceConfig(const std::string &deviceType)
             if (commandRule.numLabelMap.empty()) {
                 d->fps = control.valueStart;
             } else {
-                d->fps = commandRule.numLabelMap[control.valueStart];
+                d->fps = commandRule.numLabelMap[static_cast<size_t>(control.valueStart)];
             }
 
             if (d->fps <= 1)
@@ -802,10 +849,11 @@ bool Miniscope::openCamera()
     {
         const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
         for (const auto &ctl : d->controls) {
-            if (d->controlValueCache.contains(ctl.id))
-                setControlValue(ctl.id, d->controlValueCache.at(ctl.id));
-            else
-                setControlValue(ctl.id, ctl.valueStart);
+            const auto value = d->controlValueCache.contains(ctl.id) ? d->controlValueCache.at(ctl.id)
+                                                                     : ctl.valueStart;
+            // both values were validated already, so this should never fail
+            if (const auto res = setControlValue(ctl.id, value); !res)
+                MS_LOG_WARNING(logMScope, "Unable to restore control value: {}", res.error());
         }
     }
 
@@ -928,27 +976,28 @@ double Miniscope::controlValue(const std::string &id)
     return 0;
 }
 
-void Miniscope::setControlValue(const std::string &id, double value)
+Result Miniscope::setControlValue(const std::string &id, double value)
 {
     // control values are also set by the DAQ thread and by async tasks, see ctlMutex
     const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
 
-    if (!d->controlRules.contains(id)) {
-        MS_LOG_WARNING(logMScope, "Unable to set nonexisting control {} to {}", id, Utils::fmtDouble(value));
-        return;
-    }
+    const auto ctlIt = std::find_if(d->controls.begin(), d->controls.end(), [&id](const ControlDefinition &ctl) {
+        return ctl.id == id;
+    });
+    if (ctlIt == d->controls.end())
+        return std::unexpected(std::format("Unable to set nonexisting control {}.", id));
+    if (const auto res = validateControlValue(*ctlIt, value); !res)
+        return res;
 
     // cache the current value so we can use it for resets
     d->controlValueCache[id] = value;
 
     // convert API value to device-specific command
+    // (the value maps are validated to have an entry for each selector index on load)
     const auto rule = d->controlRules.at(id);
     double devValue = value;
-    if (!rule.valueMap.empty()) {
-        // sanity check, the fetch the real value
-        if ((value >= 0) && (value < rule.valueMap.size()))
-            devValue = rule.valueMap[value];
-    }
+    if (!rule.valueMap.empty())
+        devValue = rule.valueMap[static_cast<size_t>(value)];
 
     double i2cValue = std::lround(devValue * rule.valueScale - rule.valueOffset) << rule.valueBitshift;
     double i2cValue2 = 0;
@@ -1002,7 +1051,7 @@ void Miniscope::setControlValue(const std::string &id, double value)
     // get a human-readable value
     double dispValue = devValue;
     if (!rule.numLabelMap.empty())
-        dispValue = rule.numLabelMap[value];
+        dispValue = rule.numLabelMap[static_cast<size_t>(value)];
 
     // write a message to the log
     msgInfo(std::format("Control {} value changed to {}", id, Utils::fmtDouble(dispValue)));
@@ -1018,12 +1067,14 @@ void Miniscope::setControlValue(const std::string &id, double value)
         if (rule.numLabelMap.empty()) {
             d->fps = value;
         } else {
-            d->fps = rule.numLabelMap[value];
+            d->fps = rule.numLabelMap[static_cast<size_t>(value)];
         }
 
         if (d->fps <= 1)
             d->fps = 20;
     }
+
+    return {};
 }
 
 Result Miniscope::run()

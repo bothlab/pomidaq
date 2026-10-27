@@ -485,7 +485,8 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(int index)
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
         connect(w, &MSControlWidget::valueChanged, this, [&](const QString ctlId, double value) {
-            m_mscope->setControlValue(ctlId.toStdString(), value);
+            if (const auto res = m_mscope->setControlValue(ctlId.toStdString(), value); !res)
+                qWarning().noquote() << QString::fromStdString(res.error());
         });
         m_controls.append(w);
     }
