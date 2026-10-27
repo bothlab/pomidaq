@@ -1245,6 +1245,10 @@ bool Miniscope::externalRecordTrigger() const
 
 void Miniscope::setExternalRecordTrigger(bool enabled)
 {
+    // TODO: Not implemented yet. The DAQ firmware reports the state of the trigger input
+    // when reading the gamma control (CAP_PROP_GAMMA), so the DAQ thread could poll that
+    // once per frame and start/stop recording on its edges, writing each recorded period
+    // into a new numbered file.
     d->checkRecTrigger = enabled;
 }
 

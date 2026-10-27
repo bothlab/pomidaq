@@ -286,6 +286,11 @@ public:
     void setUseUnixTimestamps(bool useUnixTime);
     milliseconds_t unixCaptureStartTime() const;
 
+    /**
+     * @brief Start and stop recording via the DAQ board's external trigger input.
+     *
+     * NOTE: This is not implemented yet. The setting is stored, but currently has no effect.
+     */
     bool externalRecordTrigger() const;
     void setExternalRecordTrigger(bool enabled);
 
