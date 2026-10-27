@@ -25,6 +25,7 @@
 #include <format>
 #include <iostream>
 #include <atomic>
+#include <condition_variable>
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -78,6 +79,7 @@ public:
 
     std::thread *thread;
     std::mutex mutex;
+    std::condition_variable frameAvailable;
     std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
     std::expected<void, std::string> encodeResult; // protected by mutex
 
@@ -420,8 +422,12 @@ void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
         stopEncodeThread();
 
     if (d->initialized) {
-        if (d->vstrm != nullptr)
+        // flush the encoder and write all frames it still holds
+        if (d->vstrm != nullptr) {
             avcodec_send_frame(d->cctx, nullptr);
+            if (auto res = writeEncodedPackets(); !res)
+                std::cerr << "Unable to write remaining frames: " << res.error() << std::endl;
+        }
 
         // write trailer
         if (writeTrailer && (d->octx != nullptr))
@@ -603,45 +609,23 @@ std::expected<void, std::string> VideoWriter::encodeFrame(
     const cv::Mat &frame,
     const std::chrono::milliseconds &timestamp)
 {
-    int ret;
-    std::expected<void, std::string> result;
-    AVPacket *pkt = nullptr;
-
     if (auto res = prepareFrame(frame); !res)
         return std::unexpected(std::format("Unable to prepare frame {}: {}", d->frames_n + 1, res.error()));
 
     // encode video frame
-    ret = avcodec_send_frame(d->cctx, d->frame);
+    const auto ret = avcodec_send_frame(d->cctx, d->frame);
     if (ret < 0)
         return std::unexpected(std::format("Unable to send frame {} to encoder: {}", d->frames_n + 1, ret));
 
-    pkt = av_packet_alloc();
-    if (!pkt)
-        return std::unexpected("Unable to allocate packet.");
-
-    const auto tsMsec = timestamp.count();
-
-    ret = avcodec_receive_packet(d->cctx, pkt);
-    if (ret != 0) {
-        // some encoders need to be fed a few frames before they produce a useful result,
-        // so this is not an error
-        if (ret != AVERROR(EAGAIN))
-            result = std::unexpected(
-                std::format("Unable to receive packet for frame {} from encoder: {}", d->frames_n + 1, ret));
-        goto out;
-    }
-
-    // rescale packet timestamp
-    pkt->duration = 1;
-    av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
-
-    // write packet
-    av_write_frame(d->octx, pkt);
-    d->frames_n++;
-
     // store timestamp (if necessary)
+    // We do this when submitting the frame, as encoders may delay and reorder their output.
+    const auto tsMsec = timestamp.count();
     if (d->saveTimestamps)
-        d->timestampFile << d->framePts << "; " << tsMsec << "\n";
+        d->timestampFile << d->frame->pts << "; " << tsMsec << "\n";
+
+    // write all packets the encoder has ready, some encoders need to be fed
+    // a few frames before they produce any output
+    auto result = writeEncodedPackets();
 
     if (d->fileSliceIntervalMin != 0) {
         const auto tsMin = static_cast<double>(tsMsec - d->captureStartTimestamp.count()) / 1000.0 / 60.0;
@@ -661,7 +645,43 @@ std::expected<void, std::string> VideoWriter::encodeFrame(
         }
     }
 
-out:
+    return result;
+}
+
+std::expected<void, std::string> VideoWriter::writeEncodedPackets()
+{
+    std::expected<void, std::string> result;
+    AVPacket *pkt = av_packet_alloc();
+    if (!pkt)
+        return std::unexpected("Unable to allocate packet.");
+
+    while (true) {
+        auto ret = avcodec_receive_packet(d->cctx, pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            break;
+        if (ret < 0) {
+            result = std::unexpected(std::format("Unable to receive packet from encoder: {}", ret));
+            break;
+        }
+
+        // rescale packet timestamp
+        pkt->duration = 1;
+        av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
+
+        // write packet
+        ret = av_write_frame(d->octx, pkt);
+        av_packet_unref(pkt);
+        if (ret < 0) {
+            // we can not recover from failed writes (e.g. a full disk), so stop accepting frames
+            std::lock_guard<std::mutex> lock(d->mutex);
+            d->encodeResult = std::unexpected(std::format("Unable to write video data: {}", ret));
+            d->acceptFrames = false;
+            result = d->encodeResult;
+            break;
+        }
+        d->frames_n++;
+    }
+
     av_packet_free(&pkt);
     return result;
 }
@@ -685,7 +705,11 @@ void VideoWriter::stopEncodeThread()
     if (d->thread == nullptr)
         return;
 
-    d->acceptFrames = false;
+    {
+        std::lock_guard<std::mutex> lock(d->mutex);
+        d->acceptFrames = false;
+    }
+    d->frameAvailable.notify_all();
     d->thread->join();
     delete d->thread;
     d->thread = nullptr;
@@ -703,6 +727,7 @@ std::expected<void, std::string> VideoWriter::pushFrame(const cv::Mat &frame, co
             "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.");
 
     d->frameQueue.push(std::make_pair(frame, time));
+    d->frameAvailable.notify_one();
     return {};
 }
 
@@ -765,25 +790,25 @@ void VideoWriter::encodeThread(void *vwPtr)
 {
     VideoWriter *self = static_cast<VideoWriter *>(vwPtr);
 
-    while (self->d->acceptFrames) {
-        cv::Mat frame;
-        std::chrono::milliseconds timestamp;
-        while (self->getNextFrameFromQueue(&frame, &timestamp)) {
-            // a single bad frame is not fatal, so we just drop it
-            if (auto res = self->encodeFrame(frame, timestamp); !res)
-                std::cerr << res.error() << std::endl;
-
-            // we can not encode anything anymore if starting a new file slice failed
-            if (!self->d->initialized)
-                return;
-        }
+    cv::Mat frame;
+    std::chrono::milliseconds timestamp;
+    while (self->getNextFrameFromQueue(&frame, &timestamp)) {
+        // a single bad frame is not fatal, so we just drop it
+        if (auto res = self->encodeFrame(frame, timestamp); !res)
+            std::cerr << res.error() << std::endl;
     }
 }
 
 bool VideoWriter::getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp)
 {
-    std::lock_guard<std::mutex> lock(d->mutex);
-    if (d->frameQueue.empty())
+    std::unique_lock<std::mutex> lock(d->mutex);
+    d->frameAvailable.wait(lock, [this] {
+        return !d->frameQueue.empty() || !d->acceptFrames;
+    });
+
+    // stop on unrecoverable errors (e.g. if starting a new file slice failed),
+    // otherwise encode all remaining frames before we stop
+    if (!d->encodeResult || d->frameQueue.empty())
         return false;
 
     auto pair = d->frameQueue.front();

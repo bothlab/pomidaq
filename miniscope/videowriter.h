@@ -90,6 +90,7 @@ private:
     bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
     std::expected<void, std::string> prepareFrame(const cv::Mat &inImage);
     std::expected<void, std::string> encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp);
+    std::expected<void, std::string> writeEncodedPackets();
     void startEncodeThread();
     void stopEncodeThread();
 };
