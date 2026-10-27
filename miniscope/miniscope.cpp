@@ -1080,6 +1080,11 @@ Result Miniscope::setControlValue(const std::string &id, double value)
 
 Result Miniscope::run()
 {
+    // nothing to do if we are already acquiring data, restarting would also
+    // restart (and overwrite) any ongoing recording
+    if (d->running)
+        return {};
+
     if (!d->connected)
         return std::unexpected("Can not start acquisition: Miniscope is not connected.");
     if (d->failed) {

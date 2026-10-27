@@ -162,6 +162,7 @@ public:
     /**
      * @brief Start frame acquisition in a background thread.
      *
+     * Does nothing if acquisition is already running.
      * Fails if no device is connected or a reconnect after a previous failure
      * does not succeed. Errors that happen later during acquisition are not
      * reported here, but by waitForResult().
