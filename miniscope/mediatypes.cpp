@@ -19,7 +19,8 @@
 
 #include "mediatypes.h"
 
-using namespace Miniscope;
+namespace Miniscope
+{
 
 VideoCodec stringToVideoCodec(const std::string &str)
 {
@@ -86,3 +87,5 @@ VideoContainer stringToVideoContainer(const std::string &str)
 
     return VideoContainer::Unknown;
 }
+
+} // namespace Miniscope

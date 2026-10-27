@@ -45,6 +45,7 @@ Description: Miniscope Data Acquisition Library
 Package: libminiscope-dev
 Architecture: any
 Depends: libminiscope1 (= ${binary:Version}),
+         libopencv-dev,
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Miniscope Data Acquisition Library - Development Files

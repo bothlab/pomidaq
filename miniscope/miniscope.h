@@ -31,15 +31,10 @@
 #include <vector>
 #include <opencv2/core.hpp>
 
+#include "miniscope_export.h"
 #include "mediatypes.h"
 #include "logging.h"
 #include "asynctask.h"
-
-#ifdef _WIN32
-#define MS_LIB_EXPORT __declspec(dllexport)
-#else
-#define MS_LIB_EXPORT __attribute__((visibility("default")))
-#endif
 
 namespace Miniscope
 {
@@ -97,7 +92,7 @@ struct ControlDefinition {
 /**
  * @brief Controller for the UCLA Miniscope family
  */
-class MS_LIB_EXPORT Miniscope
+class MINISCOPE_EXPORT Miniscope
 {
 public:
     explicit Miniscope();
@@ -386,7 +381,7 @@ private:
  * @brief Return a device name for an integer ID
  * This function is only supported on some operating systems, currently only on Linux.
  */
-MS_LIB_EXPORT
+MINISCOPE_EXPORT
 std::string videoDeviceNameFromId(int id);
 
 } // namespace Miniscope

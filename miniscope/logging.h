@@ -23,13 +23,7 @@
 #include <functional>
 #include <string_view>
 
-#ifndef MS_LIB_EXPORT
-#ifdef _WIN32
-#define MS_LIB_EXPORT __declspec(dllexport)
-#else
-#define MS_LIB_EXPORT __attribute__((visibility("default")))
-#endif
-#endif
+#include "miniscope_export.h"
 
 namespace Miniscope
 {
@@ -68,14 +62,14 @@ using LogHandlerFn = std::function<void(const LogMessage &)>;
  * If no handler is installed, messages below Warning severity are printed to stdout,
  * more severe messages to stderr.
  */
-MS_LIB_EXPORT void setLogHandler(LogHandlerFn handler);
+MINISCOPE_EXPORT void setLogHandler(LogHandlerFn handler);
 
 /**
  * @brief Reinstall the built-in stdout/stderr log handler.
  *
  * Undoes any previous setLogHandler() call. Same concurrency caveats as setLogHandler().
  */
-MS_LIB_EXPORT void resetLogHandler();
+MINISCOPE_EXPORT void resetLogHandler();
 
 /**
  * @brief Set the minimum log severity globally across all libminiscope categories.
@@ -84,11 +78,11 @@ MS_LIB_EXPORT void resetLogHandler();
  * The default minimum severity is Info, unless the MINISCOPE_DEBUG environment
  * variable is set, in which case Debug messages are enabled as well.
  */
-MS_LIB_EXPORT void setLogSeverity(LogSeverity min);
+MINISCOPE_EXPORT void setLogSeverity(LogSeverity min);
 
 /**
  * @brief Set the minimum log severity for a specific category.
  */
-MS_LIB_EXPORT void setLogSeverity(const char *category, LogSeverity min);
+MINISCOPE_EXPORT void setLogSeverity(const char *category, LogSeverity min);
 
 } // namespace Miniscope

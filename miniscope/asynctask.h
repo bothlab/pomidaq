@@ -24,11 +24,7 @@
 #include <memory>
 #include <string>
 
-#ifdef _WIN32
-#define MS_LIB_EXPORT __declspec(dllexport)
-#else
-#define MS_LIB_EXPORT __attribute__((visibility("default")))
-#endif
+#include "miniscope_export.h"
 
 namespace Miniscope
 {
@@ -41,7 +37,7 @@ class TaskProgress;
  * The task is started immediately when the handle is created. Destroying the
  * handle waits for the task to complete.
  */
-class MS_LIB_EXPORT AsyncTask
+class MINISCOPE_EXPORT AsyncTask
 {
 public:
     ~AsyncTask();

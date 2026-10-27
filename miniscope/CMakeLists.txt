@@ -64,7 +64,21 @@ add_library(miniscope
 set_target_properties(miniscope PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(miniscope PROPERTIES SOVERSION ${LIBSOVERSION})
 
+# export macros for the public API
+include(GenerateExportHeader)
+generate_export_header(miniscope
+    BASE_NAME miniscope
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/miniscope_export.h
+)
+list(APPEND LIBMINISCOPE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/miniscope_export.h)
+set(MINISCOPE_PC_CFLAGS "")
+if (NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(miniscope PUBLIC MINISCOPE_STATIC_DEFINE)
+    set(MINISCOPE_PC_CFLAGS " -DMINISCOPE_STATIC_DEFINE")
+endif()
+
 target_include_directories(miniscope PRIVATE .)
+target_include_directories(miniscope PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 set_target_properties(miniscope PROPERTIES PUBLIC_HEADER "${LIBMINISCOPE_HEADERS}")
 set_target_properties(miniscope PROPERTIES CXX_VISIBILITY_PRESET hidden)
 set_target_properties(miniscope PROPERTIES POSITION_INDEPENDENT_CODE ON)

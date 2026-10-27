@@ -22,6 +22,8 @@
 
 #include <string>
 
+#include "miniscope_export.h"
+
 namespace Miniscope
 {
 
@@ -38,8 +40,8 @@ enum class VideoContainer {
     AVI
 };
 
-std::string videoContainerToString(VideoContainer container);
-VideoContainer stringToVideoContainer(const std::string &str);
+MINISCOPE_EXPORT std::string videoContainerToString(VideoContainer container);
+MINISCOPE_EXPORT VideoContainer stringToVideoContainer(const std::string &str);
 
 /**
  * @brief The VideoCodec enum
@@ -62,8 +64,8 @@ enum class VideoCodec {
     MPEG4
 };
 
-std::string videoCodecToString(VideoCodec codec);
-VideoCodec stringToVideoCodec(const std::string &str);
+MINISCOPE_EXPORT std::string videoCodecToString(VideoCodec codec);
+MINISCOPE_EXPORT VideoCodec stringToVideoCodec(const std::string &str);
 
 } // namespace Miniscope
 

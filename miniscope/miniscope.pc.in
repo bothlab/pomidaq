@@ -5,6 +5,7 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 Name: Miniscope
 Description: Miniscope C++ shared library
 Version: @PROJECT_VERSION@
+Requires: opencv@OpenCV_VERSION_MAJOR@
 
-Libs: -L${libdir} -lminiscope -lopencv_core
-Cflags: -I${includedir}
+Libs: -L${libdir} -lminiscope
+Cflags: -I${includedir}@MINISCOPE_PC_CFLAGS@
