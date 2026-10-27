@@ -962,18 +962,19 @@ std::vector<ControlDefinition> Miniscope::controls() const
     return d->controls;
 }
 
-double Miniscope::controlValue(const std::string &id)
+std::optional<double> Miniscope::controlValue(const std::string &id) const
 {
-    if (!d->controlRules.contains(id)) {
-        MS_LOG_WARNING(logMScope, "Unable to get value for nonexisting control {}", id);
-        return -1;
-    }
+    const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
 
-    for (const auto &ctl : d->controls) {
-        if (ctl.id == id)
-            return ctl.valueStart;
-    }
-    return 0;
+    const auto ctlIt = std::find_if(d->controls.begin(), d->controls.end(), [&id](const ControlDefinition &ctl) {
+        return ctl.id == id;
+    });
+    if (ctlIt == d->controls.end())
+        return std::nullopt;
+
+    if (const auto it = d->controlValueCache.find(id); it != d->controlValueCache.end())
+        return it->second;
+    return ctlIt->valueStart;
 }
 
 Result Miniscope::setControlValue(const std::string &id, double value)

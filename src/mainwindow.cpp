@@ -586,8 +586,10 @@ void MainWindow::on_btnDevConnect_clicked()
     m_mscope->setUseUnixTimestamps(m_useUnixTimestamps);
 
     // reflect currently active control values in the UI
-    for (const auto &w : std::as_const(m_controls))
-        w->setValue(m_mscope->controlValue(w->controlId().toStdString()));
+    for (const auto &w : std::as_const(m_controls)) {
+        if (const auto value = m_mscope->controlValue(w->controlId().toStdString()))
+            w->setValue(*value);
+    }
 
     // run and display images
     if (const auto res = m_mscope->run(); !res)

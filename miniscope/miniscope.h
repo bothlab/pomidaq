@@ -140,7 +140,15 @@ public:
     Result hardReset();
 
     std::vector<ControlDefinition> controls() const;
-    double controlValue(const std::string &id);
+
+    /**
+     * @brief Get the current value of a Miniscope control.
+     *
+     * The device can not be queried for its control values, so this is the value
+     * that was last set, or the control's start value if it was not set yet.
+     * Returns nothing if no control with this ID exists.
+     */
+    std::optional<double> controlValue(const std::string &id) const;
 
     /**
      * @brief Set a control of the Miniscope to a new value.

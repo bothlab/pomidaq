@@ -133,8 +133,8 @@ static std::vector<cv::Mat> acquire3DData(
         waitForFrames(mscope, adjFrameWaitTime);
 
         // FIXME: Ideally we should verify that the device has actually adjusted the EWL,
-        // but this feature is not yet iplemented in the library (we currently always
-        // return the initial value)
+        // but we can not query the device for that (controlValue() only returns the value
+        // we last set)
 
         for (unsigned int i = 0; i < averageCount; i++) {
             while (true) {

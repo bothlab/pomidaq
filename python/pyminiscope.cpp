@@ -270,7 +270,7 @@ PYBIND11_MODULE(miniscope, m)
             "control_value",
             &Miniscope::Miniscope::controlValue,
             py::call_guard<py::gil_scoped_release>(),
-            "Retrieve current control value for the given control ID")
+            "Retrieve current control value for the given control ID (None if the control does not exist)")
         .def(
             "set_control_value",
             [](Miniscope::Miniscope &self, const std::string &id, double value) {
