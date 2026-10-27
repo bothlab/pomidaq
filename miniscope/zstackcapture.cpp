@@ -68,17 +68,18 @@ static void waitForFrames(Miniscope *mscope, unsigned int count)
         throw ZStackException(res.error());
 }
 
-static std::vector<cv::Mat> acquire3DData(
-    Miniscope *mscope,
+/**
+ * Get the EWL positions of a stack, going from the start position towards the end position
+ * in evenly spaced steps. The end position is included if it is on the step grid, but we
+ * never move past it.
+ */
+static std::vector<int> ewlStackPositions(
     const ControlDefinition &ewlControl,
     int fromEWL,
     int toEWL,
-    unsigned int step,
-    unsigned int averageCount,
-    unsigned int adjFrameWaitTime = 2,
-    TaskProgress *progress = nullptr)
+    unsigned int step)
 {
-    if (fromEWL - toEWL == 0)
+    if (fromEWL == toEWL)
         throw ZStackException("EWL start and end positions must be different.");
     if (step == 0)
         throw ZStackException("Step size can not be zero.");
@@ -88,28 +89,37 @@ static std::vector<cv::Mat> acquire3DData(
     if (toEWL < ewlControl.valueMin || toEWL > ewlControl.valueMax)
         throw ZStackException("Second EWL position value is out of range.");
 
+    const auto distance = static_cast<unsigned int>(std::abs(toEWL - fromEWL));
+    if (step > distance)
+        throw ZStackException("Step size is larger than the EWL range.");
+
+    const int stepSigned = (toEWL > fromEWL) ? static_cast<int>(step) : -static_cast<int>(step);
+    std::vector<int> positions;
+    for (unsigned int i = 0; i <= distance / step; i++)
+        positions.push_back(fromEWL + static_cast<int>(i) * stepSigned);
+
+    return positions;
+}
+
+static std::vector<cv::Mat> acquire3DData(
+    Miniscope *mscope,
+    const ControlDefinition &ewlControl,
+    const std::vector<int> &positions,
+    unsigned int averageCount,
+    unsigned int adjFrameWaitTime = 2,
+    TaskProgress *progress = nullptr)
+{
     if (averageCount == 0)
         throw ZStackException("Image average count must not be zero.");
     if (averageCount > 36000)
         throw ZStackException("Image average count is too large.");
 
-    int stepSigned;
-    if (fromEWL - toEWL < 0)
-        stepSigned = step;
-    else
-        stepSigned = step * -1;
-
-    int maxProgress = abs(fromEWL - toEWL) / abs(stepSigned);
     std::vector<cv::Mat> stack;
-    for (int currentPos = fromEWL; currentPos != toEWL; currentPos += stepSigned) {
+    for (const auto position : positions) {
         std::vector<cv::Mat> currentMats;
 
-        // sanity check
-        if (currentPos < ewlControl.valueMin || currentPos > ewlControl.valueMax)
-            break;
-
         // adjust
-        mscope->setControlValue(ewlControl.id, currentPos);
+        mscope->setControlValue(ewlControl.id, position);
         // wait for some frames to give the EWL time to adjust
         waitForFrames(mscope, adjFrameWaitTime);
 
@@ -142,7 +152,7 @@ static std::vector<cv::Mat> acquire3DData(
         stack.push_back(accMat);
 
         if (progress != nullptr)
-            progress->setValue((100.0 / maxProgress) * stack.size());
+            progress->setValue((100.0 / positions.size()) * stack.size());
     }
 
     return stack;
@@ -177,11 +187,13 @@ static void captureZStack(
     if (!mscope->isRunning())
         throw ZStackException("Can not acquire Z-Stack while Miniscope is not running.");
 
+    const auto positions = ewlStackPositions(ewlControl, fromEWL, toEWL, step);
+
     // move in range already, in case we have a big jump from the current EWL setting
-    mscope->setControlValue(ewlControl.id, fromEWL);
+    mscope->setControlValue(ewlControl.id, positions.front());
     waitForFrames(mscope, 5);
 
-    auto stack = acquire3DData(mscope, ewlControl, fromEWL, toEWL, step, averageCount, 2, &progress);
+    auto stack = acquire3DData(mscope, ewlControl, positions, averageCount, 2, &progress);
 
     std::vector<int> tiffParams;
     tiffParams.push_back(cv::IMWRITE_TIFF_COMPRESSION);
@@ -342,6 +354,10 @@ static void acquire3DAccumulation(
     if (!mscope->isRunning())
         throw ZStackException("Can not acquire Z-Stack while Miniscope is not running.");
 
+    // we acquire stacks alternating forward and in reverse, but always at the same positions
+    const auto positions = ewlStackPositions(ewlControl, fromEWL, toEWL, step);
+    const std::vector<int> positionsReverse(positions.rbegin(), positions.rend());
+
     const fs::path outDirNamed = fs::absolute(fs::path(outDir) / outName);
     const fs::path outDirRaw = outDirNamed / "raw";
     std::error_code ec;
@@ -361,34 +377,19 @@ static void acquire3DAccumulation(
 
     // move in range already, in case we have a big jump from the current EWL setting
     aprog.progressStep();
-    mscope->setControlValue(ewlControl.id, fromEWL);
+    mscope->setControlValue(ewlControl.id, positions.front());
     waitForFrames(mscope, 5);
 
     progress.setValueAndText(aprog.currentStep, "Acquiring data...");
     std::vector<std::string> rawFileList;
     for (unsigned int i = 0; i < count; ++i) {
         auto fnameRaw = (outDirRaw / std::format("{}_zstack_{}.tiff", outName, i)).string();
-
-        int hwFromEWL;
-        int hwToEWL;
         bool recForward = i % 2 == 0;
-
-        if (recForward) {
-            // forward
-            hwFromEWL = fromEWL;
-            hwToEWL = toEWL;
-        } else {
-            // reverse
-            hwFromEWL = toEWL;
-            hwToEWL = fromEWL;
-        }
 
         auto stack = acquire3DData(
             mscope,
             ewlControl,
-            hwFromEWL,
-            hwToEWL,
-            step,
+            recForward ? positions : positionsReverse,
             1, /* average count */
             1 /* frame acq wait time */);
         aprog.progressStep(2);
