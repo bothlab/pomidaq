@@ -1825,6 +1825,9 @@ void Miniscope::captureThread(void *msPtr)
                 d->connected = false;
                 std::this_thread::sleep_for(milliseconds_t(1000));
                 if (self->openCamera()) {
+                    // openCamera() disables sync pulses, so restore the acquisition state we had before
+                    d->cam.set(cv::CAP_PROP_FPS, d->fps);
+                    d->cam.set(cv::CAP_PROP_SATURATION, 0x0001);
                     msgInfo("Miniscope reconnected.");
                 } else {
                     self->fail("Unable to reopen camera connection.");
