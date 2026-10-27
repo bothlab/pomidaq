@@ -399,7 +399,8 @@ public:
      * @brief Wait for an amount of frames to be acquired.
      * @param The amount of frames to wait for.
      *
-     * Fails if acquisition is not running, or if it stops while we are waiting.
+     * Fails if acquisition is not running, if it stops while we are waiting, or if the
+     * frames did not arrive within three times the expected time (plus one second).
      */
     Result waitForAcquiredFrameCount(unsigned int count);
 

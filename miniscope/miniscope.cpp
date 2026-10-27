@@ -1474,22 +1474,24 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
         return {};
 
     const uint64_t initialFrameCount = d->acquiredFrames;
-    // wait for about half a frame in each iteration (fps is always > 1)
-    milliseconds_t waitTimeMsec = milliseconds_t(static_cast<long>(1000.0 / d->fps / 2));
-    if (waitTimeMsec.count() < 10)
-        waitTimeMsec = milliseconds_t(10);
 
-    // we either wait for the selected amount of frames *or* a maximum time,
-    // in case frames are being dropped
-    const auto maxIterations = count * 2.2;
-    for (unsigned int i = 0; i < maxIterations; i++) {
+    // check about twice per frame (fps is always > 1)
+    auto pollInterval = milliseconds_t(static_cast<long>(1000.0 / d->fps / 2));
+    if (pollInterval.count() < 10)
+        pollInterval = milliseconds_t(10);
+
+    // give up after a generous amount of time, in case the camera stalls
+    // (the device may well run slower than it is configured for)
+    const auto timeout = milliseconds_t(static_cast<long>(3 * count * 1000.0 / d->fps)) + std::chrono::seconds(1);
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+
+    while (d->acquiredFrames - initialFrameCount < count) {
         if (!d->running)
             return std::unexpected("Miniscope acquisition stopped while waiting for frames.");
+        if (std::chrono::steady_clock::now() >= deadline)
+            return std::unexpected(std::format("Timed out waiting for {} frames to be acquired.", count));
 
-        if (d->acquiredFrames - initialFrameCount >= count)
-            break;
-
-        std::this_thread::sleep_for(milliseconds_t(waitTimeMsec));
+        std::this_thread::sleep_for(pollInterval);
     }
 
     return {};
