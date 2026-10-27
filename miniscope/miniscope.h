@@ -340,6 +340,11 @@ public:
 
     milliseconds_t lastRecordedFrameTime() const;
 
+    /**
+     * @brief The number of valid frames acquired since acquisition was started.
+     *
+     * Dropped frames are not counted.
+     */
     long acquiredFrameCount() const;
 
     /**

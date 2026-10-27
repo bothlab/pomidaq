@@ -96,12 +96,14 @@ public:
           emulateTimestamps(false),
           supportsColor(false),
           pixelClock(-1),
+          commandsPending(false),
           connected(false),
           running(false),
           recording(false),
           failed(false),
           checkRecTrigger(false),
           droppedFramesCount(0),
+          acquiredFrames(0),
           rawFrameRetrieved(true),
           useColor(false),
           hasHeadOrientation(false),
@@ -160,7 +162,8 @@ public:
     std::unordered_map<std::string, ControlCommandRule> controlRules;
     std::unordered_map<std::string, double> controlValueCache;
 
-    std::deque<std::pair<long, std::vector<uint8_t>>> commandQueue;
+    std::deque<std::pair<long, std::vector<uint8_t>>> commandQueue; // protected by cmdMutex
+    std::atomic_bool commandsPending; // lets the DAQ thread check for commands without locking
 
     std::atomic<double> fps;
     std::string videoFname;
@@ -177,13 +180,14 @@ public:
     std::atomic<DisplayMode> displayMode;
     std::atomic<double> bgAccumulateAlpha; // NOTE: Double may not actually be atomic
 
-    bool connected;
+    std::atomic_bool connected;
     std::atomic_bool running;
     std::atomic_bool recording;
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
 
     std::atomic<size_t> droppedFramesCount;
+    std::atomic_long acquiredFrames; // valid frames acquired in the current run
     std::atomic_uint currentFPS;
     std::atomic<milliseconds_t> lastRecordedFrameTime;
 
@@ -595,6 +599,7 @@ void Miniscope::enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet)
 
     // add packet to the queue to send to the camera for control modification
     d->commandQueue.emplace_back(preambleKey, packet);
+    d->commandsPending = true;
 }
 
 static bool scopeDAQSendBytes(cv::VideoCapture *cam, double head, double middle, double tail)
@@ -673,6 +678,8 @@ void Miniscope::sendCommandsToDevice()
             MS_LOG_WARNING(logMScope, "Can not handle packets longer than 6 bytes!");
         }
     }
+
+    d->commandsPending = false;
 }
 
 #ifdef __linux__
@@ -750,7 +757,11 @@ bool Miniscope::openCamera()
 
     // ensure the command queue isn't full with old packets that flood the
     // DAQ board immediately after it is connected
-    d->commandQueue.clear();
+    {
+        std::lock_guard<std::mutex> lock(d->cmdMutex);
+        d->commandQueue.clear();
+        d->commandsPending = false;
+    }
 
     // reset all packet parts to zero
     scopeDAQSendBytes(&d->cam, 0x00, 0x00, 0x00);
@@ -853,8 +864,7 @@ bool Miniscope::openCamera()
     {
         const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
         for (const auto &ctl : d->controls) {
-            const auto value = d->controlValueCache.contains(ctl.id) ? d->controlValueCache.at(ctl.id)
-                                                                     : ctl.valueStart;
+            const auto value = d->controlValueCache.contains(ctl.id) ? d->controlValueCache.at(ctl.id) : ctl.valueStart;
             // both values were validated already, so this should never fail
             if (const auto res = setControlValue(ctl.id, value); !res)
                 MS_LOG_WARNING(logMScope, "Unable to restore control value: {}", res.error());
@@ -943,7 +953,11 @@ Result Miniscope::hardReset()
     }
 
     // clear any old commands
-    d->commandQueue.clear();
+    {
+        std::lock_guard<std::mutex> lock(d->cmdMutex);
+        d->commandQueue.clear();
+        d->commandsPending = false;
+    }
 
     // disable any recording / sync pulse emission, just in case
     d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
@@ -1454,9 +1468,7 @@ milliseconds_t Miniscope::lastRecordedFrameTime() const
 
 long Miniscope::acquiredFrameCount() const
 {
-    if (!d->running)
-        return 0;
-    return static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
+    return d->acquiredFrames;
 }
 
 Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
@@ -1466,21 +1478,20 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
     if (count == 0)
         return {};
 
-    const auto initialFrameCount = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
+    const long initialFrameCount = d->acquiredFrames;
     // wait for about half a frame in each iteration (fps is always > 1)
     milliseconds_t waitTimeMsec = milliseconds_t(static_cast<long>(1000.0 / d->fps / 2));
     if (waitTimeMsec.count() < 10)
         waitTimeMsec = milliseconds_t(10);
 
-    // we either wait for the selected amount of frames *or* a maximum time, because
-    // older Miniscope firmware will not give us reliable frame counts.
+    // we either wait for the selected amount of frames *or* a maximum time,
+    // in case frames are being dropped
     const auto maxIterations = count * 2.2;
     for (unsigned int i = 0; i < maxIterations; i++) {
         if (!d->running)
             return std::unexpected("Miniscope acquisition stopped while waiting for frames.");
 
-        auto framesCounted = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE)) - initialFrameCount;
-        if (framesCounted >= static_cast<long>(count))
+        if (d->acquiredFrames - initialFrameCount >= static_cast<long>(count))
             break;
 
         std::this_thread::sleep_for(milliseconds_t(waitTimeMsec));
@@ -1665,6 +1676,7 @@ void Miniscope::captureThread(void *msPtr)
         cv::Scalar(255, 255, 255));
 
     d->droppedFramesCount = 0;
+    d->acquiredFrames = 0;
     d->currentFPS = static_cast<unsigned int>(d->fps);
 
     // load orientation sensor indicator images
@@ -1910,6 +1922,9 @@ void Miniscope::captureThread(void *msPtr)
             continue;
         }
 
+        // we acquired a valid frame
+        d->acquiredFrames++;
+
         // prepare video recording if it was enabled while we were running
         if (self->isRecording()) {
             if (!vwriter->initialized()) {
@@ -2082,7 +2097,7 @@ void Miniscope::captureThread(void *msPtr)
         }
 
         // apply all settings changes we have queued
-        if (!d->commandQueue.empty())
+        if (d->commandsPending)
             self->sendCommandsToDevice();
 
         // update the framerate with the number of frames we acquired in the last second
