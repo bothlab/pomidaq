@@ -421,7 +421,10 @@ void MainWindow::queueLogMessage(const QString &msg)
 void MainWindow::setStatusText(const QString &msg)
 {
     m_statusBarLabel->setText(msg);
-    QApplication::processEvents();
+
+    // show the new text right away, even while we are blocked in a library call
+    // (processing events here would allow re-entering the library from within that call)
+    m_statusBarLabel->repaint();
 }
 
 void MainWindow::setStatusProgress(int progress)
@@ -558,7 +561,7 @@ void MainWindow::on_btnDevConnect_clicked()
 {
     if (m_mscope->isRunning()) {
         ui->btnDevConnect->setEnabled(false);
-        QApplication::processEvents();
+        ui->btnDevConnect->repaint();
         m_mscope->disconnect();
         ui->btnDevConnect->setEnabled(true);
         ui->sbCamId->setEnabled(true);
