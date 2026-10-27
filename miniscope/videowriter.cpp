@@ -215,8 +215,7 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
         codecId = AV_CODEC_ID_HEVC;
         break;
     default:
-        codecId = AV_CODEC_ID_FFV1;
-        break;
+        return std::unexpected("No valid video codec was selected.");
     }
 
     // check for the encoder before creating any file, as FFmpeg may have been built without it
