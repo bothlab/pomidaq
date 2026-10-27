@@ -514,9 +514,9 @@ void MainWindow::processMiniscopeDisplay()
 
     // recording has stopped, reset UI elements and stop timer
     m_msTimer->stop();
+    setRecordingActive(false);
     ui->btnDevConnect->setText("Connect");
     ui->btnDevConnect->setChecked(false);
-    ui->btnRecord->setText("Record");
     ui->btnHardReset->setEnabled(true);
 
     ui->containerScopeControls->setEnabled(false);
@@ -639,11 +639,38 @@ void MainWindow::on_btnDevConnect_clicked()
     m_msTimer->start();
 }
 
+void MainWindow::setRecordingActive(bool recording)
+{
+    // update the button without running on_btnRecord_toggled() again
+    {
+        const QSignalBlocker blocker(ui->btnRecord);
+        ui->btnRecord->setChecked(recording);
+    }
+    ui->btnRecord->setText(recording ? QStringLiteral("Stop recording") : QStringLiteral("Record"));
+
+    ui->pageRecord->setEnabled(!recording);
+    ui->btnDevConnect->setEnabled(!recording);
+    ui->btnAcquireZStack->setEnabled(!recording && m_mscope->isRunning());
+
+    setStatusProgressVisible(recording);
+    if (recording)
+        setStatusProgress(-1);
+}
+
 void MainWindow::on_btnRecord_toggled(bool checked)
 {
-    // don't do anything if miniscope isn't running
-    if (!m_mscope->isRunning())
+    // stopping must always be possible
+    if (!checked) {
+        m_mscope->stopRecording();
+        setRecordingActive(false);
         return;
+    }
+
+    // don't do anything if miniscope isn't running
+    if (!m_mscope->isRunning()) {
+        setRecordingActive(false);
+        return;
+    }
 
     QFileInfo dataLocation(m_dataDir);
     if (!dataLocation.isDir() || !dataLocation.isWritable() || m_dataDir.isEmpty()) {
@@ -651,32 +678,19 @@ void MainWindow::on_btnRecord_toggled(bool checked)
             this,
             "Recording Error",
             QStringLiteral("Data location '%1' is not a directory or not writable.").arg(m_dataDir));
+        setRecordingActive(false);
         return;
     }
 
-    if (checked) {
-        const auto videoFname = QDir(m_dataDir).filePath(
-            QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
-        if (const auto res = m_mscope->startRecording(videoFname.toStdString())) {
-            ui->pageRecord->setEnabled(false);
-            ui->btnDevConnect->setEnabled(false);
-            ui->btnRecord->setText("Stop recording");
-        } else {
-            QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
-            ui->btnRecord->setChecked(false);
-        }
-        ui->btnAcquireZStack->setEnabled(false);
-        setStatusProgressVisible(true);
-        setStatusProgress(-1);
-
-    } else {
-        m_mscope->stopRecording();
-        ui->pageRecord->setEnabled(true);
-        ui->btnDevConnect->setEnabled(true);
-        ui->btnAcquireZStack->setEnabled(true);
-        ui->btnRecord->setText("Record");
-        setStatusProgressVisible(false);
+    const auto videoFname = QDir(m_dataDir).filePath(
+        QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
+    if (const auto res = m_mscope->startRecording(videoFname.toStdString()); !res) {
+        QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
+        setRecordingActive(false);
+        return;
     }
+
+    setRecordingActive(true);
 }
 
 void MainWindow::on_btnHardReset_clicked()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -105,6 +105,7 @@ private:
     void setStatusText(const QString &msg);
     void setStatusProgress(int progress);
     void setStatusProgressVisible(bool visible);
+    void setRecordingActive(bool recording);
     void setDataExportDir(const QString &dir);
     void setUseUnixTimestamps(bool useUnixTimestamp);
 };
