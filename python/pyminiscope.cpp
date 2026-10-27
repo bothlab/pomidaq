@@ -182,8 +182,7 @@ PYBIND11_MODULE(miniscope, m)
             "labels",
             &Miniscope::ControlDefinition::labels,
             "Labels for individual values (mostly used for ControlKind.SELECTOR types, their index can be set as "
-            "control value)")
-        .def_readwrite("values", &Miniscope::ControlDefinition::values, "Possible values for this control");
+            "control value)");
 
     py::class_<Miniscope::Miniscope, MiniscopeHolder>(m, "Miniscope")
         .def(py::init<>())

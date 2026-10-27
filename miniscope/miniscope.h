@@ -81,26 +81,17 @@ enum class ControlKind {
 /**
  * @brief Miniscope control definition
  */
-class ControlDefinition
-{
-public:
-    explicit ControlDefinition()
-        : valueMin(-1),
-          valueMax(-1)
-    {
-    }
-
-    ControlKind kind;
+struct ControlDefinition {
+    ControlKind kind = ControlKind::Unknown;
     std::string id;
     std::string name;
 
-    int valueMin;
-    int valueMax;
-    double valueStart;
-    int stepSize;
+    int valueMin = -1;
+    int valueMax = -1;
+    double valueStart = 0;
+    int stepSize = 1;
 
     std::vector<std::string> labels;
-    std::vector<double> values;
 };
 
 /**

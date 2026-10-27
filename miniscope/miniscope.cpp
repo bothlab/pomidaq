@@ -93,16 +93,21 @@ public:
     Private()
         : thread(nullptr),
           scopeCamId(0),
+          emulateTimestamps(false),
+          supportsColor(false),
+          pixelClock(-1),
           connected(false),
           running(false),
           recording(false),
           failed(false),
           checkRecTrigger(false),
           droppedFramesCount(0),
+          rawFrameRetrieved(true),
           useColor(false),
           hasHeadOrientation(false),
           bnoIndicatorVisible(true),
           saveOrientationData(true),
+          recordLossless(true),
           printExtraDebug(true)
     {
         fps = 30;
@@ -175,7 +180,6 @@ public:
     bool connected;
     std::atomic_bool running;
     std::atomic_bool recording;
-    std::atomic_bool recordingZStack;
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
 
