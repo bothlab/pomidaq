@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <expected>
+#include <string>
 #include <QElapsedTimer>
 #include <QMainWindow>
 #include <QQueue>
@@ -31,6 +33,7 @@ class QProgressBar;
 namespace Miniscope
 {
 class Miniscope;
+class AsyncTask;
 }
 
 namespace Ui
@@ -108,6 +111,7 @@ private:
     void setStatusProgress(int progress);
     void setStatusProgressVisible(bool visible);
     void setRecordingActive(bool recording);
+    std::expected<void, std::string> waitForTask(Miniscope::AsyncTask &task);
     void setDataExportDir(const QString &dir);
     void setUseUnixTimestamps(bool useUnixTimestamp);
 };

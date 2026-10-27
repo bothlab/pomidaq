@@ -30,6 +30,7 @@
 #include <QSettings>
 #include <QInputDialog>
 #include <QTimer>
+#include <QEventLoop>
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QProgressBar>
@@ -334,8 +335,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
-    // set up display timer
-    m_msTimer->setInterval(0);
+    // set up display timer, to poll for new frames at about the display's refresh rate
+    m_msTimer->setInterval(16);
     connect(m_msTimer, &QTimer::timeout, this, &MainWindow::processMiniscopeDisplay);
 
     // install new message handler so output can also be redirected to the GUI
@@ -491,7 +492,11 @@ void MainWindow::processMiniscopeDisplay()
 {
     // display images while we are running
     if (m_mscope->isRunning()) {
-        if (const auto frame = m_mscope->fetchDisplayFrame()) {
+        // only show the newest frame, in case more than one arrived since the last update
+        std::optional<cv::Mat> frame;
+        while (auto next = m_mscope->fetchDisplayFrame())
+            frame = std::move(next);
+        if (frame) {
             m_scopeView->showImage(*frame);
 
             ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFps()));
@@ -841,6 +846,23 @@ void MainWindow::on_actionQuit_triggered()
     this->close();
 }
 
+std::expected<void, std::string> MainWindow::waitForTask(Miniscope::AsyncTask &task)
+{
+    // keep the UI responsive and show progress, without busy-waiting
+    QEventLoop loop;
+    QTimer pollTimer;
+    pollTimer.setInterval(50);
+    connect(&pollTimer, &QTimer::timeout, &loop, [&]() {
+        setStatusProgress(task.progressValue());
+        if (task.isFinished())
+            loop.quit();
+    });
+    pollTimer.start();
+    loop.exec();
+
+    return task.waitForFinished();
+}
+
 void MainWindow::on_btnAcquireZStack_clicked()
 {
     QString fileName = QFileDialog::getSaveFileName(
@@ -867,17 +889,8 @@ void MainWindow::on_btnAcquireZStack_clicked()
         ui->sbStackStepSize->value(),
         ui->sbStackAverage->value(),
         fileName.toStdString());
-    int lastProgress = -1;
-    while (!task.isFinished()) {
-        const auto progress = task.progressValue();
-        if (progress != lastProgress) {
-            setStatusProgress(progress);
-            lastProgress = progress;
-        }
-        QApplication::processEvents();
-    }
 
-    if (const auto res = task.waitForFinished()) {
+    if (const auto res = waitForTask(task)) {
         setStatusText("OK");
         setStatusProgressVisible(false);
     } else {
@@ -929,17 +942,8 @@ void MainWindow::on_btnAcquireAccu3D_clicked()
         ui->cbA3DKeepRaw->isChecked(),
         saveDirName.toStdString(),
         saveDataName.toStdString());
-    int lastProgress = -1;
-    while (!task.isFinished()) {
-        const auto progress = task.progressValue();
-        if (progress != lastProgress) {
-            setStatusProgress(progress);
-            lastProgress = progress;
-        }
-        QApplication::processEvents();
-    }
 
-    if (const auto res = task.waitForFinished()) {
+    if (const auto res = waitForTask(task)) {
         setStatusText("OK");
         setStatusProgressVisible(false);
     } else {
