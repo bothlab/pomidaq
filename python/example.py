@@ -52,7 +52,7 @@ for ctl in mscope.controls:
         print(' * {}: {} (default value: {})'.format(ctl.id, ctl.name, value_start))
 
 print('Connecting to device with ID: {}\n'.format(DEVICE_ID))
-mscope.set_cam_id(DEVICE_ID)
+mscope.cam_id = DEVICE_ID
 try:
     mscope.connect()
 except RuntimeError as e:

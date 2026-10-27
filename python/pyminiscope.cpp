@@ -96,6 +96,68 @@ static void setPyLogHandler(const py::object &handler)
 }
 
 /**
+ * Holds a Python callable used as library callback.
+ * The callback may be invoked and destroyed from threads which do not hold the GIL
+ * (e.g. when the Miniscope is destroyed by GilReleasingDeleter), so we acquire it in both cases.
+ */
+class PyCallback
+{
+public:
+    PyCallback(py::object fn, const char *name)
+        : m_fn(std::move(fn)),
+          m_name(name)
+    {
+    }
+
+    ~PyCallback()
+    {
+        // never try to grab the GIL while the interpreter shuts down, leak the object instead
+        if (pyIsFinalizing()) {
+            m_fn.release();
+            return;
+        }
+        py::gil_scoped_acquire gil;
+        m_fn = py::object();
+    }
+
+    PyCallback(const PyCallback &) = delete;
+    PyCallback &operator=(const PyCallback &) = delete;
+
+    template<typename... Args>
+    void operator()(Args &&...args) const
+    {
+        if (pyIsFinalizing())
+            return;
+
+        py::gil_scoped_acquire gil;
+        try {
+            m_fn(std::forward<Args>(args)...);
+        } catch (py::error_already_set &e) {
+            e.discard_as_unraisable(m_name);
+        }
+    }
+
+private:
+    py::object m_fn;
+    const char *m_name;
+};
+
+/**
+ * Wrap a Python callable (or None) for use as library callback.
+ * Returns nullptr for None, so the respective callback is unset.
+ */
+static std::shared_ptr<PyCallback> makePyCallback(Miniscope::Miniscope &mscope, const py::object &fn, const char *name)
+{
+    if (mscope.isRunning())
+        throw std::runtime_error("Callbacks can not be changed while acquisition is running.");
+    if (fn.is_none())
+        return nullptr;
+    if (!py::isinstance<py::function>(fn) && !py::hasattr(fn, "__call__"))
+        throw py::type_error("Callback must be callable or None");
+    return std::make_shared<PyCallback>(fn, name);
+}
+
+/**
  * Drop any Python log handler when the module is unloaded, so the library
  * never calls into a torn-down interpreter and the handler's Python object
  * is released while the GIL is still held.
@@ -163,6 +225,12 @@ PYBIND11_MODULE(miniscope, m)
         "which prints to stdout/stderr.");
     m.add_object("_log_handler_cleanup", py::capsule(&logHandlerModuleCleanup));
 
+    m.def(
+        "video_device_name_from_id",
+        &Miniscope::videoDeviceNameFromId,
+        py::arg("id"),
+        "Get the name of the video device with the given camera ID (currently only supported on Linux)");
+
     py::enum_<Miniscope::ControlKind>(m, "ControlKind", py::arithmetic())
         .value("UNKNOWN", Miniscope::ControlKind::Unknown)
         .value("SELECTOR", Miniscope::ControlKind::Selector)
@@ -205,7 +273,11 @@ PYBIND11_MODULE(miniscope, m)
             "device_type",
             &Miniscope::Miniscope::deviceType,
             "get the name of the currently loaded Miniscope device type")
-        .def("set_cam_id", &Miniscope::Miniscope::setScopeCamId, "Set the Miniscope camera ID")
+        .def_property(
+            "cam_id",
+            &Miniscope::Miniscope::scopeCamId,
+            &Miniscope::Miniscope::setScopeCamId,
+            "ID of the camera device of the Miniscope DAQ board to connect to")
 
         .def(
             "connect",
@@ -280,6 +352,37 @@ PYBIND11_MODULE(miniscope, m)
             py::call_guard<py::gil_scoped_release>(),
             "Set new value for control with the given ID (raises RuntimeError on failure)")
 
+        .def(
+            "set_on_status_message",
+            [](Miniscope::Miniscope &self, const py::object &callback) {
+                auto cb = makePyCallback(self, callback, "miniscope status message callback");
+                if (!cb) {
+                    self.setOnStatusMessage(nullptr);
+                    return;
+                }
+                self.setOnStatusMessage([cb](const std::string &message) {
+                    (*cb)(message);
+                });
+            },
+            py::arg("callback"),
+            "Set a callable receiving status messages as (message). It may be invoked from library threads.\n"
+            "Pass None to remove it. Can not be changed while acquisition is running.")
+        .def(
+            "set_on_control_value_change",
+            [](Miniscope::Miniscope &self, const py::object &callback) {
+                auto cb = makePyCallback(self, callback, "miniscope control value change callback");
+                if (!cb) {
+                    self.setOnControlValueChange(nullptr);
+                    return;
+                }
+                self.setOnControlValueChange([cb](const std::string &id, double displayValue, double deviceValue) {
+                    (*cb)(id, displayValue, deviceValue);
+                });
+            },
+            py::arg("callback"),
+            "Set a callable receiving control changes as (id, display_value, device_value). It may be invoked\n"
+            "from library threads. Pass None to remove it. Can not be changed while acquisition is running.")
+
         .def_property_readonly(
             "is_connected", &Miniscope::Miniscope::isConnected, "Is True if a Miniscope is connected")
         .def_property_readonly(
@@ -293,6 +396,34 @@ PYBIND11_MODULE(miniscope, m)
         .def_property_readonly("current_fps", &Miniscope::Miniscope::currentFps)
         .def_property_readonly("dropped_frame_count", &Miniscope::Miniscope::droppedFrameCount)
         .def_property_readonly("last_recorded_frame_time", &Miniscope::Miniscope::lastRecordedFrameTime)
+        .def(
+            "fetch_last_raw_frame",
+            &Miniscope::Miniscope::fetchLastRawFrame,
+            "Get the raw frame that was acquired last (None if there is no new frame since the last call).\n"
+            "Not suitable to get every frame, as frames may be missed.")
+        .def_property_readonly(
+            "acquired_frame_count",
+            &Miniscope::Miniscope::acquiredFrameCount,
+            "The number of valid frames acquired since acquisition was started")
+        .def(
+            "wait_for_acquired_frame_count",
+            [](Miniscope::Miniscope &self, unsigned int count) {
+                raiseOnError(self.waitForAcquiredFrameCount(count));
+            },
+            py::arg("count"),
+            py::call_guard<py::gil_scoped_release>(),
+            "Wait for the given number of frames to be acquired (raises RuntimeError if acquisition stops)")
+        .def_property_readonly(
+            "fps", &Miniscope::Miniscope::fps, "The framerate the device is configured for (see current_fps)")
+        .def_property(
+            "use_unix_timestamps",
+            &Miniscope::Miniscope::useUnixTimestamps,
+            &Miniscope::Miniscope::setUseUnixTimestamps,
+            "Whether frame timestamps are UNIX timestamps, instead of starting at zero")
+        .def_property_readonly(
+            "unix_capture_start_time",
+            &Miniscope::Miniscope::unixCaptureStartTime,
+            "The UNIX time frame timestamps are based on (zero if UNIX timestamps are not used)")
 
         .def_property(
             "video_filename",

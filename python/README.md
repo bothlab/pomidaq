@@ -59,7 +59,7 @@ from miniscope import Miniscope
 
 mscope = Miniscope()
 mscope.load_device_config('Miniscope_V4')
-mscope.set_cam_id(0)
+mscope.cam_id = 0
 
 mscope.connect()
 mscope.run()
