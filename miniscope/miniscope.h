@@ -186,7 +186,8 @@ public:
      * @brief Start recording acquired frames to disk.
      *
      * Starts the acquisition first if it is not running yet.
-     * Fails if no device is connected, or if acquisition can not be started.
+     * Fails if no device is connected, if a recording is already running,
+     * or if acquisition can not be started.
      */
     Result startRecording(const std::string &fname = "");
     void stopRecording();
@@ -300,6 +301,12 @@ public:
     void setExternalRecordTrigger(bool enabled);
 
     std::string videoFilename() const;
+
+    /**
+     * @brief Set the base filename for the next recording.
+     *
+     * The filename can not be changed while recording, calls are ignored in that case.
+     */
     void setVideoFilename(const std::string &fname);
 
     VideoCodec videoCodec() const;

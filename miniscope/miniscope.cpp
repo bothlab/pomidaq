@@ -148,7 +148,7 @@ public:
     ControlChangeCallback controlChangeCallback;
 
     cv::VideoCapture cam;
-    int scopeCamId;
+    std::atomic_int scopeCamId;
     bool emulateTimestamps;
 
     json deviceConfig;
@@ -167,7 +167,7 @@ public:
 
     std::atomic<double> fps;
     std::string videoFname;
-    bool useUnixTime;
+    std::atomic_bool useUnixTime;
     std::atomic<milliseconds_t> unixCaptureStartTime;
     std::chrono::time_point<std::chrono::steady_clock> startTimepoint;
     std::atomic_bool captureStartTimeInitialized;
@@ -198,20 +198,21 @@ public:
     RawDataCallback frameCallback;
     DisplayFrameCallback displayFrameCallback;
 
+    // settings that the DAQ thread reads while they may be changed by the API user
     bool useColor;
-    bool showRed;
-    bool showGreen;
-    bool showBlue;
+    std::atomic_bool showRed;
+    std::atomic_bool showGreen;
+    std::atomic_bool showBlue;
     bool hasHeadOrientation;
-    bool bnoIndicatorVisible;
-    bool saveOrientationData;
+    std::atomic_bool bnoIndicatorVisible;
+    std::atomic_bool saveOrientationData;
 
-    VideoCodec videoCodec;
-    VideoContainer videoContainer;
-    bool recordLossless;
-    unsigned int recordingSliceInterval;
+    std::atomic<VideoCodec> videoCodec;
+    std::atomic<VideoContainer> videoContainer;
+    std::atomic_bool recordLossless;
+    std::atomic_uint recordingSliceInterval;
 
-    bool printExtraDebug;
+    std::atomic_bool printExtraDebug;
 
     // outcome of the last acquisition run
     std::mutex runResultMutex;
@@ -908,7 +909,7 @@ Result Miniscope::connect()
     d->failed = false;
     d->connected = true;
 
-    statusMessage(std::format("Initialized camera {}", d->scopeCamId));
+    statusMessage(std::format("Initialized camera {}", d->scopeCamId.load()));
     return {};
 }
 
@@ -922,14 +923,14 @@ void Miniscope::disconnect()
         // If this is omitted, subsequent reconnect attempts will fail.
         resetV4L2State(d->scopeCamId);
 #endif
-        statusMessage(std::format("Disconnected camera {}", d->scopeCamId));
+        statusMessage(std::format("Disconnected camera {}", d->scopeCamId.load()));
     }
     d->connected = false;
 }
 
 Result Miniscope::hardReset()
 {
-    statusMessage(std::format("Performing hard reset of device {}", d->scopeCamId));
+    statusMessage(std::format("Performing hard reset of device {}", d->scopeCamId.load()));
     if (d->connected)
         disconnect();
 
@@ -948,8 +949,9 @@ Result Miniscope::hardReset()
     }
 
     if (!ret) {
-        statusMessage(std::format("Reset of {} failed.", d->scopeCamId));
-        return std::unexpected(std::format("Reset of {} failed: Unable to open the camera device.", d->scopeCamId));
+        statusMessage(std::format("Reset of {} failed.", d->scopeCamId.load()));
+        return std::unexpected(
+            std::format("Reset of {} failed: Unable to open the camera device.", d->scopeCamId.load()));
     }
 
     // clear any old commands
@@ -971,7 +973,7 @@ Result Miniscope::hardReset()
     resetV4L2State(d->scopeCamId);
 #endif
 
-    statusMessage(std::format("Device {} has been reset.", d->scopeCamId));
+    statusMessage(std::format("Device {} has been reset.", d->scopeCamId.load()));
     return {};
 }
 
@@ -1138,6 +1140,9 @@ Result Miniscope::startRecording(const std::string &fname)
 {
     if (!d->connected)
         return std::unexpected("Can not start recording: Miniscope is not connected.");
+    // the DAQ thread reads the filename when a recording starts, so it must not change while recording
+    if (d->recording)
+        return std::unexpected("Recording is already running.");
     if (!d->running) {
         if (auto res = run(); !res)
             return res;
@@ -1334,8 +1339,11 @@ std::string Miniscope::videoFilename() const
 
 void Miniscope::setVideoFilename(const std::string &fname)
 {
-    // TODO: Maybe mutex this, to prevent API users from doing the wrong thing
-    // and checking the value directly after the recording was started?
+    // the DAQ thread reads the filename when a recording starts, so it must not change while recording
+    if (d->recording) {
+        MS_LOG_WARNING(logMScope, "Can not change the video filename while recording.");
+        return;
+    }
     d->videoFname = fname;
 }
 
