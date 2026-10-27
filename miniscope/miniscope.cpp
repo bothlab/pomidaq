@@ -99,7 +99,6 @@ public:
           thread(nullptr),
           scopeCamId(0),
           emulateTimestamps(false),
-          supportsColor(false),
           pixelClock(-1),
           commandsPending(false),
           connected(false),
@@ -110,7 +109,6 @@ public:
           droppedFramesCount(0),
           acquiredFrames(0),
           rawFrameRetrieved(true),
-          useColor(false),
           hasHeadOrientation(false),
           bnoIndicatorVisible(true),
           saveOrientationData(true),
@@ -120,10 +118,6 @@ public:
         displayQueue.clear();
         videoCodec = VideoCodec::FFV1;
         videoContainer = VideoContainer::Matroska;
-
-        showRed = true;
-        showGreen = true;
-        showBlue = true;
 
         displayMode = DisplayMode::RawFrames;
 
@@ -172,7 +166,6 @@ public:
     json deviceConfig;
     std::string deviceType;
     cv::Size resolution;
-    bool supportsColor;
     std::string sensorType;
     double pixelClock;
 
@@ -217,10 +210,6 @@ public:
     DisplayFrameCallback displayFrameCallback;
 
     // settings that the DAQ thread reads while they may be changed by the API user
-    bool useColor;
-    std::atomic_bool showRed;
-    std::atomic_bool showGreen;
-    std::atomic_bool showBlue;
     bool hasHeadOrientation;
     std::atomic_bool bnoIndicatorVisible;
     std::atomic_bool saveOrientationData;
@@ -405,7 +394,6 @@ Result Miniscope::loadDeviceConfig(const std::string &deviceType)
     d->resolution = cv::Size(
         Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "width"), -1),
         Utils::jsonInt(Utils::jsonMember(d->deviceConfig, "height"), -1));
-    d->supportsColor = Utils::jsonBool(Utils::jsonMember(d->deviceConfig, "isColor"), false);
     d->sensorType = Utils::jsonString(Utils::jsonMember(d->deviceConfig, "sensor"), "unknown");
     d->pixelClock = Utils::jsonDouble(Utils::jsonMember(d->deviceConfig, "pixelClock"), -1);
     d->hasHeadOrientation = Utils::jsonBool(Utils::jsonMember(d->deviceConfig, "headOrientation"), false);
@@ -1217,28 +1205,6 @@ bool Miniscope::captureStartTimeInitialized() const
     return d->captureStartTimeInitialized;
 }
 
-void Miniscope::setVisibleChannels(bool red, bool green, bool blue)
-{
-    d->showRed = red;
-    d->showGreen = green;
-    d->showBlue = blue;
-}
-
-bool Miniscope::showRedChannel() const
-{
-    return d->showRed;
-}
-
-bool Miniscope::showGreenChannel() const
-{
-    return d->showGreen;
-}
-
-bool Miniscope::showBlueChannel() const
-{
-    return d->showBlue;
-}
-
 /**
  * Callbacks are used by the DAQ thread without locking, so they must not change while it is running.
  */
@@ -2048,36 +2014,17 @@ void Miniscope::Private::captureThread()
             cv::subtract(displayFrame, tmpBgMat, displayFrame);
         }
 
-        if (d->useColor) {
-            cv::cvtColor(displayFrame, displayFrame, cv::COLOR_GRAY2BGR);
+        // scale the grayscale image to the selected display range
+        double minF, maxF;
+        cv::minMaxLoc(displayFrame, &minF, &maxF);
+        d->minFluor = static_cast<int>(minF);
+        d->maxFluor = static_cast<int>(maxF);
 
-            // we want a colored image
-            if (d->showRed || d->showGreen || d->showBlue) {
-                cv::Mat bgrChannels[3];
-                cv::split(displayFrame, bgrChannels);
-
-                if (!d->showBlue)
-                    bgrChannels[0] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
-                if (!d->showGreen)
-                    bgrChannels[1] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
-                if (!d->showRed)
-                    bgrChannels[2] = cv::Mat::zeros(displayFrame.rows, displayFrame.cols, CV_8UC1);
-
-                cv::merge(bgrChannels, 3, displayFrame);
-            }
-        } else {
-            // grayscale image
-            double minF, maxF;
-            cv::minMaxLoc(displayFrame, &minF, &maxF);
-            d->minFluor = static_cast<int>(minF);
-            d->maxFluor = static_cast<int>(maxF);
-
-            displayFrame.convertTo(
-                displayFrame,
-                CV_8U,
-                255.0 / (d->maxFluorDisplay - d->minFluorDisplay),
-                -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
-        }
+        displayFrame.convertTo(
+            displayFrame,
+            CV_8U,
+            255.0 / (d->maxFluorDisplay - d->minFluorDisplay),
+            -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
 
         if (bnoIndicatorVisible) {
             auto qw = bnoVec[0];

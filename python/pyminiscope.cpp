@@ -280,14 +280,6 @@ PYBIND11_MODULE(miniscope, m)
             py::call_guard<py::gil_scoped_release>(),
             "Set new value for control with the given ID (raises RuntimeError on failure)")
 
-        .def(
-            "set_visible_channels",
-            &Miniscope::Miniscope::setVisibleChannels,
-            "Set which channels (red, green, blue) should be visible")
-        .def_property_readonly("show_red_channels", &Miniscope::Miniscope::showRedChannel)
-        .def_property_readonly("show_green_channels", &Miniscope::Miniscope::showGreenChannel)
-        .def_property_readonly("show_blue_channels", &Miniscope::Miniscope::showBlueChannel)
-
         .def_property_readonly(
             "is_connected", &Miniscope::Miniscope::isConnected, "Is True if a Miniscope is connected")
         .def_property_readonly(

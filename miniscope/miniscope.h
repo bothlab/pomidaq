@@ -230,11 +230,6 @@ public:
     bool isRecording() const;
     bool captureStartTimeInitialized() const;
 
-    void setVisibleChannels(bool red, bool green, bool blue);
-    bool showRedChannel() const;
-    bool showGreenChannel() const;
-    bool showBlueChannel() const;
-
     /**
      * @brief Called when a new status message is generated.
      *
