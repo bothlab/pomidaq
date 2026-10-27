@@ -25,12 +25,13 @@
 
 int main(int argc, char *argv[])
 {
-#ifndef QT_OPENGL_ES
-    // our shaders need OpenGL 4.1 in core profile, which some platforms only provide if requested explicitly
-    QSurfaceFormat format;
-    format.setVersion(4, 1);
-    format.setProfile(QSurfaceFormat::CoreProfile);
-    QSurfaceFormat::setDefaultFormat(format);
+#if !QT_CONFIG(opengles2)
+    // the shaders need OpenGL 4.1 in core profile, which some platforms only provide if requested
+    // explicitly. This must be set before QApplication exists, so context sharing keeps working.
+    QSurfaceFormat glFormat;
+    glFormat.setVersion(4, 1);
+    glFormat.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(glFormat);
 #endif
 
     QApplication a(argc, argv);

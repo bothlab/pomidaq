@@ -29,7 +29,7 @@
 #include <cmath>
 #include <cstring>
 
-#if defined(QT_OPENGL_ES)
+#if QT_CONFIG(opengles2)
 #define USE_GLES 1
 #else
 #undef USE_GLES
