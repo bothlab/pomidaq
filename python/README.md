@@ -75,8 +75,8 @@ mscope.disconnect()
 
 Operations that can fail (`load_device_config`, `connect`, `run`,
 `start_recording`, `hard_reset`) raise a `RuntimeError` with a descriptive
-message. Errors that stop a running acquisition are available via the
-`last_error` property.
+message. If an error stops a running acquisition, `is_running` turns `False`
+and `wait_for_result()` raises a `RuntimeError` with the reason.
 
 A complete example can be found in
 [`python/example.py`](https://github.com/bothlab/pomidaq/blob/master/python/example.py)

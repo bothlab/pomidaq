@@ -21,6 +21,7 @@
 #define VIDEOWRITER_H
 
 #include <chrono>
+#include <expected>
 #include <memory>
 #include <string>
 #include <opencv2/core.hpp>
@@ -40,7 +41,7 @@ public:
     VideoWriter();
     ~VideoWriter();
 
-    void initialize(
+    std::expected<void, std::string> initialize(
         const std::string &fname,
         int width,
         int height,
@@ -53,7 +54,13 @@ public:
     std::chrono::milliseconds captureStartTimestamp() const;
     void setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp);
 
-    bool pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time);
+    /**
+     * @brief Queue a frame for encoding.
+     *
+     * Fails if the queue is full, if the writer does not accept frames,
+     * or if the encoder thread ran into an unrecoverable error.
+     */
+    std::expected<void, std::string> pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time);
 
     Miniscope::VideoCodec codec() const;
     void setCodec(Miniscope::VideoCodec codec);
@@ -71,20 +78,18 @@ public:
     unsigned int fileSliceInterval() const;
     void setFileSliceInterval(unsigned int minutes);
 
-    std::string lastError() const;
-
 private:
     class Private;
     VideoWriter(const VideoWriter &) = delete;
     VideoWriter &operator=(const VideoWriter &) = delete;
     std::unique_ptr<Private> d;
 
-    void initializeInternal();
+    std::expected<void, std::string> initializeInternal();
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
     static void encodeThread(void *vwPtr);
     bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
-    bool prepareFrame(const cv::Mat &inImage);
-    bool encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp);
+    std::expected<void, std::string> prepareFrame(const cv::Mat &inImage);
+    std::expected<void, std::string> encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp);
     void startEncodeThread();
     void stopEncodeThread();
 };

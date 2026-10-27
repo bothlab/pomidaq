@@ -533,8 +533,9 @@ void MainWindow::processMiniscopeDisplay()
     ui->deviceTypeComboBox->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
-    if (const auto error = m_mscope->lastError())
-        QMessageBox::critical(this, "Error", QString::fromStdString(*error));
+    // clean up the stopped acquisition, and show why it stopped if it failed
+    if (const auto res = m_mscope->waitForResult(); !res)
+        QMessageBox::critical(this, "Error", QString::fromStdString(res.error()));
 
     // switch back to connect page, as this is the
     // only useful page when no scope is connected

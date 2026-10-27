@@ -133,6 +133,7 @@ public:
     }
 
     std::thread *thread;
+    std::mutex ctMutex; // protects the thread pointer, so it is only joined once
     std::mutex dispFrameMutex;
     std::mutex rawFrameMutex;
     std::mutex timeMutex;
@@ -208,7 +209,10 @@ public:
     unsigned int recordingSliceInterval;
 
     bool printExtraDebug;
-    std::string lastError;
+
+    // outcome of the last acquisition run
+    std::mutex runResultMutex;
+    Result runResult;
 };
 #pragma GCC diagnostic pop
 
@@ -353,10 +357,8 @@ Result Miniscope::loadDeviceConfig(const std::string &deviceType)
 
     // load new device data
     const auto allDevConfigs = msconfGetDevicesJson();
-    if (!allDevConfigs.contains(deviceType)) {
-        d->lastError = std::format("Unable to find device configuration with name '{}'", deviceType);
-        return std::unexpected(d->lastError);
-    }
+    if (!allDevConfigs.contains(deviceType))
+        return std::unexpected(std::format("Unable to find device configuration with name '{}'", deviceType));
     d->deviceConfig = Utils::jsonObject(allDevConfigs[deviceType]);
     d->deviceType = deviceType;
 
@@ -481,18 +483,30 @@ void Miniscope::startCaptureThread()
 {
     finishCaptureThread();
     d->emulateTimestamps = false;
+    {
+        std::lock_guard<std::mutex> lock(d->runResultMutex);
+        d->runResult = {};
+    }
     d->running = true;
+
+    std::lock_guard<std::mutex> lock(d->ctMutex);
     d->thread = new std::thread(captureThread, this);
 }
 
 void Miniscope::finishCaptureThread()
 {
-    if (d->thread != nullptr) {
-        d->running = false;
-        d->thread->join();
-        delete d->thread;
-        d->thread = nullptr;
-    }
+    d->running = false;
+    joinCaptureThread();
+}
+
+void Miniscope::joinCaptureThread()
+{
+    std::lock_guard<std::mutex> lock(d->ctMutex);
+    if (d->thread == nullptr)
+        return;
+    d->thread->join();
+    delete d->thread;
+    d->thread = nullptr;
 }
 
 void Miniscope::statusMessage(const std::string &msg)
@@ -506,10 +520,15 @@ void Miniscope::statusMessage(const std::string &msg)
 
 void Miniscope::fail(const std::string &msg)
 {
+    {
+        // only keep the first error, as that is the one which caused the failure
+        std::lock_guard<std::mutex> lock(d->runResultMutex);
+        if (d->runResult)
+            d->runResult = std::unexpected(msg);
+    }
     d->recording = false;
     d->running = false;
     d->failed = true;
-    d->lastError = msg;
 
     MS_LOG_WARNING(logMScope, "{}", msg);
 }
@@ -817,10 +836,8 @@ Result Miniscope::connect()
         }
     }
 
-    if (d->deviceConfig.empty() || d->deviceType.empty()) {
-        fail("Unable to connect to Miniscope: No device type to connect to was selected.");
-        return std::unexpected(d->lastError);
-    }
+    if (d->deviceConfig.empty() || d->deviceType.empty())
+        return std::unexpected("Unable to connect to Miniscope: No device type to connect to was selected.");
 
     // reset cached control values, so we start with pristine defaults
     {
@@ -828,13 +845,10 @@ Result Miniscope::connect()
         d->controlValueCache.clear();
     }
 
-    if (!openCamera()) {
-        fail("Unable to connect to Miniscope camera. Is the DAQ board connected?");
-        return std::unexpected(d->lastError);
-    }
+    if (!openCamera())
+        return std::unexpected("Unable to connect to Miniscope camera. Is the DAQ board connected?");
 
     d->failed = false;
-    d->lastError.clear();
     d->connected = true;
 
     statusMessage(std::format("Initialized camera {}", d->scopeCamId));
@@ -1038,6 +1052,16 @@ void Miniscope::stop()
     d->recording = false;
     d->running = false;
     finishCaptureThread();
+}
+
+Result Miniscope::waitForResult()
+{
+    // wait for the DAQ thread to end on its own, or because stop() was called
+    joinCaptureThread();
+
+    // the DAQ thread has finished, so the result can not change anymore
+    std::lock_guard<std::mutex> lock(d->runResultMutex);
+    return d->runResult;
 }
 
 Result Miniscope::startRecording(const std::string &fname)
@@ -1363,13 +1387,6 @@ void Miniscope::setPrintExtraDebug(bool enabled)
     d->printExtraDebug = enabled;
 }
 
-std::optional<std::string> Miniscope::lastError() const
-{
-    if (d->lastError.empty())
-        return std::nullopt;
-    return d->lastError;
-}
-
 milliseconds_t Miniscope::lastRecordedFrameTime() const
 {
     return d->lastRecordedFrameTime;
@@ -1382,14 +1399,12 @@ long Miniscope::acquiredFrameCount() const
     return static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
 }
 
-bool Miniscope::waitForAcquiredFrameCount(unsigned int count)
+Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
 {
-    if (!d->running) {
-        d->lastError = "Miniscope was not running.";
-        return false;
-    }
+    if (!d->running)
+        return std::unexpected("Can not wait for frames: Miniscope is not running.");
     if (count == 0)
-        return true;
+        return {};
 
     const auto initialFrameCount = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE));
     milliseconds_t waitTimeMsec = milliseconds_t((1000 / (int)d->currentFPS) / 2);
@@ -1400,6 +1415,9 @@ bool Miniscope::waitForAcquiredFrameCount(unsigned int count)
     // older Miniscope firmware will not give us reliable frame counts.
     const auto maxIterations = count * 2.2;
     for (unsigned int i = 0; i < maxIterations; i++) {
+        if (!d->running)
+            return std::unexpected("Miniscope acquisition stopped while waiting for frames.");
+
         auto framesCounted = static_cast<long>(d->cam.get(cv::CAP_PROP_EXPOSURE)) - initialFrameCount;
         if (framesCounted >= static_cast<long>(count))
             break;
@@ -1407,7 +1425,7 @@ bool Miniscope::waitForAcquiredFrameCount(unsigned int count)
         std::this_thread::sleep_for(milliseconds_t(waitTimeMsec));
     }
 
-    return true;
+    return {};
 }
 
 void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
@@ -1615,9 +1633,8 @@ void Miniscope::captureThread(void *msPtr)
             MS_LOG_WARNING(logMScope, "Unable to load BNO indicator image resource 2");
     }
 
-    // reset errors
+    // reset failure state
     d->failed = false;
-    d->lastError.clear();
 
     // prepare accumulator image for running average (for dF/F)
     cv::Mat accumulatedMat;
@@ -1845,11 +1862,10 @@ void Miniscope::captureThread(void *msPtr)
                     vidFnameBase = vidFnameBase.substr(
                         0, vidFnameBase.length() - 4); // remove 3-char suffix from filename
 
-                try {
-                    vwriter->initialize(
+                if (auto res = vwriter->initialize(
                         vidFnameBase, frame.cols, frame.rows, static_cast<int>(d->fps), frame.channels() == 3);
-                } catch (const std::runtime_error &e) {
-                    self->fail(std::format("Unable to initialize recording: {}", e.what()));
+                    !res) {
+                    self->fail(std::format("Unable to initialize recording: {}", res.error()));
                     break;
                 }
 
@@ -1990,8 +2006,8 @@ void Miniscope::captureThread(void *msPtr)
         // frame to disk if we want to record it.
         self->addDisplayFrameToBuffer(displayFrame, frameTimestamp);
         if (recordFrames) {
-            if (!vwriter->pushFrame(frame, frameTimestamp))
-                self->fail(std::format("Unable to send frames to encoder: {}", vwriter->lastError()));
+            if (auto res = vwriter->pushFrame(frame, frameTimestamp); !res)
+                self->fail(std::format("Unable to send frames to encoder: {}", res.error()));
             if (saveOrientationData) {
                 if (prevBnoVec != bnoVec && bnoVec[4] < 0.05)
                     bnoWriter->addRow(frameTimestamp, bnoVec);

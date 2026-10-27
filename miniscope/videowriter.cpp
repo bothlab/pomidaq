@@ -24,7 +24,6 @@
 #include <cstring>
 #include <format>
 #include <iostream>
-#include <stdexcept>
 #include <atomic>
 #include <thread>
 #include <mutex>
@@ -77,10 +76,10 @@ public:
         lossless = false;
     }
 
-    std::string lastError;
     std::thread *thread;
     std::mutex mutex;
     std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
+    std::expected<void, std::string> encodeResult; // protected by mutex
 
     std::string fnameBase;
     unsigned int fileSliceIntervalMin;
@@ -88,7 +87,7 @@ public:
     VideoCodec codec;
     VideoContainer container;
 
-    bool initialized;
+    std::atomic_bool initialized;
     std::atomic_bool acceptFrames;
     int width;
     int height;
@@ -156,7 +155,7 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
     return aframe;
 }
 
-void VideoWriter::initializeInternal()
+std::expected<void, std::string> VideoWriter::initializeInternal()
 {
     // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
@@ -198,13 +197,13 @@ void VideoWriter::initializeInternal()
     d->octx = nullptr;
     ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
     if (ret < 0)
-        throw std::runtime_error(std::format("Failed to allocate output context: {}", ret));
+        return std::unexpected(std::format("Failed to allocate output context: {}", ret));
 
     // open output IO context
     ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
     if (ret < 0) {
-        finalizeInternal(false);
-        throw std::runtime_error(std::format("Failed to open output I/O context: {}", ret));
+        finalizeInternal(false, false);
+        return std::unexpected(std::format("Failed to open output I/O context: {}", ret));
     }
 
     auto codecId = AV_CODEC_ID_AV1;
@@ -239,7 +238,7 @@ void VideoWriter::initializeInternal()
     // create new video stream
     d->vstrm = avformat_new_stream(d->octx, vcodec);
     if (!d->vstrm)
-        throw std::runtime_error("Failed to create new video stream.");
+        return std::unexpected("Failed to create new video stream.");
     avcodec_parameters_to_context(d->cctx, d->vstrm->codecpar);
 
     // set codec parameters
@@ -355,9 +354,9 @@ void VideoWriter::initializeInternal()
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
     if (ret < 0) {
-        finalizeInternal(false);
+        finalizeInternal(false, false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(std::format("Failed to open video encoder: {}", ret));
+        return std::unexpected(std::format("Failed to open video encoder: {}", ret));
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -379,8 +378,8 @@ void VideoWriter::initializeInternal()
         nullptr);
 
     if (!d->swsctx) {
-        finalizeInternal(false);
-        throw std::runtime_error("Failed to initialize sample scaler.");
+        finalizeInternal(false, false);
+        return std::unexpected("Failed to initialize sample scaler.");
     }
 
     // allocate frame buffer for encoding
@@ -392,8 +391,8 @@ void VideoWriter::initializeInternal()
     // write format header, after this we are ready to encode frames
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
-        finalizeInternal(false);
-        throw std::runtime_error(std::format("Failed to write format header: {}", ret));
+        finalizeInternal(false, false);
+        return std::unexpected(std::format("Failed to write format header: {}", ret));
     }
     d->framePts = 0;
 
@@ -407,6 +406,7 @@ void VideoWriter::initializeInternal()
     }
 
     d->initialized = true;
+    return {};
 }
 
 void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
@@ -459,7 +459,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(
+std::expected<void, std::string> VideoWriter::initialize(
     const std::string &fname,
     int width,
     int height,
@@ -468,7 +468,7 @@ void VideoWriter::initialize(
     bool saveTimestamps)
 {
     if (d->initialized)
-        throw std::runtime_error("Tried to initialize an already initialized video writer.");
+        return std::unexpected("Tried to initialize an already initialized video writer.");
 
     d->width = width;
     d->height = height;
@@ -485,10 +485,12 @@ void VideoWriter::initialize(
     d->inputPixFormat = hasColor ? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
 
     // initialize encoder
-    initializeInternal();
+    if (auto res = initializeInternal(); !res)
+        return res;
 
     // start encoding data
     startEncodeThread();
+    return {};
 }
 
 void VideoWriter::finalize()
@@ -511,7 +513,7 @@ void VideoWriter::setCaptureStartTimestamp(const std::chrono::milliseconds &star
     d->captureStartTimestamp = startTimestamp;
 }
 
-bool VideoWriter::prepareFrame(const cv::Mat &inImage)
+std::expected<void, std::string> VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
     auto image = inImage;
 
@@ -532,16 +534,13 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(
+        return std::unexpected(
             std::format(
                 "Received bigger frame than we expected ({}x{} instead {}x{})", width, height, d->width, d->height));
-    if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
-        d->lastError = std::format("Expected BGR colored image, but received image has {} channels", channels);
-        return false;
-    } else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
-        d->lastError = std::format("Expected grayscale image, but received image has {} channels", channels);
-        return false;
-    }
+    if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3))
+        return std::unexpected(std::format("Expected BGR colored image, but received image has {} channels", channels));
+    else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1))
+        return std::unexpected(std::format("Expected grayscale image, but received image has {} channels", channels));
 
     // FFmpeg contains SIMD optimizations which can sometimes read data past
     // the supplied input buffer. To ensure that doesn't happen, we pad the
@@ -581,10 +580,8 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
                 d->height,
                 d->frame->data,
                 d->frame->linesize)
-            < 0) {
-            d->lastError = "Unable to scale image in pixel format comnversion.";
-            return false;
-        }
+            < 0)
+            return std::unexpected("Unable to scale image in pixel format conversion.");
 
     } else {
         av_image_fill_arrays(
@@ -599,42 +596,38 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
     }
 
     d->frame->pts = d->framePts++;
-    return true;
+    return {};
 }
 
-bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp)
+std::expected<void, std::string> VideoWriter::encodeFrame(
+    const cv::Mat &frame,
+    const std::chrono::milliseconds &timestamp)
 {
     int ret;
-    bool success = false;
+    std::expected<void, std::string> result;
     AVPacket *pkt = nullptr;
 
-    if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError << ")" << std::endl;
-        return false;
-    }
+    if (auto res = prepareFrame(frame); !res)
+        return std::unexpected(std::format("Unable to prepare frame {}: {}", d->frames_n + 1, res.error()));
 
     // encode video frame
     ret = avcodec_send_frame(d->cctx, d->frame);
-    if (ret < 0) {
-        std::cerr << "Unable to send frame to encoder. N:" << d->frames_n + 1 << std::endl;
-        return false;
-    }
+    if (ret < 0)
+        return std::unexpected(std::format("Unable to send frame {} to encoder: {}", d->frames_n + 1, ret));
 
     pkt = av_packet_alloc();
-    if (!pkt) {
-        d->lastError = "Unable to allocate packet.";
-        return false;
-    }
+    if (!pkt)
+        return std::unexpected("Unable to allocate packet.");
 
     const auto tsMsec = timestamp.count();
 
     ret = avcodec_receive_packet(d->cctx, pkt);
     if (ret != 0) {
-        // some encoders need to be fed a few frames before they produce a useful result
-        // ignore errors in that case for a little bit.
-        if ((ret == AVERROR(EAGAIN))
-            && ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
-            success = true;
+        // some encoders need to be fed a few frames before they produce a useful result,
+        // so this is not an error
+        if (ret != AVERROR(EAGAIN))
+            result = std::unexpected(
+                std::format("Unable to receive packet for frame {} from encoder: {}", d->frames_n + 1, ret));
         goto out;
     }
 
@@ -653,46 +646,44 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     if (d->fileSliceIntervalMin != 0) {
         const auto tsMin = static_cast<double>(tsMsec - d->captureStartTimestamp.count()) / 1000.0 / 60.0;
         if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
-            try {
-                // we need to start a new file now since the maximum time for this file has elapsed,
-                // so finalize this one without suspending the thread we are currently in
-                finalizeInternal(true, false);
+            // we need to start a new file now since the maximum time for this file has elapsed,
+            // so finalize this one without suspending the thread we are currently in
+            finalizeInternal(true, false);
 
-                // increment current slice number and attempt to reinitialize recording.
-                d->currentSliceNo += 1;
-                initializeInternal();
-            } catch (const std::exception &e) {
+            // increment current slice number and attempt to reinitialize recording.
+            d->currentSliceNo += 1;
+            if (auto res = initializeInternal(); !res) {
                 // propagate error and stop encoding thread, as we can not really recover from this
-                d->lastError = e.what();
+                std::lock_guard<std::mutex> lock(d->mutex);
+                d->encodeResult = std::unexpected(std::format("Unable to start new video slice: {}", res.error()));
                 d->acceptFrames = false;
             }
         }
     }
 
-    success = true;
 out:
     av_packet_free(&pkt);
-    return success;
+    return result;
 }
 
 void VideoWriter::startEncodeThread()
 {
     assert(d->initialized);
 
-    // clear last error message
-    d->lastError.clear();
     stopEncodeThread();
     while (!d->frameQueue.empty())
         d->frameQueue.pop();
+    d->encodeResult = {};
     d->acceptFrames = true;
     d->thread = new std::thread(encodeThread, this);
 }
 
 void VideoWriter::stopEncodeThread()
 {
+    // NOTE: We may not be initialized anymore here, in case the encoder thread
+    // failed to start a new file slice.
     if (d->thread == nullptr)
         return;
-    assert(d->initialized);
 
     d->acceptFrames = false;
     d->thread->join();
@@ -700,19 +691,19 @@ void VideoWriter::stopEncodeThread()
     d->thread = nullptr;
 }
 
-bool VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time)
+std::expected<void, std::string> VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
+    if (!d->encodeResult)
+        return d->encodeResult;
     if (!d->acceptFrames)
-        return false;
-    if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT) {
-        d->lastError =
-            "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.";
-        return false;
-    }
+        return std::unexpected("Video writer is not accepting frames.");
+    if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT)
+        return std::unexpected(
+            "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.");
 
     d->frameQueue.push(std::make_pair(frame, time));
-    return true;
+    return {};
 }
 
 VideoCodec VideoWriter::codec() const
@@ -765,11 +756,6 @@ void VideoWriter::setFileSliceInterval(unsigned int minutes)
     d->fileSliceIntervalMin = minutes;
 }
 
-std::string VideoWriter::lastError() const
-{
-    return d->lastError;
-}
-
 void VideoWriter::setContainer(VideoContainer container)
 {
     d->container = container;
@@ -783,7 +769,13 @@ void VideoWriter::encodeThread(void *vwPtr)
         cv::Mat frame;
         std::chrono::milliseconds timestamp;
         while (self->getNextFrameFromQueue(&frame, &timestamp)) {
-            self->encodeFrame(frame, timestamp);
+            // a single bad frame is not fatal, so we just drop it
+            if (auto res = self->encodeFrame(frame, timestamp); !res)
+                std::cerr << res.error() << std::endl;
+
+            // we can not encode anything anymore if starting a new file slice failed
+            if (!self->d->initialized)
+                return;
         }
     }
 }

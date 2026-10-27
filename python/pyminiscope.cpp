@@ -18,9 +18,11 @@
  */
 
 #include "config.h"
+#include <chrono>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -232,6 +234,24 @@ PYBIND11_MODULE(miniscope, m)
             "Start image acquisition with the selected settings (raises RuntimeError on failure)")
         .def("stop", &Miniscope::Miniscope::stop, py::call_guard<py::gil_scoped_release>(), "Stop image acquisition")
         .def(
+            "wait_for_result",
+            [](Miniscope::Miniscope &self) {
+                // wait in small steps while acquisition is running, so signal handlers
+                // (e.g. for Ctrl+C) still get a chance to run
+                while (self.isRunning()) {
+                    {
+                        py::gil_scoped_release release;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    }
+                    if (PyErr_CheckSignals() != 0)
+                        throw py::error_already_set();
+                }
+
+                py::gil_scoped_release release;
+                raiseOnError(self.waitForResult());
+            },
+            "Wait for image acquisition to end (raises RuntimeError if acquisition failed)")
+        .def(
             "start_recording",
             [](Miniscope::Miniscope &self, const std::string &fname) {
                 raiseOnError(self.startRecording(fname));
@@ -349,9 +369,5 @@ PYBIND11_MODULE(miniscope, m)
         .def(
             "set_print_extra_debug",
             &Miniscope::Miniscope::setPrintExtraDebug,
-            "Set whether protocol transmission debug messages should be printed to stdout")
-        .def_property_readonly(
-            "last_error",
-            &Miniscope::Miniscope::lastError,
-            "Message of the error that stopped acquisition, or None if there was none");
+            "Set whether protocol transmission debug messages should be printed to stdout");
 }

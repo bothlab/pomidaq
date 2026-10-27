@@ -103,8 +103,10 @@ except KeyboardInterrupt:
     print('Timestamp of last recorded frame: {}'.format(mscope.last_recorded_frame_time))
     mscope.stop()
 
-if mscope.last_error:
-    print('Error while acquiring data from Miniscope: {}'.format(mscope.last_error), file=sys.stderr)
+try:
+    mscope.wait_for_result()
+except RuntimeError as e:
+    print('Error while acquiring data from Miniscope: {}'.format(e), file=sys.stderr)
 
 mscope.disconnect()
 cv2.destroyAllWindows()

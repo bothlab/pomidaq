@@ -59,6 +59,15 @@ static bool nameContainsEWL(const std::string &name)
     return Utils::asciiToLower(name).find("ewl") != std::string::npos;
 }
 
+/**
+ * Wait for frames to be acquired, and abort if acquisition has stopped.
+ */
+static void waitForFrames(Miniscope *mscope, unsigned int count)
+{
+    if (const auto res = mscope->waitForAcquiredFrameCount(count); !res)
+        throw ZStackException(res.error());
+}
+
 static std::vector<cv::Mat> acquire3DData(
     Miniscope *mscope,
     const ControlDefinition &ewlControl,
@@ -102,7 +111,7 @@ static std::vector<cv::Mat> acquire3DData(
         // adjust
         mscope->setControlValue(ewlControl.id, currentPos);
         // wait for some frames to give the EWL time to adjust
-        mscope->waitForAcquiredFrameCount(adjFrameWaitTime);
+        waitForFrames(mscope, adjFrameWaitTime);
 
         // FIXME: Ideally we should verify that the device has actually adjusted the EWL,
         // but this feature is not yet iplemented in the library (we currently always
@@ -115,7 +124,7 @@ static std::vector<cv::Mat> acquire3DData(
                     break;
                 }
                 // wait a bit of time (~1 frame)
-                mscope->waitForAcquiredFrameCount(1);
+                waitForFrames(mscope, 1);
             }
         }
 
@@ -170,7 +179,7 @@ static void captureZStack(
 
     // move in range already, in case we have a big jump from the current EWL setting
     mscope->setControlValue(ewlControl.id, fromEWL);
-    mscope->waitForAcquiredFrameCount(5);
+    waitForFrames(mscope, 5);
 
     auto stack = acquire3DData(mscope, ewlControl, fromEWL, toEWL, step, averageCount, 2, &progress);
 
@@ -353,7 +362,7 @@ static void acquire3DAccumulation(
     // move in range already, in case we have a big jump from the current EWL setting
     aprog.progressStep();
     mscope->setControlValue(ewlControl.id, fromEWL);
-    mscope->waitForAcquiredFrameCount(5);
+    waitForFrames(mscope, 5);
 
     progress.setValueAndText(aprog.currentStep, "Acquiring data...");
     std::vector<std::string> rawFileList;

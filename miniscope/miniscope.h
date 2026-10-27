@@ -155,10 +155,31 @@ public:
      *
      * Fails if no device is connected or a reconnect after a previous failure
      * does not succeed. Errors that happen later during acquisition are not
-     * reported here, but via lastError().
+     * reported here, but by waitForResult().
      */
     Result run();
+
+    /**
+     * @brief Stop frame acquisition.
+     *
+     * Blocks until the acquisition thread has finished, so any ongoing recording is
+     * finalized once this returns. Use waitForResult() to find out whether the
+     * acquisition run ended because of an error.
+     */
     void stop();
+
+    /**
+     * @brief Wait for the acquisition run to end, and return how it ended.
+     *
+     * The acquisition thread may stop on its own because of an error (dropped frames,
+     * encoder problems, lost connection, ...), in which case isRunning() turns false.
+     * This function blocks until the run has ended, either on its own or because stop()
+     * was called (possibly from a different thread), and returns the error that ended it.
+     * Any ongoing recording is finalized once this returns.
+     * Returns immediately if acquisition is not running. Calling it again returns the same
+     * result until the next call to run(). Returns success if acquisition was never started.
+     */
+    Result waitForResult();
 
     /**
      * @brief Start recording acquired frames to disk.
@@ -308,16 +329,6 @@ public:
 
     void setPrintExtraDebug(bool enabled);
 
-    /**
-     * @brief The error that stopped frame acquisition, if it failed.
-     *
-     * The acquisition thread reports errors (dropped frames, encoder problems, lost
-     * connection, ...) asynchronously: it stops and puts the device into a failed state.
-     * Poll this after noticing that isRunning() turned false. Errors of synchronous
-     * calls such as connect() are also retained here until the next successful connect().
-     */
-    std::optional<std::string> lastError() const;
-
     milliseconds_t lastRecordedFrameTime() const;
 
     long acquiredFrameCount() const;
@@ -325,10 +336,10 @@ public:
     /**
      * @brief Wait for an amount of frames to be acquired.
      * @param The amount of frames to wait for.
-     * @return True if we waited for the appropriate amount of frames,
-     *         False in case of an error.
+     *
+     * Fails if acquisition is not running, or if it stops while we are waiting.
      */
-    bool waitForAcquiredFrameCount(unsigned int count);
+    Result waitForAcquiredFrameCount(unsigned int count);
 
 private:
     class Private;
@@ -344,6 +355,7 @@ private:
     static void captureThread(void *msPtr);
     void startCaptureThread();
     void finishCaptureThread();
+    void joinCaptureThread();
     milliseconds_t getCurrentFrameTimestamp();
     void statusMessage(const std::string &msg);
     void fail(const std::string &msg);
