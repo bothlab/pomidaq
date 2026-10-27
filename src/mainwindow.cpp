@@ -236,7 +236,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->videoDisplayWidget->layout()->addWidget(m_scopeView);
 
     m_mscope = new Miniscope::Miniscope();
-    m_mscope->setOnStatusMessage([&](const std::string &msg, void *) {
+    m_mscope->setOnStatusMessage([&](const std::string &msg) {
         setStatusText(QString::fromStdString(msg));
     });
 

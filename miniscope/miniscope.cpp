@@ -125,11 +125,6 @@ public:
         startTimepoint = std::chrono::time_point<std::chrono::steady_clock>::min();
         useUnixTime = false; // no timestamps in UNIX time by default
         unixCaptureStartTime = milliseconds_t(0);
-
-        statusCallback.first = nullptr;
-        controlChangeCallback.first = nullptr;
-        frameCallback.first = nullptr;
-        displayFrameCallback.first = nullptr;
     }
 
     std::thread *thread;
@@ -142,8 +137,8 @@ public:
     // Serializes setting control values
     std::recursive_mutex ctlMutex;
 
-    std::pair<StatusMessageCallback, void *> statusCallback;
-    std::pair<ControlChangeCallback, void *> controlChangeCallback;
+    StatusMessageCallback statusCallback;
+    ControlChangeCallback controlChangeCallback;
 
     cv::VideoCapture cam;
     int scopeCamId;
@@ -192,8 +187,8 @@ public:
     bool rawFrameRetrieved;
 
     std::deque<cv::Mat> displayQueue;
-    std::pair<RawDataCallback, void *> frameCallback;
-    std::pair<DisplayFrameCallback, void *> displayFrameCallback;
+    RawDataCallback frameCallback;
+    DisplayFrameCallback displayFrameCallback;
 
     bool useColor;
     bool showRed;
@@ -513,9 +508,9 @@ void Miniscope::statusMessage(const std::string &msg)
 {
     MS_LOG_INFO(logMScope, "Status: {}", msg);
 
-    const auto statusCB = d->statusCallback.first;
+    const auto statusCB = d->statusCallback;
     if (statusCB != nullptr)
-        statusCB(msg, d->statusCallback.second);
+        statusCB(msg);
 }
 
 void Miniscope::fail(const std::string &msg)
@@ -1013,9 +1008,9 @@ void Miniscope::setControlValue(const std::string &id, double value)
     msgInfo(std::format("Control {} value changed to {}", id, Utils::fmtDouble(dispValue)));
 
     // emit a machine-readable message about this control change
-    const auto cchangeCB = d->controlChangeCallback.first;
+    const auto cchangeCB = d->controlChangeCallback;
     if (cchangeCB != nullptr)
-        cchangeCB(id, dispValue, devValue, d->controlChangeCallback.second);
+        cchangeCB(id, dispValue, devValue);
 
     // the framerate is special, we also need to adjust this locally
     // for the DAQ thread
@@ -1151,24 +1146,24 @@ bool Miniscope::showBlueChannel() const
     return d->showBlue;
 }
 
-void Miniscope::setOnStatusMessage(StatusMessageCallback callback, void *udata)
+void Miniscope::setOnStatusMessage(StatusMessageCallback callback)
 {
-    d->statusCallback = std::make_pair(callback, udata);
+    d->statusCallback = std::move(callback);
 }
 
-void Miniscope::setOnControlValueChange(ControlChangeCallback callback, void *udata)
+void Miniscope::setOnControlValueChange(ControlChangeCallback callback)
 {
-    d->controlChangeCallback = std::make_pair(callback, udata);
+    d->controlChangeCallback = std::move(callback);
 }
 
-void Miniscope::setOnFrame(RawDataCallback callback, void *udata)
+void Miniscope::setOnFrame(RawDataCallback callback)
 {
-    d->frameCallback = std::make_pair(callback, udata);
+    d->frameCallback = std::move(callback);
 }
 
-void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback, void *udata)
+void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback)
 {
-    d->displayFrameCallback = std::make_pair(callback, udata);
+    d->displayFrameCallback = std::move(callback);
 }
 
 cv::Mat Miniscope::currentDisplayFrame()
@@ -1431,9 +1426,9 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
 void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     // call potential callback on this possibly edited "to be displayed" frame
-    const auto displayFrameCB = d->displayFrameCallback.first;
+    const auto displayFrameCB = d->displayFrameCallback;
     if (displayFrameCB != nullptr)
-        displayFrameCB(frame, timestamp, d->displayFrameCallback.second);
+        displayFrameCB(frame, timestamp);
 
     // the display frame queue is protected
     std::lock_guard<std::mutex> lock(d->dispFrameMutex);
@@ -1590,9 +1585,7 @@ void Miniscope::captureThread(void *msPtr)
     const auto self = static_cast<Miniscope *>(msPtr);
     const auto d = self->d.get();
 
-    // unpack raw frame callback pair
-    const auto frameCB = d->frameCallback.first;
-    auto frameCB_udata = d->frameCallback.second;
+    const auto frameCB = d->frameCallback;
 
     // make a dummy "dropped frame" matrix to display when we drop frames
     cv::Mat droppedFrameImage(cv::Size(752, 480), CV_8UC3);
@@ -1812,7 +1805,7 @@ void Miniscope::captureThread(void *msPtr)
         // process it further.
         auto frameTimestamp = frameDeviceTimestamp;
         if (frameCB != nullptr)
-            frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, bnoVec, frameCB_udata);
+            frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, bnoVec);
 
         // set last acquired frame (for other modules that don't care about timing accuracy,
         // e.g. the zstack capture module)

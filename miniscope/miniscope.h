@@ -54,16 +54,15 @@ using milliseconds_t = std::chrono::milliseconds;
  */
 using Result = std::expected<void, std::string>;
 
-using StatusMessageCallback = std::function<void(const std::string &, void *)>;
-using ControlChangeCallback = std::function<void(const std::string &, double, double, void *)>;
+using StatusMessageCallback = std::function<void(const std::string &)>;
+using ControlChangeCallback = std::function<void(const std::string &, double, double)>;
 using RawDataCallback = std::function<void(
     const cv::Mat &,
     milliseconds_t &,
     const milliseconds_t &,
     const milliseconds_t &,
-    const std::vector<float> &orientation,
-    void *)>;
-using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &, void *)>;
+    const std::vector<float> &orientation)>;
+using DisplayFrameCallback = std::function<void(const cv::Mat &, const milliseconds_t &)>;
 
 enum class DisplayMode {
     RawFrames,
@@ -220,7 +219,7 @@ public:
      * Status messages reflect the general device state. They are not used for logging
      * or detailed event reporting.
      */
-    void setOnStatusMessage(StatusMessageCallback callback, void *udata = nullptr);
+    void setOnStatusMessage(StatusMessageCallback callback);
 
     /**
      * @brief Called when a Miniscope setting is changes.
@@ -231,7 +230,7 @@ public:
      * The callback is never run by two threads at the same time, and it may call setControlValue()
      * itself.
      */
-    void setOnControlValueChange(ControlChangeCallback callback, void *udata = nullptr);
+    void setOnControlValueChange(ControlChangeCallback callback);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired.
@@ -250,7 +249,7 @@ public:
      * Please note that this function will also be called in case we are dropping frames. In this case, the
      * frame data matrix will be empty.
      */
-    void setOnFrame(RawDataCallback callback, void *udata = nullptr);
+    void setOnFrame(RawDataCallback callback);
 
     /**
      * @brief Called *in the DAQ thread* when a frame was acquired on the edited frame.
@@ -258,7 +257,7 @@ public:
      * This callback is executed for each (possibly modified) "display frame" that an application like
      * PoMiDAQ would show to the user.
      */
-    void setOnDisplayFrame(DisplayFrameCallback callback, void *udata = nullptr);
+    void setOnDisplayFrame(DisplayFrameCallback callback);
 
     /**
      * @brief Retrieve the current display frame from the display queue.
