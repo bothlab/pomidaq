@@ -1226,24 +1226,38 @@ bool Miniscope::showBlueChannel() const
     return d->showBlue;
 }
 
+/**
+ * Callbacks are used by the DAQ thread without locking, so they must not change while it is running.
+ */
+static bool callbackChangeAllowed(bool running)
+{
+    if (running)
+        MS_LOG_WARNING(logMScope, "Callbacks can not be changed while acquisition is running.");
+    return !running;
+}
+
 void Miniscope::setOnStatusMessage(StatusMessageCallback callback)
 {
-    d->statusCallback = std::move(callback);
+    if (callbackChangeAllowed(d->running))
+        d->statusCallback = std::move(callback);
 }
 
 void Miniscope::setOnControlValueChange(ControlChangeCallback callback)
 {
-    d->controlChangeCallback = std::move(callback);
+    if (callbackChangeAllowed(d->running))
+        d->controlChangeCallback = std::move(callback);
 }
 
 void Miniscope::setOnFrame(RawDataCallback callback)
 {
-    d->frameCallback = std::move(callback);
+    if (callbackChangeAllowed(d->running))
+        d->frameCallback = std::move(callback);
 }
 
 void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback)
 {
-    d->displayFrameCallback = std::move(callback);
+    if (callbackChangeAllowed(d->running))
+        d->displayFrameCallback = std::move(callback);
 }
 
 cv::Mat Miniscope::currentDisplayFrame()
@@ -1511,9 +1525,8 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
 void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     // call potential callback on this possibly edited "to be displayed" frame
-    const auto displayFrameCB = d->displayFrameCallback;
-    if (displayFrameCB != nullptr)
-        displayFrameCB(frame, timestamp);
+    if (d->displayFrameCallback)
+        d->displayFrameCallback(frame, timestamp);
 
     // the display frame queue is protected
     std::lock_guard<std::mutex> lock(d->dispFrameMutex);
