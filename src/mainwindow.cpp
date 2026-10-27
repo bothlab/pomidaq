@@ -569,8 +569,9 @@ void MainWindow::on_btnDevConnect_clicked()
         QMessageBox::critical(
             this,
             "Error",
-            QStringLiteral("Unable to connect to Miniscope camera at '%1'. Is the DAQ board connected properly?")
-                .arg(ui->sbCamId->value()));
+            QStringLiteral("Unable to connect to camera %1:\n%2")
+                .arg(ui->sbCamId->value())
+                .arg(QString::fromStdString(res.error())));
         setStatusText("Connection error.");
         ui->btnDevConnect->setEnabled(true);
         return;
@@ -587,8 +588,15 @@ void MainWindow::on_btnDevConnect_clicked()
     }
 
     // run and display images
-    if (const auto res = m_mscope->run(); !res)
+    if (const auto res = m_mscope->run(); !res) {
         QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
+
+        // disconnect again, so a new connection attempt is possible
+        m_mscope->disconnect();
+        setStatusText("Acquisition error.");
+        ui->btnDevConnect->setEnabled(true);
+        return;
+    }
 
     ui->btnDevConnect->setText("Disconnect");
     ui->btnDevConnect->setChecked(true);
