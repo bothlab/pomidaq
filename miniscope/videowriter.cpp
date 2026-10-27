@@ -18,12 +18,12 @@
  */
 
 #include "videowriter.h"
+#include "loginternal.h"
 #include "utils.h"
 
 #include <cassert>
 #include <cstring>
 #include <format>
-#include <iostream>
 #include <atomic>
 #include <condition_variable>
 #include <thread>
@@ -43,6 +43,8 @@ extern "C" {
 
 using Miniscope::VideoCodec;
 using Miniscope::VideoContainer;
+
+MS_DEFINE_LOG_CATEGORY(logVWriter, "videowriter");
 
 /**
  * @brief FRAME_QUEUE_MAX_COUNT
@@ -162,9 +164,9 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
     // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
     // container, all other codecs have to work with all containers.
     if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
-        std::cerr
-            << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format."
-            << std::endl;
+        MS_LOG_WARNING(
+            logVWriter,
+            "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format.");
         d->container = VideoContainer::AVI;
     }
 
@@ -259,12 +261,11 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
 #if LIBAVCODEC_VERSION_INT > AV_VERSION_INT(61, 13, 100)
     const enum AVPixelFormat *fmts = nullptr;
     ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
-    if (ret < 0 || fmts == nullptr) {
-        std::cerr << "Failed to get supported pixel formats for codec " << vcodec->name << ": " << ret;
-        d->cctx->pix_fmt = AV_PIX_FMT_YUV420P;
-    } else {
-        d->cctx->pix_fmt = fmts[0];
-    }
+    if (ret < 0)
+        MS_LOG_WARNING(logVWriter, "Failed to get supported pixel formats for codec {}: {}", vcodec->name, ret);
+
+    // no list of formats means the encoder accepts any pixel format
+    d->cctx->pix_fmt = (ret >= 0 && fmts != nullptr) ? fmts[0] : AV_PIX_FMT_YUV420P;
 #else
     d->cctx->pix_fmt = AV_PIX_FMT_YUV420P;
     if (vcodec->pix_fmts != nullptr)
@@ -310,7 +311,7 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
             break;
         case VideoCodec::MPEG4:
             // NOTE: MPEG-4 has no lossless option
-            std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
+            MS_LOG_WARNING(logVWriter, "The MPEG-4 codec has no lossless preset, switching to lossy compression.");
             d->lossless = false;
             break;
         default:
@@ -430,7 +431,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
         if (d->vstrm != nullptr) {
             avcodec_send_frame(d->cctx, nullptr);
             if (auto res = writeEncodedPackets(); !res)
-                std::cerr << "Unable to write remaining frames: " << res.error() << std::endl;
+                MS_LOG_WARNING(logVWriter, "Unable to write remaining frames: {}", res.error());
         }
 
         // write trailer
@@ -799,7 +800,7 @@ void VideoWriter::encodeThread(void *vwPtr)
     while (self->getNextFrameFromQueue(&frame, &timestamp)) {
         // a single bad frame is not fatal, so we just drop it
         if (auto res = self->encodeFrame(frame, timestamp); !res)
-            std::cerr << res.error() << std::endl;
+            MS_LOG_WARNING(logVWriter, "{}", res.error());
     }
 }
 

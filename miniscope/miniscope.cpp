@@ -28,7 +28,6 @@
 #include <deque>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <mutex>
 #include <sstream>
 #include <thread>
@@ -904,7 +903,6 @@ Result Miniscope::connect()
         if (d->failed) {
             disconnect();
         } else {
-            std::cerr << "Tried to reconnect already connected camera." << std::endl;
             return std::unexpected("Tried to reconnect already connected camera.");
         }
     }
@@ -1877,7 +1875,7 @@ void Miniscope::Private::captureThread()
             cv::cvtColor(frame, frame, cv::COLOR_BGR2GRAY);
         } catch (const cv::Exception &e) {
             status = false;
-            std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
+            MS_LOG_WARNING(logMScope, "Caught OpenCV exception: {}", e.what());
         }
         if (!status)
             frame = cv::Mat();
