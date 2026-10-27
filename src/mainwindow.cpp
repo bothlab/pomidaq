@@ -500,13 +500,14 @@ void MainWindow::processMiniscopeDisplay()
             ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
             ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
 
-            auto recMsecTimestamp = static_cast<int>(m_mscope->lastRecordedFrameTime().count());
-            if (recMsecTimestamp > 0) {
-                if (m_useUnixTimestamps) {
-                    recMsecTimestamp = recMsecTimestamp - m_mscope->unixCaptureStartTime().count();
-                }
-
-                ui->labelRecordingTime->setText(QTime::fromMSecsSinceStartOfDay(recMsecTimestamp).toString("hh:mm:ss"));
+            // show for how long we have been recording (hours may exceed 24)
+            if (m_recordingTimer.isValid()) {
+                const auto secs = m_recordingTimer.elapsed() / 1000;
+                ui->labelRecordingTime->setText(
+                    QStringLiteral("%1:%2:%3")
+                        .arg(secs / 3600, 2, 10, QLatin1Char('0'))
+                        .arg((secs / 60) % 60, 2, 10, QLatin1Char('0'))
+                        .arg(secs % 60, 2, 10, QLatin1Char('0')));
             }
         }
         return;
@@ -653,8 +654,13 @@ void MainWindow::setRecordingActive(bool recording)
     ui->btnAcquireZStack->setEnabled(!recording && m_mscope->isRunning());
 
     setStatusProgressVisible(recording);
-    if (recording)
+    if (recording) {
         setStatusProgress(-1);
+        m_recordingTimer.start();
+        ui->labelRecordingTime->setText(QStringLiteral("00:00:00"));
+    } else {
+        m_recordingTimer.invalidate();
+    }
 }
 
 void MainWindow::on_btnRecord_toggled(bool checked)

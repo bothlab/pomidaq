@@ -1858,9 +1858,11 @@ void Miniscope::Private::captureThread()
                                   + (masterRecvTimestamp - captureStartUnixTime
                                      - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
                 masterRecvTimestamp = masterRecvTimestamp + captureStartUnixTime;
+                d->unixCaptureStartTime = captureStartUnixTime;
             } else {
                 driverStartTimestamp = driverFrameTimestamp
                                        - (masterRecvTimestamp - milliseconds_t(static_cast<long>(1000.0 / d->fps)));
+                d->unixCaptureStartTime = milliseconds_t(0);
             }
         }
         const auto frameDeviceTimestamp = driverFrameTimestamp - driverStartTimestamp;

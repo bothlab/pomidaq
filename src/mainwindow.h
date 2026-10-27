@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <QElapsedTimer>
 #include <QMainWindow>
 #include <QQueue>
 #include <QVBoxLayout>
@@ -98,6 +99,7 @@ private:
 
     QString m_dataDir;
     bool m_useUnixTimestamps;
+    QElapsedTimer m_recordingTimer;
 
     void updateIcons();
     void processMiniscopeDisplay();

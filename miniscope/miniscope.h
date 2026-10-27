@@ -331,6 +331,13 @@ public:
     void setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock> &startTime);
     bool useUnixTimestamps() const;
     void setUseUnixTimestamps(bool useUnixTime);
+
+    /**
+     * @brief The UNIX time (in milliseconds) that frame timestamps are based on.
+     *
+     * If UNIX timestamps are used, this is the time at which acquisition was started.
+     * It is zero if UNIX timestamps are not used, or acquisition was not started yet.
+     */
     milliseconds_t unixCaptureStartTime() const;
 
     /**
