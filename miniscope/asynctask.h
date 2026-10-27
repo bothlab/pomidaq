@@ -65,7 +65,8 @@ public:
      * @brief Block until the task has finished and return its result.
      *
      * Returns nothing on success, or the error message if the task failed
-     * (including any exception it raised). May be called multiple times.
+     * (including any exception it raised). May be called multiple times,
+     * but not from multiple threads at the same time.
      */
     std::expected<void, std::string> waitForFinished();
 

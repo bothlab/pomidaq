@@ -186,12 +186,36 @@ public:
      */
     Result startRecording(const std::string &fname = "");
     void stopRecording();
+
+    /**
+     * @brief Acquire a z-stack (as much as the EWL and optics allow).
+     *
+     * Moves the EWL from @p fromEWL towards @p toEWL in steps of @p step (including @p toEWL
+     * if it is on that grid), averages @p averageCount frames at each position and saves the
+     * resulting stack as multi-page TIFF file to @p outFilename (".tiff" is appended if needed).
+     *
+     * Acquisition must be running, and the device must have an EWL control. Errors are reported
+     * by the returned task. The Miniscope instance must outlive the returned task.
+     */
     AsyncTask acquireZStack(
         int fromEWL,
         int toEWL,
         unsigned int step,
         unsigned int averageCount,
         const std::string &outFilename);
+
+    /**
+     * @brief Acquire repeated z-stacks and compute a 3D view from them.
+     *
+     * Acquires @p count z-stacks over the same EWL positions as acquireZStack(), alternating
+     * between forward and reverse direction. For each plane, the maximum intensity projection over
+     * all stacks is computed (ignoring planes with unusually high brightness) and saved to
+     * "<outDir>/<outName>/<outName>_mip3D.tiff". The individual stacks are kept in the "raw"
+     * subdirectory if @p saveRaw is set.
+     *
+     * Acquisition must be running, and the device must have an EWL control. Errors are reported
+     * by the returned task. The Miniscope instance must outlive the returned task.
+     */
     AsyncTask accumulate3DView(
         int fromEWL,
         int toEWL,

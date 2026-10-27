@@ -46,7 +46,7 @@ private:
 /**
  * @brief Run the given function in a new thread and return a handle to it.
  *
- * Any exception thrown by the function is captured and rethrown from AsyncTask::waitForFinished().
+ * Any exception thrown by the function is captured and returned as error by AsyncTask::waitForFinished().
  */
 AsyncTask launchAsyncTask(std::function<std::expected<void, std::string>(TaskProgress &)> body);
 
