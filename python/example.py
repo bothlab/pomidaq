@@ -24,10 +24,6 @@ set_log_severity(LogSeverity.INFO)
 # create new Miniscope instance
 mscope = Miniscope()
 
-# disable some debug/info messages about data transmission
-# to make the console output of this example easier to read
-mscope.set_print_extra_debug(False)
-
 # list all available miniscope types
 print('Available Miniscope harware types:')
 for dname in mscope.available_device_types:

@@ -350,8 +350,6 @@ public:
     unsigned int recordingSliceInterval() const;
     void setRecordingSliceInterval(unsigned int minutes);
 
-    void setPrintExtraDebug(bool enabled);
-
     milliseconds_t lastRecordedFrameTime() const;
 
     /**

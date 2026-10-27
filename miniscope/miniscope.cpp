@@ -114,8 +114,7 @@ public:
           hasHeadOrientation(false),
           bnoIndicatorVisible(true),
           saveOrientationData(true),
-          recordLossless(true),
-          printExtraDebug(true)
+          recordLossless(true)
     {
         fps = 30;
         displayQueue.clear();
@@ -216,8 +215,6 @@ public:
     std::atomic<VideoContainer> videoContainer;
     std::atomic_bool recordLossless;
     std::atomic_uint recordingSliceInterval;
-
-    std::atomic_bool printExtraDebug;
 
     // outcome of the last acquisition run
     std::mutex runResultMutex;
@@ -654,8 +651,7 @@ void Miniscope::sendCommandsToDevice()
             for (size_t j = 1; j < packet.size(); j++)
                 tempPacket |= ((uint64_t)packet[j]) << (8 * (j + 1));
 
-            if (d->printExtraDebug)
-                MS_LOG_DEBUG(logMScope, "Send 1-5: 0x{:x}", tempPacket);
+            MS_LOG_DEBUG(logMScope, "Send 1-5: 0x{:x}", tempPacket);
             success = scopeDAQSendBytes(
                 &d->cam,
                 tempPacket & 0x00000000FFFF,
@@ -670,8 +666,7 @@ void Miniscope::sendCommandsToDevice()
             for (size_t j = 1; j < packet.size(); j++)
                 tempPacket |= ((uint64_t)packet[j]) << (8 * (j));
 
-            if (d->printExtraDebug)
-                MS_LOG_DEBUG(logMScope, "Send 6: 0x{:x}", tempPacket);
+            MS_LOG_DEBUG(logMScope, "Send 6: 0x{:x}", tempPacket);
             success = scopeDAQSendBytes(
                 &d->cam,
                 tempPacket & 0x00000000FFFF,
@@ -1480,11 +1475,6 @@ unsigned int Miniscope::recordingSliceInterval() const
 void Miniscope::setRecordingSliceInterval(unsigned int minutes)
 {
     d->recordingSliceInterval = minutes;
-}
-
-void Miniscope::setPrintExtraDebug(bool enabled)
-{
-    d->printExtraDebug = enabled;
 }
 
 milliseconds_t Miniscope::lastRecordedFrameTime() const

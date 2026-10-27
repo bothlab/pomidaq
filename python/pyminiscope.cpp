@@ -365,10 +365,5 @@ PYBIND11_MODULE(miniscope, m)
             "save_orientation_data",
             &Miniscope::Miniscope::saveOrientationData,
             &Miniscope::Miniscope::setSaveOrientationData,
-            "Whether orientation data from the BNO should be saved as CSV file")
-
-        .def(
-            "set_print_extra_debug",
-            &Miniscope::Miniscope::setPrintExtraDebug,
-            "Set whether protocol transmission debug messages should be printed to stdout");
+            "Whether orientation data from the BNO should be saved as CSV file");
 }
