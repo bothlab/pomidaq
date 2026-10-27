@@ -80,13 +80,15 @@ void CSVWriter::stop()
 
 void CSVWriter::run()
 {
-    std::ofstream file(m_filename, std::ios::out | std::ios::app);
-
-    if (!file.is_open()) {
-        const std::string errorMsg = "Unable to open file " + m_filename;
+    const auto reportError = [this](const std::string &errorMsg) {
         MS_LOG_WARNING(logCSVWriter, "{}", errorMsg);
         if (m_errorCallback)
             m_errorCallback(errorMsg);
+    };
+
+    std::ofstream file(m_filename, std::ios::out | std::ios::app);
+    if (!file.is_open()) {
+        reportError("Unable to open file " + m_filename);
         return;
     }
 
@@ -96,15 +98,15 @@ void CSVWriter::run()
         std::vector<std::string> rowData;
         {
             std::unique_lock<std::mutex> locker(m_mutex);
-            if (m_stopThread)
+            m_dataAvailable.wait(locker, [this] {
+                return m_stopThread || !m_dataQueue.empty();
+            });
+
+            // write all remaining rows before we stop
+            if (m_dataQueue.empty())
                 break;
 
-            if (m_dataQueue.empty()) {
-                m_dataAvailable.wait(locker);
-                continue;
-            }
-
-            rowData = m_dataQueue.front();
+            rowData = std::move(m_dataQueue.front());
             m_dataQueue.pop_front();
         }
 
@@ -115,9 +117,18 @@ void CSVWriter::run()
             line += rowData[i];
         }
         file << line << "\n";
+        if (!file) {
+            reportError("Unable to write to file " + m_filename);
+            return;
+        }
     }
 
+    // data is buffered, so we may only notice write errors when flushing it on close
     file.close();
+    if (file.fail()) {
+        reportError("Unable to write to file " + m_filename);
+        return;
+    }
 
     MS_LOG_DEBUG(logCSVWriter, "Writer thread stopped.");
 }
