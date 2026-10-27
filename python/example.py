@@ -25,7 +25,7 @@ set_log_severity(LogSeverity.INFO)
 mscope = Miniscope()
 
 # list all available miniscope types
-print('Available Miniscope harware types:')
+print('Available Miniscope hardware types:')
 for dname in mscope.available_device_types:
     print(' * {}'.format(dname))
 
@@ -45,7 +45,7 @@ for ctl in mscope.controls:
     if ctl.kind == ControlKind.SELECTOR:
         default_val = value_start
         if int(value_start) < len(ctl.labels):
-            # replace the number with a human-readable string´
+            # replace the number with a human-readable string
             default_val = ctl.labels[int(value_start)]
         print(' * {}: {} (default value: {})'.format(ctl.id, ctl.name, default_val))
     else:
@@ -65,14 +65,16 @@ except RuntimeError as e:
     print('Unable to start data acquisition: {}'.format(e), file=sys.stderr)
     sys.exit(1)
 
-# adjust some controls
+# adjust some controls, if the device has them
 GAIN_VAL = 1
-print('Setting gain control to {}'.format(controls['gain'].labels[GAIN_VAL]))
-mscope.set_control_value('gain', GAIN_VAL)
+if 'gain' in controls:
+    print('Setting gain control to {}'.format(controls['gain'].labels[GAIN_VAL]))
+    mscope.set_control_value('gain', GAIN_VAL)
 
 EXCITATION_VAL = 20
-print('Setting excitation control to {}'.format(EXCITATION_VAL))
-mscope.set_control_value('led0', EXCITATION_VAL)
+if 'led0' in controls:
+    print('Setting excitation control to {}'.format(EXCITATION_VAL))
+    mscope.set_control_value('led0', EXCITATION_VAL)
 
 # prepare video recording
 print('\n--------')
@@ -88,13 +90,19 @@ except RuntimeError as e:
     sys.exit(1)
 
 try:
-    print('Recording... Terminate with CTL+C\n')
+    print('Recording... Terminate with Q (in the display window) or Ctrl+C\n')
     while mscope.is_running:
         frame = mscope.fetch_display_frame()
         if frame is not None:
             cv2.imshow('Miniscope Display', frame)
-            cv2.waitKey(50)
+
+        # process window events and wait a bit for new frames
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
 except KeyboardInterrupt:
+    pass
+
+if mscope.is_running:
     print('User terminated recording. Shutting down.')
     print('Timestamp of last recorded frame: {}'.format(mscope.last_recorded_frame_time))
     mscope.stop()
