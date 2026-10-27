@@ -102,7 +102,8 @@ class ImageViewWidget::Private
 {
 public:
     Private()
-        : highlightSaturation(false),
+        : imageChanged(false),
+          highlightSaturation(false),
           textureId(0),
           textureWidth(0),
           textureHeight(0),
@@ -112,17 +113,15 @@ public:
           lastAspectRatio(-1.0f),
           lastHighlightSaturation(false),
           lastBgColor(-1.0f, -1.0f, -1.0f, -1.0f),
-          lastChannels(-1),
-          pboIndex(0),
-          pboSize(0)
+          lastChannels(-1)
     {
-        pboIds[0] = pboIds[1] = 0;
     }
 
     ~Private() = default;
 
     QVector4D bgColorVec;
-    cv::Mat glImage; // Image reference (possibly color-converted on GLES)
+    cv::Mat glImage;   // Image reference (possibly color-converted on GLES)
+    bool imageChanged; // Whether glImage needs to be uploaded to the texture
 
     bool highlightSaturation;
 
@@ -143,11 +142,6 @@ public:
     bool lastHighlightSaturation;
     QVector4D lastBgColor;
     int lastChannels;
-
-    // Pixel Buffer Objects for async texture uploads
-    GLuint pboIds[2]; // Double buffering
-    int pboIndex;
-    size_t pboSize;
 
     void setupTextureFormat(int channels)
     {
@@ -196,8 +190,6 @@ ImageViewWidget::~ImageViewWidget()
 
     if (d->textureId != 0)
         glDeleteTextures(1, &d->textureId);
-    if (d->pboIds[0] != 0)
-        glDeleteBuffers(2, d->pboIds);
 
     d->vao.destroy();
     d->vbo.destroy();
@@ -234,7 +226,7 @@ void ImageViewWidget::initializeGL()
             this,
             QStringLiteral("Unable to initialize OpenGL"),
             QStringLiteral(
-                "Unable to compiler or link OpenGL shader or initialize vertex array object. Your system needs at "
+                "Unable to compile or link OpenGL shader or initialize vertex array object. Your system needs at "
                 "least OpenGL 4.1 or GLES 3.2 to run this application.\n"
                 "You may want to try to upgrade your graphics drivers, or check the application log for details."),
             QMessageBox::Ok);
@@ -260,11 +252,8 @@ void ImageViewWidget::initializeGL()
     d->vbo.release();
     d->vao.release();
 
-    // Initialize PBOs for async texture uploads (if supported)
-    d->pboIds[0] = d->pboIds[1] = 0;
-    if (context()->hasExtension("GL_ARB_pixel_buffer_object") || context()->format().majorVersion() >= 3) {
-        glGenBuffers(2, d->pboIds);
-    }
+    // our image rows are tightly packed, they are not necessarily aligned to 4 bytes
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
 void ImageViewWidget::paintGL()
@@ -282,6 +271,7 @@ void ImageViewWidget::renderImage()
     const auto channels = d->glImage.channels();
 
     // Setup or recreate texture only when dimensions or channel count change
+    bool textureCreated = false;
     if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight
         || d->textureChannels != channels) {
         if (d->textureId != 0)
@@ -312,41 +302,16 @@ void ImageViewWidget::renderImage()
             d->textureFormat,
             GL_UNSIGNED_BYTE,
             nullptr);
-
-        // Setup PBOs if available
-        if (d->pboIds[0] != 0) {
-            const size_t dataSize = imgWidth * imgHeight * channels;
-            if (d->pboSize != dataSize) {
-                d->pboSize = dataSize;
-                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
-                glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
-                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[1]);
-                glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
-                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-            }
-        }
+        textureCreated = true;
     } else {
         glBindTexture(GL_TEXTURE_2D, d->textureId);
     }
 
-    // Upload texture data
-    if (d->pboIds[0] != 0) {
-        // Use PBO for asynchronous texture upload
-        d->pboIndex = (d->pboIndex + 1) % 2;
-        const int nextIndex = (d->pboIndex + 1) % 2;
-
-        // Bind PBO to upload data from previous frame
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[d->pboIndex]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, nullptr);
-
-        // Bind next PBO and update data for next frame
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[nextIndex]);
-        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->glImage.data);
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-    } else {
-        // Direct texture upload, if we have no PBO support
+    // Upload texture data only if we have a new image, other repaints (e.g. on resize) reuse the texture
+    if (d->imageChanged || textureCreated) {
         glTexSubImage2D(
             GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, d->glImage.data);
+        d->imageChanged = false;
     }
 
     // Render
@@ -406,6 +371,7 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     d->glImage = mat;
 #endif
 
+    d->imageChanged = true;
     update();
     return true;
 }

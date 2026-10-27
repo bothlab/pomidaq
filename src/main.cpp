@@ -19,11 +19,20 @@
 
 #include <QApplication>
 #include <QStyleHints>
+#include <QSurfaceFormat>
 
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
 {
+#ifndef QT_OPENGL_ES
+    // our shaders need OpenGL 4.1 in core profile, which some platforms only provide if requested explicitly
+    QSurfaceFormat format;
+    format.setVersion(4, 1);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(format);
+#endif
+
     QApplication a(argc, argv);
 
     a.setApplicationName(QStringLiteral("PoMiDAQ"));
