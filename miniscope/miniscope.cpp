@@ -1812,10 +1812,9 @@ void Miniscope::captureThread(void *msPtr)
         self->setLastRawFrame(frame);
 
         if (!status) {
-            // terminate recording
-            d->recording = false;
-
-            msgInfo("Dropped frame.");
+            // we keep recording, the dropped frame will just be missing from the video
+            // and show up as a gap in the timestamps file
+            MS_LOG_WARNING(logMScope, "Dropped frame.");
             self->addDisplayFrameToBuffer(droppedFrameImage, frameTimestamp);
             if (d->droppedFramesCount > 0) {
                 // reconnect in case we run into multiple failures when trying
