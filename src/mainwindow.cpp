@@ -496,9 +496,8 @@ void MainWindow::processMiniscopeDisplay()
 {
     // display images while we are running
     if (m_mscope->isRunning()) {
-        auto frame = m_mscope->currentDisplayFrame();
-        if (!frame.empty()) {
-            m_scopeView->showImage(frame);
+        if (const auto frame = m_mscope->fetchDisplayFrame()) {
+            m_scopeView->showImage(*frame);
 
             ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFps()));
             ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));

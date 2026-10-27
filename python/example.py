@@ -94,7 +94,7 @@ except RuntimeError as e:
 try:
     print('Recording... Terminate with CTL+C\n')
     while mscope.is_running:
-        frame = mscope.current_disp_frame
+        frame = mscope.fetch_display_frame()
         if frame is not None:
             cv2.imshow('Miniscope Display', frame)
             cv2.waitKey(50)

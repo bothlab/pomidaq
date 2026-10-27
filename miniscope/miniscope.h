@@ -265,16 +265,21 @@ public:
     void setOnDisplayFrame(DisplayFrameCallback callback);
 
     /**
-     * @brief Retrieve the current display frame from the display queue.
+     * @brief Take the next frame intended for display from the display queue.
+     *
+     * Each frame is only returned once. If frames are not fetched fast enough, the oldest
+     * ones are dropped, so the displayed frames stay close to the live image.
+     *
+     * @return The frame, or nothing if there is no new frame yet.
      */
-    cv::Mat currentDisplayFrame();
+    std::optional<cv::Mat> fetchDisplayFrame();
 
     /**
      * @brief Retrieve the raw frame that was acquired last.
      *
      * This function is *not* suitable to store the acquired image to disk,
      * as it is not guaranteed that all frames will be obtained even if the
-     * function is called frequently. Use the callback set via  setOnFrame()
+     * function is called frequently. Use the callback set via setOnFrame()
      * to retrieve all raw frames as they are received.
      *
      * @return The frame if it was not retrieved before, or nothing if there is no new frame yet.

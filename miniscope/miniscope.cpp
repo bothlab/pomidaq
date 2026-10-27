@@ -60,6 +60,11 @@
 
 using json = nlohmann::json;
 
+/**
+ * The maximum number of display frames we hold in the queue, before dropping the oldest ones.
+ */
+static const size_t DISPLAY_QUEUE_MAX_COUNT = 4;
+
 namespace Miniscope
 {
 
@@ -1260,16 +1265,15 @@ void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback)
         d->displayFrameCallback = std::move(callback);
 }
 
-cv::Mat Miniscope::currentDisplayFrame()
+std::optional<cv::Mat> Miniscope::fetchDisplayFrame()
 {
     std::lock_guard<std::mutex> lock(d->dispFrameMutex);
-    cv::Mat frame;
-    const auto queueSize = d->displayQueue.size();
-    if (queueSize == 0)
-        return frame;
-    auto front = d->displayQueue.front();
+    if (d->displayQueue.empty())
+        return std::nullopt;
+
+    auto frame = std::move(d->displayQueue.front());
     d->displayQueue.pop_front();
-    return front;
+    return frame;
 }
 
 std::optional<cv::Mat> Miniscope::fetchLastRawFrame()
@@ -1531,9 +1535,10 @@ void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds
     // the display frame queue is protected
     std::lock_guard<std::mutex> lock(d->dispFrameMutex);
 
-    // drop frames if we are displaying too slowly, otherwise add new stuff to queue
-    if (d->displayQueue.size() < 48)
-        d->displayQueue.push_back(frame);
+    // drop the oldest frames if we are displaying too slowly, so the display stays close to live
+    if (d->displayQueue.size() >= DISPLAY_QUEUE_MAX_COUNT)
+        d->displayQueue.pop_front();
+    d->displayQueue.push_back(frame);
 }
 
 void Miniscope::setLastRawFrame(const cv::Mat &frame)

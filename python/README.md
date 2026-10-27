@@ -67,7 +67,7 @@ mscope.set_control_value('led0', 20)
 
 mscope.start_recording('/tmp/miniscope-test.mkv')
 while mscope.is_running:
-    frame = mscope.current_disp_frame  # NumPy array or None
+    frame = mscope.fetch_display_frame()  # NumPy array or None
     ...
 mscope.stop()
 mscope.disconnect()

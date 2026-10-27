@@ -292,10 +292,10 @@ PYBIND11_MODULE(miniscope, m)
             "is_running", &Miniscope::Miniscope::isRunning, "Is True if we are acquiring images from the Miniscope")
         .def_property_readonly("is_recording", &Miniscope::Miniscope::isRecording, "Is True if we are recording data")
 
-        .def_property_readonly(
-            "current_disp_frame",
-            &Miniscope::Miniscope::currentDisplayFrame,
-            "Retrieve the current frame intended for display. May not be the recorded frame.")
+        .def(
+            "fetch_display_frame",
+            &Miniscope::Miniscope::fetchDisplayFrame,
+            "Take the next frame intended for display (None if there is no new frame). May not be the recorded frame.")
         .def_property_readonly("current_fps", &Miniscope::Miniscope::currentFps)
         .def_property_readonly("dropped_frames_count", &Miniscope::Miniscope::droppedFramesCount)
         .def_property_readonly("last_recorded_frame_time", &Miniscope::Miniscope::lastRecordedFrameTime)
