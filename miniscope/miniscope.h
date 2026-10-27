@@ -382,19 +382,6 @@ private:
     Miniscope(const Miniscope &) = delete;
     Miniscope &operator=(const Miniscope &) = delete;
     std::unique_ptr<Private> d;
-
-    bool openCamera();
-    void enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet);
-    void sendCommandsToDevice();
-    void addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp);
-    void setLastRawFrame(const cv::Mat &frame);
-    static void captureThread(void *msPtr);
-    void startCaptureThread();
-    void finishCaptureThread();
-    void joinCaptureThread();
-    milliseconds_t getCurrentFrameTimestamp();
-    void statusMessage(const std::string &msg);
-    void fail(const std::string &msg);
 };
 
 /**

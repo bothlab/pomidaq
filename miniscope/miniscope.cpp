@@ -95,8 +95,9 @@ public:
 class Miniscope::Private
 {
 public:
-    Private()
-        : thread(nullptr),
+    explicit Private(Miniscope *q_)
+        : q(q_),
+          thread(nullptr),
           scopeCamId(0),
           emulateTimestamps(false),
           supportsColor(false),
@@ -138,6 +139,20 @@ public:
         unixCaptureStartTime = milliseconds_t(0);
     }
 
+    bool openCamera();
+    void enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet);
+    void sendCommandsToDevice();
+    void addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp);
+    void setLastRawFrame(const cv::Mat &frame);
+    void captureThread();
+    void startCaptureThread();
+    void finishCaptureThread();
+    void joinCaptureThread();
+    milliseconds_t getCurrentFrameTimestamp();
+    void statusMessage(const std::string &msg);
+    void fail(const std::string &msg);
+
+    Miniscope *q; // the public class we belong to
     std::thread *thread;
     std::mutex ctMutex; // protects the thread pointer, so it is only joined once
     std::mutex dispFrameMutex;
@@ -234,7 +249,7 @@ static const std::unordered_map<std::string, std::string> &controlIdToNameMap()
 }
 
 Miniscope::Miniscope()
-    : d(new Miniscope::Private())
+    : d(new Miniscope::Private(this))
 {
     d->fps = 20;
     d->deviceConfig = json::object();
@@ -242,7 +257,7 @@ Miniscope::Miniscope()
 
 Miniscope::~Miniscope()
 {
-    finishCaptureThread();
+    d->finishCaptureThread();
     disconnect();
 }
 
@@ -532,56 +547,56 @@ std::string Miniscope::deviceType() const
     return d->deviceType;
 }
 
-void Miniscope::startCaptureThread()
+void Miniscope::Private::startCaptureThread()
 {
     finishCaptureThread();
-    d->emulateTimestamps = false;
+    emulateTimestamps = false;
     {
-        std::lock_guard<std::mutex> lock(d->runResultMutex);
-        d->runResult = {};
+        std::lock_guard<std::mutex> lock(runResultMutex);
+        runResult = {};
     }
-    d->running = true;
+    running = true;
 
-    std::lock_guard<std::mutex> lock(d->ctMutex);
-    d->thread = new std::thread(captureThread, this);
+    std::lock_guard<std::mutex> lock(ctMutex);
+    thread = new std::thread(&Private::captureThread, this);
 }
 
-void Miniscope::finishCaptureThread()
+void Miniscope::Private::finishCaptureThread()
 {
-    d->running = false;
+    running = false;
     joinCaptureThread();
 }
 
-void Miniscope::joinCaptureThread()
+void Miniscope::Private::joinCaptureThread()
 {
-    std::lock_guard<std::mutex> lock(d->ctMutex);
-    if (d->thread == nullptr)
+    std::lock_guard<std::mutex> lock(ctMutex);
+    if (thread == nullptr)
         return;
-    d->thread->join();
-    delete d->thread;
-    d->thread = nullptr;
+    thread->join();
+    delete thread;
+    thread = nullptr;
 }
 
-void Miniscope::statusMessage(const std::string &msg)
+void Miniscope::Private::statusMessage(const std::string &msg)
 {
     MS_LOG_INFO(logMScope, "Status: {}", msg);
 
-    const auto statusCB = d->statusCallback;
+    const auto statusCB = statusCallback;
     if (statusCB != nullptr)
         statusCB(msg);
 }
 
-void Miniscope::fail(const std::string &msg)
+void Miniscope::Private::fail(const std::string &msg)
 {
     {
         // only keep the first error, as that is the one which caused the failure
-        std::lock_guard<std::mutex> lock(d->runResultMutex);
-        if (d->runResult)
-            d->runResult = std::unexpected(msg);
+        std::lock_guard<std::mutex> lock(runResultMutex);
+        if (runResult)
+            runResult = std::unexpected(msg);
     }
-    d->recording = false;
-    d->running = false;
-    d->failed = true;
+    recording = false;
+    running = false;
+    failed = true;
 
     MS_LOG_WARNING(logMScope, "{}", msg);
 }
@@ -596,13 +611,13 @@ int Miniscope::scopeCamId() const
     return d->scopeCamId;
 }
 
-void Miniscope::enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet)
+void Miniscope::Private::enqueueI2CCommand(long preambleKey, std::vector<uint8_t> packet)
 {
-    std::lock_guard<std::mutex> lock(d->cmdMutex);
+    std::lock_guard<std::mutex> lock(cmdMutex);
 
     // add packet to the queue to send to the camera for control modification
-    d->commandQueue.emplace_back(preambleKey, packet);
-    d->commandsPending = true;
+    commandQueue.emplace_back(preambleKey, packet);
+    commandsPending = true;
 }
 
 static bool scopeDAQSendBytes(cv::VideoCapture *cam, double head, double middle, double tail)
@@ -627,19 +642,19 @@ static bool scopeDAQSendBytes(cv::VideoCapture *cam, double head, double middle,
     return ret;
 }
 
-void Miniscope::sendCommandsToDevice()
+void Miniscope::Private::sendCommandsToDevice()
 {
-    std::lock_guard<std::mutex> lock(d->cmdMutex);
+    std::lock_guard<std::mutex> lock(cmdMutex);
 
-    while (!d->commandQueue.empty()) {
+    while (!commandQueue.empty()) {
         // Slow down command submission to give the DAQ board time to process
         // some of them. Connection instability increases if we are sending a
         // large set of packets in a short time.
-        if ((d->commandQueue.size() % 4) == 0)
+        if ((commandQueue.size() % 4) == 0)
             std::this_thread::sleep_for(milliseconds_t(10));
 
-        const auto pair = d->commandQueue.front();
-        d->commandQueue.pop_front();
+        const auto pair = commandQueue.front();
+        commandQueue.pop_front();
         const auto packet = pair.second;
         bool success = false;
         uint64_t tempPacket;
@@ -653,7 +668,7 @@ void Miniscope::sendCommandsToDevice()
 
             MS_LOG_DEBUG(logMScope, "Send 1-5: 0x{:x}", tempPacket);
             success = scopeDAQSendBytes(
-                &d->cam,
+                &cam,
                 tempPacket & 0x00000000FFFF,
                 (tempPacket & 0x0000FFFF0000) >> 16,
                 (tempPacket & 0xFFFF00000000) >> 32);
@@ -668,7 +683,7 @@ void Miniscope::sendCommandsToDevice()
 
             MS_LOG_DEBUG(logMScope, "Send 6: 0x{:x}", tempPacket);
             success = scopeDAQSendBytes(
-                &d->cam,
+                &cam,
                 tempPacket & 0x00000000FFFF,
                 (tempPacket & 0x0000FFFF0000) >> 16,
                 (tempPacket & 0xFFFF00000000) >> 32);
@@ -680,7 +695,7 @@ void Miniscope::sendCommandsToDevice()
         }
     }
 
-    d->commandsPending = false;
+    commandsPending = false;
 }
 
 #ifdef __linux__
@@ -704,11 +719,11 @@ static void resetV4L2State(int devIdx)
 }
 #endif
 
-bool Miniscope::openCamera()
+bool Miniscope::Private::openCamera()
 {
-    if (d->connected) {
+    if (connected) {
         MS_LOG_WARNING(logMScope, "Trying to open an already opened camera connection. This is likely not intended.");
-        disconnect();
+        q->disconnect();
     }
 
     // Use V4L on Linux, as apparently the GStreamer backend, if automatically chosen, has issues
@@ -722,59 +737,59 @@ bool Miniscope::openCamera()
 #elif defined(_WIN32)
     apiPreference = cv::CAP_MSMF;
 #endif
-    ret = d->cam.open(d->scopeCamId, apiPreference);
+    ret = cam.open(scopeCamId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
         MS_LOG_WARNING(logMScope, "Unable to use preferred camera backend, falling back to autodetection.");
-        ret = d->cam.open(d->scopeCamId);
+        ret = cam.open(scopeCamId);
     }
 
     if (!ret)
         return ret;
-    MS_LOG_INFO(logMScope, "Using backend API: {}", d->cam.getBackendName());
+    MS_LOG_INFO(logMScope, "Using backend API: {}", cam.getBackendName());
 
     // set height/width for new DAQ firmware versions which can support
     // multiple Miniscope device types
-    if (d->resolution.width > 0)
-        d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->resolution.width);
-    if (d->resolution.height > 0)
-        d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->resolution.height);
+    if (resolution.width > 0)
+        cam.set(cv::CAP_PROP_FRAME_WIDTH, resolution.width);
+    if (resolution.height > 0)
+        cam.set(cv::CAP_PROP_FRAME_HEIGHT, resolution.height);
 
     // query firmware ABI version
-    d->cam.set(cv::CAP_PROP_SATURATION, 0x0002);
+    cam.set(cv::CAP_PROP_SATURATION, 0x0002);
     int fwABIVersion = 0;
     for (int i = 0; i < 5; i++) {
         if (fwABIVersion != 0)
             break;
         std::this_thread::sleep_for(milliseconds_t(50));
-        fwABIVersion = static_cast<uint16_t>(d->cam.get(cv::CAP_PROP_HUE));
+        fwABIVersion = static_cast<uint16_t>(cam.get(cv::CAP_PROP_HUE));
     }
     msgInfo(std::format("DAQ firmware ABI version: {}", fwABIVersion));
     if (fwABIVersion < 2)
         MS_LOG_WARNING(logMScope, "Firmware version is too low, some features may be unavailable.");
 
     // ensure sync pulses are disabled at this point
-    d->cam.set(cv::CAP_PROP_SATURATION, 0x0000);
+    cam.set(cv::CAP_PROP_SATURATION, 0x0000);
 
     // ensure the command queue isn't full with old packets that flood the
     // DAQ board immediately after it is connected
     {
-        std::lock_guard<std::mutex> lock(d->cmdMutex);
-        d->commandQueue.clear();
-        d->commandsPending = false;
+        std::lock_guard<std::mutex> lock(cmdMutex);
+        commandQueue.clear();
+        commandsPending = false;
     }
 
     // reset all packet parts to zero
-    scopeDAQSendBytes(&d->cam, 0x00, 0x00, 0x00);
+    scopeDAQSendBytes(&cam, 0x00, 0x00, 0x00);
 
     // We need to make sure the MODE of the SERDES is correct
     // This needs to be done before any other commands are sent over SERDES
     // Currently this is for the 913/914 TI SERES
-    MS_LOG_DEBUG(logMScope, "Pixel Clock is {:g}", d->pixelClock);
-    if (d->pixelClock > 0) {
+    MS_LOG_DEBUG(logMScope, "Pixel Clock is {:g}", pixelClock);
+    if (pixelClock > 0) {
         std::vector<uint8_t> packet;
 
-        if (d->pixelClock <= 50) {
+        if (pixelClock <= 50) {
             // Set to 12bit low frequency in this case
 
             // DES
@@ -833,7 +848,7 @@ bool Miniscope::openCamera()
     }
 
     // prepare all commands to initialize the Miniscope hardware
-    const auto initCommands = msconfParseSendCommand(Utils::jsonMember(d->deviceConfig, "initialize"));
+    const auto initCommands = msconfParseSendCommand(Utils::jsonMember(deviceConfig, "initialize"));
     for (const auto &command : initCommands) {
         std::vector<uint8_t> packet;
 
@@ -863,11 +878,11 @@ bool Miniscope::openCamera()
     // reset all controls to default values, or last values
     // if we have cached any
     {
-        const std::lock_guard<std::recursive_mutex> ctlLock(d->ctlMutex);
-        for (const auto &ctl : d->controls) {
-            const auto value = d->controlValueCache.contains(ctl.id) ? d->controlValueCache.at(ctl.id) : ctl.valueStart;
+        const std::lock_guard<std::recursive_mutex> ctlLock(ctlMutex);
+        for (const auto &ctl : controls) {
+            const auto value = controlValueCache.contains(ctl.id) ? controlValueCache.at(ctl.id) : ctl.valueStart;
             // both values were validated already, so this should never fail
-            if (const auto res = setControlValue(ctl.id, value); !res)
+            if (const auto res = q->setControlValue(ctl.id, value); !res)
                 MS_LOG_WARNING(logMScope, "Unable to restore control value: {}", res.error());
         }
     }
@@ -878,7 +893,7 @@ bool Miniscope::openCamera()
     // if a connection attempt succeeded, we can now consider the camera
     // to be connected
     if (ret)
-        d->connected = true;
+        connected = true;
 
     return ret;
 }
@@ -903,13 +918,13 @@ Result Miniscope::connect()
         d->controlValueCache.clear();
     }
 
-    if (!openCamera())
+    if (!d->openCamera())
         return std::unexpected("Unable to connect to Miniscope camera. Is the DAQ board connected?");
 
     d->failed = false;
     d->connected = true;
 
-    statusMessage(std::format("Initialized camera {}", d->scopeCamId.load()));
+    d->statusMessage(std::format("Initialized camera {}", d->scopeCamId.load()));
     return {};
 }
 
@@ -923,14 +938,14 @@ void Miniscope::disconnect()
         // If this is omitted, subsequent reconnect attempts will fail.
         resetV4L2State(d->scopeCamId);
 #endif
-        statusMessage(std::format("Disconnected camera {}", d->scopeCamId.load()));
+        d->statusMessage(std::format("Disconnected camera {}", d->scopeCamId.load()));
     }
     d->connected = false;
 }
 
 Result Miniscope::hardReset()
 {
-    statusMessage(std::format("Performing hard reset of device {}", d->scopeCamId.load()));
+    d->statusMessage(std::format("Performing hard reset of device {}", d->scopeCamId.load()));
     if (d->connected)
         disconnect();
 
@@ -949,7 +964,7 @@ Result Miniscope::hardReset()
     }
 
     if (!ret) {
-        statusMessage(std::format("Reset of {} failed.", d->scopeCamId.load()));
+        d->statusMessage(std::format("Reset of {} failed.", d->scopeCamId.load()));
         return std::unexpected(
             std::format("Reset of {} failed: Unable to open the camera device.", d->scopeCamId.load()));
     }
@@ -973,7 +988,7 @@ Result Miniscope::hardReset()
     resetV4L2State(d->scopeCamId);
 #endif
 
-    statusMessage(std::format("Device {} has been reset.", d->scopeCamId.load()));
+    d->statusMessage(std::format("Device {} has been reset.", d->scopeCamId.load()));
     return {};
 }
 
@@ -1062,7 +1077,7 @@ Result Miniscope::setControlValue(const std::string &id, double value)
                 }
             }
 
-            enqueueI2CCommand(preambleKey, packet);
+            d->enqueueI2CCommand(preambleKey, packet);
         } else {
             MS_LOG_DEBUG(
                 logMScope, "{} protocol for \"{}\" not yet supported", Utils::mapValueOr(command, "protocol"), id);
@@ -1115,7 +1130,7 @@ Result Miniscope::run()
             return res;
     }
 
-    startCaptureThread();
+    d->startCaptureThread();
     return {};
 }
 
@@ -1123,13 +1138,13 @@ void Miniscope::stop()
 {
     d->recording = false;
     d->running = false;
-    finishCaptureThread();
+    d->finishCaptureThread();
 }
 
 Result Miniscope::waitForResult()
 {
     // wait for the DAQ thread to end on its own, or because stop() was called
-    joinCaptureThread();
+    d->joinCaptureThread();
 
     // the DAQ thread has finished, so the result can not change anymore
     std::lock_guard<std::mutex> lock(d->runResultMutex);
@@ -1151,7 +1166,7 @@ Result Miniscope::startRecording(const std::string &fname)
     if (!fname.empty())
         d->videoFname = fname;
     d->recording = true;
-    statusMessage("Video recording started.");
+    d->statusMessage("Video recording started.");
 
     return {};
 }
@@ -1159,7 +1174,7 @@ Result Miniscope::startRecording(const std::string &fname)
 void Miniscope::stopRecording()
 {
     d->recording = false;
-    statusMessage("Video recording stopped.");
+    d->statusMessage("Video recording stopped.");
 }
 
 AsyncTask Miniscope::acquireZStack(
@@ -1516,33 +1531,33 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
     return {};
 }
 
-void Miniscope::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
+void Miniscope::Private::addDisplayFrameToBuffer(const cv::Mat &frame, const milliseconds_t &timestamp)
 {
     // call potential callback on this possibly edited "to be displayed" frame
-    if (d->displayFrameCallback)
-        d->displayFrameCallback(frame, timestamp);
+    if (displayFrameCallback)
+        displayFrameCallback(frame, timestamp);
 
     // the display frame queue is protected
-    std::lock_guard<std::mutex> lock(d->dispFrameMutex);
+    std::lock_guard<std::mutex> lock(dispFrameMutex);
 
     // drop the oldest frames if we are displaying too slowly, so the display stays close to live
-    if (d->displayQueue.size() >= DISPLAY_QUEUE_MAX_COUNT)
-        d->displayQueue.pop_front();
-    d->displayQueue.push_back(frame);
+    if (displayQueue.size() >= DISPLAY_QUEUE_MAX_COUNT)
+        displayQueue.pop_front();
+    displayQueue.push_back(frame);
 }
 
-void Miniscope::setLastRawFrame(const cv::Mat &frame)
+void Miniscope::Private::setLastRawFrame(const cv::Mat &frame)
 {
-    std::lock_guard<std::mutex> lock(d->rawFrameMutex);
-    d->rawFrameRetrieved = false;
-    d->lastRawFrame = frame;
+    std::lock_guard<std::mutex> lock(rawFrameMutex);
+    rawFrameRetrieved = false;
+    lastRawFrame = frame;
 }
 
-inline milliseconds_t Miniscope::getCurrentFrameTimestamp()
+inline milliseconds_t Miniscope::Private::getCurrentFrameTimestamp()
 {
-    if (d->emulateTimestamps)
+    if (emulateTimestamps)
         return std::chrono::duration_cast<milliseconds_t>(std::chrono::system_clock::now().time_since_epoch());
-    return milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
+    return milliseconds_t(static_cast<long>(cam.get(cv::CAP_PROP_POS_MSEC)));
 }
 
 static void overlayAlphaImage(cv::Mat *src, cv::Mat *overlay, const cv::Point &location)
@@ -1673,10 +1688,12 @@ static cv::Mat perspectiveWarpImage(
     return dst;
 }
 
-void Miniscope::captureThread(void *msPtr)
+void Miniscope::Private::captureThread()
 {
-    const auto self = static_cast<Miniscope *>(msPtr);
-    const auto d = self->d.get();
+    // keep the d-pointer style of the public class in this long function, so it is
+    // obvious which data is shared with other threads
+    const auto self = q;
+    const auto d = this;
 
     const auto frameCB = d->frameCallback;
 
@@ -1795,7 +1812,7 @@ void Miniscope::captureThread(void *msPtr)
 #ifdef __linux__
         const auto driverFrameTimestamp = milliseconds_t(static_cast<long>(d->cam.get(cv::CAP_PROP_POS_MSEC)));
 #else
-        const auto driverFrameTimestamp = self->getCurrentFrameTimestamp();
+        const auto driverFrameTimestamp = d->getCurrentFrameTimestamp();
 #endif
 
         if (reinitStartTime) {
@@ -1810,7 +1827,7 @@ void Miniscope::captureThread(void *msPtr)
                 d->droppedFramesCount++;
                 if (d->droppedFramesCount >= 5) {
                     if (!status) {
-                        self->fail(
+                        d->fail(
                             "Unable to grab valid frames for initialization. (You may try to power cycle the DAQ board "
                             "to resolve this issue)");
                         break;
@@ -1825,7 +1842,7 @@ void Miniscope::captureThread(void *msPtr)
                             continue;
                         }
 #endif
-                        self->fail("Unable to get valid timestamps for initialization.");
+                        d->fail("Unable to get valid timestamps for initialization.");
                         break;
                     }
                 }
@@ -1851,7 +1868,7 @@ void Miniscope::captureThread(void *msPtr)
         const auto frameDeviceTimestamp = driverFrameTimestamp - driverStartTimestamp;
 
         if (!status) {
-            self->fail("Failed to grab frame.");
+            d->fail("Failed to grab frame.");
             break;
         }
 
@@ -1906,13 +1923,13 @@ void Miniscope::captureThread(void *msPtr)
 
         // set last acquired frame (for other modules that don't care about timing accuracy,
         // e.g. the zstack capture module)
-        self->setLastRawFrame(frame);
+        d->setLastRawFrame(frame);
 
         if (!status) {
             // we keep recording, the dropped frame will just be missing from the video
             // and show up as a gap in the timestamps file
             MS_LOG_WARNING(logMScope, "Dropped frame.");
-            self->addDisplayFrameToBuffer(droppedFrameImage, frameTimestamp);
+            d->addDisplayFrameToBuffer(droppedFrameImage, frameTimestamp);
             if (d->droppedFramesCount > 0) {
                 // reconnect in case we run into multiple failures when trying
                 // to acquire a timestamp
@@ -1921,20 +1938,20 @@ void Miniscope::captureThread(void *msPtr)
                 d->cam.release();
                 d->connected = false;
                 std::this_thread::sleep_for(milliseconds_t(1000));
-                if (self->openCamera()) {
+                if (d->openCamera()) {
                     // openCamera() disables sync pulses, so restore the acquisition state we had before
                     d->cam.set(cv::CAP_PROP_FPS, d->fps);
                     d->cam.set(cv::CAP_PROP_SATURATION, 0x0001);
                     msgInfo("Miniscope reconnected.");
                 } else {
-                    self->fail("Unable to reopen camera connection.");
+                    d->fail("Unable to reopen camera connection.");
                     break;
                 }
             }
             d->droppedFramesCount++;
 
             if (d->droppedFramesCount > 80)
-                self->fail("Too many dropped frames. Giving up.");
+                d->fail("Too many dropped frames. Giving up.");
             continue;
         }
 
@@ -1960,7 +1977,7 @@ void Miniscope::captureThread(void *msPtr)
                 if (auto res = vwriter->initialize(
                         vidFnameBase, frame.cols, frame.rows, static_cast<int>(d->fps), frame.channels() == 3);
                     !res) {
-                    self->fail(std::format("Unable to initialize recording: {}", res.error()));
+                    d->fail(std::format("Unable to initialize recording: {}", res.error()));
                     break;
                 }
 
@@ -1969,7 +1986,7 @@ void Miniscope::captureThread(void *msPtr)
                     MS_LOG_DEBUG(logMScope, "Will save orientation data.");
                     bnoWriter = std::make_unique<CSVWriter>(vidFnameBase + "_orientation.csv");
                     bnoWriter->setErrorCallback([&](const std::string &errorMessage) {
-                        self->fail(std::format("Unable to write orientation data: {}", errorMessage));
+                        d->fail(std::format("Unable to write orientation data: {}", errorMessage));
                     });
                     bnoWriter->start();
                     bnoWriter->addRow({"Time [ms]", "qw", "qx", "qy", "qz"});
@@ -2099,10 +2116,10 @@ void Miniscope::captureThread(void *msPtr)
 
         // add display frame to ringbuffer, and record the raw
         // frame to disk if we want to record it.
-        self->addDisplayFrameToBuffer(displayFrame, frameTimestamp);
+        d->addDisplayFrameToBuffer(displayFrame, frameTimestamp);
         if (recordFrames) {
             if (auto res = vwriter->pushFrame(frame, frameTimestamp); !res)
-                self->fail(std::format("Unable to send frames to encoder: {}", res.error()));
+                d->fail(std::format("Unable to send frames to encoder: {}", res.error()));
             if (saveOrientationData) {
                 // only store the quaternion, the last element is the norm error we filter by
                 if (prevBnoVec != bnoVec && bnoVec[4] < 0.05)
@@ -2114,7 +2131,7 @@ void Miniscope::captureThread(void *msPtr)
 
         // apply all settings changes we have queued
         if (d->commandsPending)
-            self->sendCommandsToDevice();
+            d->sendCommandsToDevice();
 
         // update the framerate with the number of frames we acquired in the last second
         fpsWindowFrames++;
