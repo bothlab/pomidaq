@@ -110,7 +110,9 @@ PYBIND11_MODULE(miniscope, m)
     m.doc() = "Access a Miniscope through Python"; // optional module docstring
     m.attr("__version__") = PROJECT_VERSION;
 
-    NDArrayConverter::initNDArray();
+    // fail importing this module if NumPy is not usable, we would crash later otherwise
+    if (!NDArrayConverter::initNDArray())
+        throw py::error_already_set();
     py::bind_vector<std::vector<double>>(m, "VectorDouble");
     py::bind_vector<std::vector<Miniscope::ControlDefinition>>(m, "VectorControlDefinition");
 

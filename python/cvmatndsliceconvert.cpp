@@ -79,8 +79,6 @@ bool NDArrayConverter::initNDArray()
     return true;
 }
 
-static PyObject *opencv_error = 0;
-
 static int failmsg(const char *fmt, ...)
 {
     char str[1000];
@@ -126,13 +124,13 @@ private:
     PyGILState_STATE _state;
 };
 
-#define ERRWRAP2(expr)                           \
-    try {                                        \
-        PyAllowThreads allowThreads;             \
-        expr;                                    \
-    } catch (const cv::Exception &e) {           \
-        PyErr_SetString(opencv_error, e.what()); \
-        return 0;                                \
+#define ERRWRAP2(expr)                                 \
+    try {                                              \
+        PyAllowThreads allowThreads;                   \
+        expr;                                          \
+    } catch (const cv::Exception &e) {                 \
+        PyErr_SetString(PyExc_RuntimeError, e.what()); \
+        return 0;                                      \
     }
 
 using namespace cv;
