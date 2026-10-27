@@ -190,8 +190,8 @@ public:
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
 
-    std::atomic<size_t> droppedFramesCount;
-    std::atomic_long acquiredFrames; // valid frames acquired in the current run
+    std::atomic_uint64_t droppedFramesCount;
+    std::atomic_uint64_t acquiredFrames; // valid frames acquired in the current run
     std::atomic_uint currentFPS;
     std::atomic<milliseconds_t> lastRecordedFrameTime;
 
@@ -1288,7 +1288,7 @@ unsigned int Miniscope::currentFps() const
     return d->currentFPS;
 }
 
-size_t Miniscope::droppedFramesCount() const
+uint64_t Miniscope::droppedFrameCount() const
 {
     return d->droppedFramesCount;
 }
@@ -1482,7 +1482,7 @@ milliseconds_t Miniscope::lastRecordedFrameTime() const
     return d->lastRecordedFrameTime;
 }
 
-long Miniscope::acquiredFrameCount() const
+uint64_t Miniscope::acquiredFrameCount() const
 {
     return d->acquiredFrames;
 }
@@ -1494,7 +1494,7 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
     if (count == 0)
         return {};
 
-    const long initialFrameCount = d->acquiredFrames;
+    const uint64_t initialFrameCount = d->acquiredFrames;
     // wait for about half a frame in each iteration (fps is always > 1)
     milliseconds_t waitTimeMsec = milliseconds_t(static_cast<long>(1000.0 / d->fps / 2));
     if (waitTimeMsec.count() < 10)
@@ -1507,7 +1507,7 @@ Result Miniscope::waitForAcquiredFrameCount(unsigned int count)
         if (!d->running)
             return std::unexpected("Miniscope acquisition stopped while waiting for frames.");
 
-        if (d->acquiredFrames - initialFrameCount >= static_cast<long>(count))
+        if (d->acquiredFrames - initialFrameCount >= count)
             break;
 
         std::this_thread::sleep_for(milliseconds_t(waitTimeMsec));

@@ -297,7 +297,7 @@ PYBIND11_MODULE(miniscope, m)
             &Miniscope::Miniscope::fetchDisplayFrame,
             "Take the next frame intended for display (None if there is no new frame). May not be the recorded frame.")
         .def_property_readonly("current_fps", &Miniscope::Miniscope::currentFps)
-        .def_property_readonly("dropped_frames_count", &Miniscope::Miniscope::droppedFramesCount)
+        .def_property_readonly("dropped_frame_count", &Miniscope::Miniscope::droppedFrameCount)
         .def_property_readonly("last_recorded_frame_time", &Miniscope::Miniscope::lastRecordedFrameTime)
 
         .def_property(

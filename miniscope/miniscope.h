@@ -287,11 +287,21 @@ public:
     std::optional<cv::Mat> fetchLastRawFrame();
 
     /**
-     * @brief The number of frames that were acquired in the last second.
+     * @brief The measured framerate: The number of frames that were acquired in the last second.
      */
     unsigned int currentFps() const;
-    size_t droppedFramesCount() const;
 
+    /**
+     * @brief The number of frames that were dropped since acquisition was started.
+     */
+    uint64_t droppedFrameCount() const;
+
+    /**
+     * @brief The framerate the device is configured for, in frames per second.
+     *
+     * This is set by the device's "frameRate" control. See currentFps() for the
+     * framerate we actually achieve.
+     */
     double fps() const;
 
     void setCaptureStartTime(const std::chrono::time_point<std::chrono::steady_clock> &startTime);
@@ -357,7 +367,7 @@ public:
      *
      * Dropped frames are not counted.
      */
-    long acquiredFrameCount() const;
+    uint64_t acquiredFrameCount() const;
 
     /**
      * @brief Wait for an amount of frames to be acquired.

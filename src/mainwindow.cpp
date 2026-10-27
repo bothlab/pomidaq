@@ -500,7 +500,7 @@ void MainWindow::processMiniscopeDisplay()
             m_scopeView->showImage(*frame);
 
             ui->labelCurrentFPS->setText(QString::number(m_mscope->currentFps()));
-            ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFramesCount()));
+            ui->labelDroppedFrames->setText(QString::number(m_mscope->droppedFrameCount()));
 
             ui->labelScopeMin->setText(QString::number(m_mscope->minFluor()).rightJustified(3, '0'));
             ui->labelScopeMax->setText(QString::number(m_mscope->maxFluor()).rightJustified(3, '0'));
