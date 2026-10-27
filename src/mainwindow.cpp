@@ -228,8 +228,9 @@ MainWindow::MainWindow(QWidget *parent)
     statusBar()->addPermanentWidget(m_statusProgress, 1);
     setStatusProgressVisible(false);
 
-    // don't display log by default
+    // don't display log by default, and only keep the most recent messages
     ui->logTextList->setVisible(false);
+    ui->logTextList->setMaximumBlockCount(200);
 
     // Video view
     m_scopeView = new ImageViewWidget(this);
@@ -402,12 +403,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::writeLogMessage(const QString &msg)
 {
-    m_messageCount += 1;
-    if (m_messageCount > 200) {
-        m_messageCount = 1;
-        ui->logTextList->clear();
-    }
-
     ui->logTextList->appendPlainText(msg);
     ui->logTextList->verticalScrollBar()->setValue(ui->logTextList->verticalScrollBar()->maximum());
 }

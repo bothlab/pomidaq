@@ -98,9 +98,6 @@ private:
 
     QString m_dataDir;
     bool m_useUnixTimestamps;
-    bool m_running;
-
-    int m_messageCount;
 
     void updateIcons();
     void processMiniscopeDisplay();
