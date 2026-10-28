@@ -407,7 +407,7 @@ std::expected<void, std::string> VideoWriter::initializeInternal()
         d->timestampFile.close(); // ensure file is closed
         d->timestampFile.clear();
         d->timestampFile.open(timestampFname);
-        d->timestampFile << "frame; timestamp"
+        d->timestampFile << "Frame; Time [ms]"
                          << "\n";
         d->timestampFile.flush();
     }
