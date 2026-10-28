@@ -93,3 +93,52 @@ jobs:
           draft: false
           prerelease: false
           files: release_assets/*
+
+
+  repo-publish:
+    name: Publish to package repository
+    needs: release
+    runs-on: ubuntu-slim
+    steps:
+      - name: Install Cloudsmith CLI
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_KEY }}
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: pomidaq_*
+          path: artifacts
+
+      - name: Upload packages to repository
+        run: |
+          count=0
+
+          # Map the artifact labels of the build matrix to the
+          # respective distribution suites of the Syntalos repository.
+          for artifact_dir in artifacts/*/; do
+            name=$(basename "$artifact_dir")
+            case "$name" in
+              *.debian13_*)
+                target=debian/trixie
+                ;;
+              *.ubuntu26.04_*)
+                target=ubuntu/resolute
+                ;;
+              *)
+                echo "Skipping $name"
+                continue
+                ;;
+            esac
+
+            for deb in "$artifact_dir"/*.deb; do
+              cloudsmith push deb --republish "syntalos/syntalos/$target" "$deb"
+              count=$((count + 1))
+            done
+          done
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No packages were uploaded to the repository."
+            exit 1
+          fi

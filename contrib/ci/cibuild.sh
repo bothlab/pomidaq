@@ -45,4 +45,10 @@ dch --distribution "UNRELEASED"	--newversion="${upstream_version}~${DEBVER_SLUG}
 
 dpkg-buildpackage
 rm -r debian/
+
+# Ubuntu builds debug symbol packages as .ddeb, rename them so we keep them too
+for f in ../*.ddeb; do
+  [ -e "$f" ] || continue
+  mv "$f" "${f%.ddeb}.deb"
+done
 mv ../*.deb .
