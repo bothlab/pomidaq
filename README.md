@@ -49,7 +49,7 @@ If your Linux distribution is Debian 13 or Ubuntu 26.04, you can also install Po
 the [Syntalos](https://github.com/syntalos/syntalos) APT repository:
 ```bash
 curl -fsSL https://syntalos.org/setup/setup-syntalos-repo.sh | sudo sh
-sudo apt install pomidaq
+sudo apt install pomidaq python3-miniscope
 ```
 
 ### Notes
