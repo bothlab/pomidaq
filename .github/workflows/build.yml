@@ -99,6 +99,7 @@ jobs:
           dpkg-dev
           devscripts
           debhelper
+          dh-python
           libdistro-info-perl
           cmake
           ninja-build

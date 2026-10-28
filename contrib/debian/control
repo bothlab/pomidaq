@@ -5,6 +5,8 @@ Maintainer: Matthias Klumpp <mak@debian.org>
 Build-Depends: debhelper-compat (= 13),
                appstream,
                cmake,
+               dh-sequence-numpy3,
+               dh-sequence-python3,
                libavcodec-dev,
                libavformat-dev,
                libkf6configwidgets-dev,
@@ -54,3 +56,16 @@ Description: Miniscope Data Acquisition Library - Development Files
  .
  This package contains development files for the libminiscope library,
  to embed Miniscope functionality in other applications.
+
+Package: python3-miniscope
+Section: python
+Architecture: any
+Depends: ${misc:Depends},
+         ${python3:Depends},
+         ${shlibs:Depends}
+Description: Miniscope Data Acquisition Library - Python bindings
+ The UCLA Miniscope allows for recording of calcium activity
+ in freely moving animals.
+ .
+ This package contains the Python 3 bindings for the libminiscope library,
+ to control Miniscopes and record their data from Python.
