@@ -146,10 +146,8 @@ private:
  * Wrap a Python callable (or None) for use as library callback.
  * Returns nullptr for None, so the respective callback is unset.
  */
-static std::shared_ptr<PyCallback> makePyCallback(Miniscope::Miniscope &mscope, const py::object &fn, const char *name)
+static std::shared_ptr<PyCallback> makePyCallback(const py::object &fn, const char *name)
 {
-    if (mscope.isRunning())
-        throw std::runtime_error("Callbacks can not be changed while acquisition is running.");
     if (fn.is_none())
         return nullptr;
     if (!py::isinstance<py::function>(fn) && !py::hasattr(fn, "__call__"))
@@ -310,19 +308,20 @@ PYBIND11_MODULE(miniscope, m)
         .def(
             "wait_for_result",
             [](Miniscope::Miniscope &self) {
-                // wait in small steps while acquisition is running, so signal handlers
+                // wait in small steps while the acquisition thread is active, so signal handlers
                 // (e.g. for Ctrl+C) still get a chance to run
-                while (self.isRunning()) {
+                auto result = self.runResult();
+                while (!result) {
                     {
                         py::gil_scoped_release release;
                         std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     }
                     if (PyErr_CheckSignals() != 0)
                         throw py::error_already_set();
+                    result = self.runResult();
                 }
 
-                py::gil_scoped_release release;
-                raiseOnError(self.waitForResult());
+                raiseOnError(*result);
             },
             "Wait for image acquisition to end (raises RuntimeError if acquisition failed)")
         .def(
@@ -356,14 +355,14 @@ PYBIND11_MODULE(miniscope, m)
         .def(
             "set_on_status_message",
             [](Miniscope::Miniscope &self, const py::object &callback) {
-                auto cb = makePyCallback(self, callback, "miniscope status message callback");
-                if (!cb) {
-                    self.setOnStatusMessage(nullptr);
-                    return;
+                Miniscope::StatusMessageCallback fn;
+                if (auto cb = makePyCallback(callback, "miniscope status message callback")) {
+                    fn = [cb](const std::string &message) {
+                        (*cb)(message);
+                    };
                 }
-                self.setOnStatusMessage([cb](const std::string &message) {
-                    (*cb)(message);
-                });
+                if (!self.setOnStatusMessage(std::move(fn)))
+                    throw std::runtime_error("Callbacks can not be changed while acquisition is running.");
             },
             py::arg("callback"),
             "Set a callable receiving status messages as (message). It may be invoked from library threads.\n"
@@ -371,14 +370,14 @@ PYBIND11_MODULE(miniscope, m)
         .def(
             "set_on_control_value_change",
             [](Miniscope::Miniscope &self, const py::object &callback) {
-                auto cb = makePyCallback(self, callback, "miniscope control value change callback");
-                if (!cb) {
-                    self.setOnControlValueChange(nullptr);
-                    return;
+                Miniscope::ControlChangeCallback fn;
+                if (auto cb = makePyCallback(callback, "miniscope control value change callback")) {
+                    fn = [cb](const std::string &id, double displayValue, double deviceValue) {
+                        (*cb)(id, displayValue, deviceValue);
+                    };
                 }
-                self.setOnControlValueChange([cb](const std::string &id, double displayValue, double deviceValue) {
-                    (*cb)(id, displayValue, deviceValue);
-                });
+                if (!self.setOnControlValueChange(std::move(fn)))
+                    throw std::runtime_error("Callbacks can not be changed while acquisition is running.");
             },
             py::arg("callback"),
             "Set a callable receiving control changes as (id, display_value, device_value). It may be invoked\n"

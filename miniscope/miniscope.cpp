@@ -103,6 +103,7 @@ public:
           commandsPending(false),
           connected(false),
           running(false),
+          daqThreadActive(false),
           recording(false),
           failed(false),
           checkRecTrigger(false),
@@ -193,6 +194,7 @@ public:
 
     std::atomic_bool connected;
     std::atomic_bool running;
+    std::atomic_bool daqThreadActive; // true from starting the DAQ thread until it has ended
     std::atomic_bool recording;
     std::atomic_bool failed;
     std::atomic_bool checkRecTrigger;
@@ -541,6 +543,9 @@ void Miniscope::Private::startCaptureThread()
     {
         std::lock_guard<std::mutex> lock(runResultMutex);
         runResult = {};
+        // ensure we already count as running, even though the thread hasn't started yet,
+        // to prevent a possible race condition
+        daqThreadActive = true;
     }
     running = true;
 
@@ -1127,13 +1132,19 @@ void Miniscope::stop()
     d->finishCaptureThread();
 }
 
-Result Miniscope::waitForResult()
+std::optional<Result> Miniscope::runResult() const
 {
-    // wait for the DAQ thread to end on its own, or because stop() was called
-    d->joinCaptureThread();
+    // fast path for polling while acquisition is active
+    if (d->daqThreadActive)
+        return std::nullopt;
 
-    // the DAQ thread has finished, so the result can not change anymore
+    // the result is reset together with marking the DAQ thread as active, so checking again
+    // under the lock ensures we never return the result of a previous run for a new one
     std::lock_guard<std::mutex> lock(d->runResultMutex);
+    if (d->daqThreadActive)
+        return std::nullopt;
+
+    // the DAQ thread has ended, so the result can not change anymore
     return d->runResult;
 }
 
@@ -1206,37 +1217,45 @@ bool Miniscope::captureStartTimeInitialized() const
 }
 
 /**
- * Callbacks are used by the DAQ thread without locking, so they must not change while it is running.
+ * Callbacks are used by the DAQ thread without locking, so they must not change while it is active.
  */
-static bool callbackChangeAllowed(bool running)
+static bool callbackChangeAllowed(bool daqThreadActive)
 {
-    if (running)
+    if (daqThreadActive)
         MS_LOG_WARNING(logMScope, "Callbacks can not be changed while acquisition is running.");
-    return !running;
+    return !daqThreadActive;
 }
 
-void Miniscope::setOnStatusMessage(StatusMessageCallback callback)
+bool Miniscope::setOnStatusMessage(StatusMessageCallback callback)
 {
-    if (callbackChangeAllowed(d->running))
-        d->statusCallback = std::move(callback);
+    if (!callbackChangeAllowed(d->daqThreadActive))
+        return false;
+    d->statusCallback = std::move(callback);
+    return true;
 }
 
-void Miniscope::setOnControlValueChange(ControlChangeCallback callback)
+bool Miniscope::setOnControlValueChange(ControlChangeCallback callback)
 {
-    if (callbackChangeAllowed(d->running))
-        d->controlChangeCallback = std::move(callback);
+    if (!callbackChangeAllowed(d->daqThreadActive))
+        return false;
+    d->controlChangeCallback = std::move(callback);
+    return true;
 }
 
-void Miniscope::setOnFrame(RawDataCallback callback)
+bool Miniscope::setOnFrame(RawDataCallback callback)
 {
-    if (callbackChangeAllowed(d->running))
-        d->frameCallback = std::move(callback);
+    if (!callbackChangeAllowed(d->daqThreadActive))
+        return false;
+    d->frameCallback = std::move(callback);
+    return true;
 }
 
-void Miniscope::setOnDisplayFrame(DisplayFrameCallback callback)
+bool Miniscope::setOnDisplayFrame(DisplayFrameCallback callback)
 {
-    if (callbackChangeAllowed(d->running))
-        d->displayFrameCallback = std::move(callback);
+    if (!callbackChangeAllowed(d->daqThreadActive))
+        return false;
+    d->displayFrameCallback = std::move(callback);
+    return true;
 }
 
 std::optional<cv::Mat> Miniscope::fetchDisplayFrame()
@@ -1661,6 +1680,10 @@ void Miniscope::Private::captureThread()
     const auto self = q;
     const auto d = this;
 
+    // the capture thread is running now (already set in startCaptureThread, so this
+    // just makes absolutely sure we never have the thread running without it)
+    d->daqThreadActive = true;
+
     const auto frameCB = d->frameCallback;
 
     // make a dummy "dropped frame" matrix to display when we drop frames
@@ -1721,7 +1744,7 @@ void Miniscope::Private::captureThread()
 
     // save BNO data in a CSV table, if needed
     std::unique_ptr<CSVWriter> bnoWriter;
-    std::vector<float> prevBnoVec(5);
+    std::optional<Quaternion> prevOrientation;
 
     // use custom timepoint as start time, in case we have one set - use current time otherwise
     auto threadStartTime = std::chrono::steady_clock::now();
@@ -1749,7 +1772,9 @@ void Miniscope::Private::captureThread()
 
     // communicate with hardware until stopped or error
     while (d->running) {
-        cv::Mat frame;
+        // acquire directly into the struct we pass to the frame callback, to avoid copies
+        RawFrame raw;
+        auto &frame = raw.image;
 
         // protect against race-condition when the `captureStartTimeInitialized` var is changed
         // while we are grabbing a frame, or in any other intermediate state before we have
@@ -1854,7 +1879,6 @@ void Miniscope::Private::captureThread()
         bnoIndicatorVisible = hasHeadOrientationSupport && self->isBNOIndicatorVisible();
 
         // determine device position in space
-        std::vector<float> bnoVec(5);
         if (hasHeadOrientationSupport) {
 #ifdef _WIN32
             // on Windows, PAN/TILT is not properly recognized, so we use the legacy properties
@@ -1873,21 +1897,26 @@ void Miniscope::Private::captureThread()
             double z = (int16_t)((yz >> 16) & 0xFFFF);
 #endif
 
-            // BNO output is a unit quaternion after 2^14 division
-            double norm = sqrt(w * w + x * x + y * y + z * z);
-            bnoVec[0] = w / 16384.0;
-            bnoVec[1] = x / 16384.0;
-            bnoVec[2] = y / 16384.0;
-            bnoVec[3] = z / 16384.0;
-            bnoVec[4] = abs((norm / 16384.0) - 1);
+            // BNO output is a unit quaternion after 2^14 division, we filter out
+            // bad data by checking if its norm differs from 1 by 0.05 or more
+            const double norm = std::sqrt(w * w + x * x + y * y + z * z) / 16384.0;
+            if (std::abs(norm - 1) < 0.05)
+                raw.orientation = Quaternion{
+                    .w = static_cast<float>(w / 16384.0),
+                    .x = static_cast<float>(x / 16384.0),
+                    .y = static_cast<float>(y / 16384.0),
+                    .z = static_cast<float>(z / 16384.0),
+                };
         }
 
         // call frame callback, so the callee can also adjust the frame
         // timestamp (if it wants to) before we save any data to disk or
         // process it further.
         auto frameTimestamp = frameDeviceTimestamp;
+        raw.masterTimestamp = masterRecvTimestamp;
+        raw.deviceTimestamp = frameDeviceTimestamp;
         if (frameCB != nullptr)
-            frameCB(frame, frameTimestamp, masterRecvTimestamp, frameDeviceTimestamp, bnoVec);
+            frameCB(raw, frameTimestamp);
 
         // set last acquired frame (for other modules that don't care about timing accuracy,
         // e.g. the zstack capture module)
@@ -2029,15 +2058,10 @@ void Miniscope::Private::captureThread()
             -d->minFluorDisplay * 255.0 / (d->maxFluorDisplay - d->minFluorDisplay));
 
         if (bnoIndicatorVisible) {
-            auto qw = bnoVec[0];
-            auto qx = bnoVec[1];
-            auto qy = bnoVec[2];
-            auto qz = bnoVec[3];
-            auto qnorm = bnoVec[4];
-
-            // check if norm of quat differs from 1 by 0.05, to filter out bad data
+            // the orientation is only set if we got valid data
             cv::Mat bnoIndMat;
-            if (qnorm < 0.05) {
+            if (raw.orientation) {
+                const auto [qw, qx, qy, qz] = *raw.orientation;
 
                 double phi = atan2(2.0 * (qw * qx + qy * qz), 1.0 - 2.0 * (qx * qx + qy * qy));
                 double sinTheta = 2.0 * (qw * qy - qz * qx);
@@ -2070,10 +2094,12 @@ void Miniscope::Private::captureThread()
             if (auto res = vwriter->pushFrame(frame, frameTimestamp); !res)
                 d->fail(std::format("Unable to send frames to encoder: {}", res.error()));
             if (saveOrientationData) {
-                // only store the quaternion, the last element is the norm error we filter by
-                if (prevBnoVec != bnoVec && bnoVec[4] < 0.05)
-                    bnoWriter->addRow(frameTimestamp, std::vector<float>(bnoVec.begin(), bnoVec.begin() + 4));
-                prevBnoVec = bnoVec;
+                // only store valid orientation data, and only if it changed
+                if (raw.orientation && raw.orientation != prevOrientation) {
+                    const auto &q = *raw.orientation;
+                    bnoWriter->addRow(frameTimestamp, {q.w, q.x, q.y, q.z});
+                }
+                prevOrientation = raw.orientation;
             }
             d->lastRecordedFrameTime = frameTimestamp;
         }
@@ -2104,6 +2130,9 @@ void Miniscope::Private::captureThread()
         if (bnoWriter.get() != nullptr)
             bnoWriter->stop();
     }
+
+    // the run result can not change anymore, and any recording has been finalized
+    d->daqThreadActive = false;
 }
 
 std::string videoDeviceNameFromId(int id)

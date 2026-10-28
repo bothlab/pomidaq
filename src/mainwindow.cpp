@@ -480,8 +480,9 @@ void MainWindow::on_deviceTypeComboBox_currentIndexChanged(int index)
 
 void MainWindow::processMiniscopeDisplay()
 {
-    // display images while we are running
-    if (m_mscope->isRunning()) {
+    // display images until the acquisition has ended
+    const auto runResult = m_mscope->runResult();
+    if (!runResult) {
         // only show the newest frame, in case more than one arrived since the last update
         std::optional<cv::Mat> frame;
         while (auto next = m_mscope->fetchDisplayFrame())
@@ -498,11 +499,10 @@ void MainWindow::processMiniscopeDisplay()
             // show for how long we have been recording (hours may exceed 24)
             if (m_recordingTimer.isValid()) {
                 const auto secs = m_recordingTimer.elapsed() / 1000;
-                ui->labelRecordingTime->setText(
-                    QStringLiteral("%1:%2:%3")
-                        .arg(secs / 3600, 2, 10, QLatin1Char('0'))
-                        .arg((secs / 60) % 60, 2, 10, QLatin1Char('0'))
-                        .arg(secs % 60, 2, 10, QLatin1Char('0')));
+                ui->labelRecordingTime->setText(QStringLiteral("%1:%2:%3")
+                                                    .arg(secs / 3600, 2, 10, QLatin1Char('0'))
+                                                    .arg((secs / 60) % 60, 2, 10, QLatin1Char('0'))
+                                                    .arg(secs % 60, 2, 10, QLatin1Char('0')));
             }
         }
         return;
@@ -524,9 +524,9 @@ void MainWindow::processMiniscopeDisplay()
     ui->deviceTypeComboBox->setEnabled(true);
     ui->actionSetTimestampStyle->setEnabled(true);
 
-    // clean up the stopped acquisition, and show why it stopped if it failed
-    if (const auto res = m_mscope->waitForResult(); !res)
-        QMessageBox::critical(this, "Error", QString::fromStdString(res.error()));
+    // show why the acquisition stopped if it failed
+    if (!*runResult)
+        QMessageBox::critical(this, "Error", QString::fromStdString(runResult->error()));
 
     // switch back to connect page, as this is the
     // only useful page when no scope is connected
@@ -691,8 +691,7 @@ void MainWindow::on_btnRecord_toggled(bool checked)
         return;
     }
 
-    const auto videoFname = QDir(m_dataDir).filePath(
-        QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
+    const auto videoFname = QDir(m_dataDir).filePath(QDateTime::currentDateTime().toString("yy-MM-dd-hhmm") + "_scope");
     if (const auto res = m_mscope->startRecording(videoFname.toStdString()); !res) {
         QMessageBox::critical(this, QStringLiteral("Error"), QString::fromStdString(res.error()));
         setRecordingActive(false);

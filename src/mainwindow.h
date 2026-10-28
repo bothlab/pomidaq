@@ -34,7 +34,7 @@ namespace Miniscope
 {
 class Miniscope;
 class AsyncTask;
-}
+} // namespace Miniscope
 
 namespace Ui
 {
