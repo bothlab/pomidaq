@@ -5,7 +5,7 @@ endif()
 
 project(PoMiDAQ
     DESCRIPTION "Portable Miniscope data acquisition"
-    VERSION 0.6.2
+    VERSION 1.0.0
 )
 
 set(CMAKE_CXX_STANDARD 23)
