@@ -1,3 +1,58 @@
+Version 1.0.0
+-------------
+Released: 2026-10-28
+
+### Features:
+ * Remove Qt dependency from libminiscope
+ * Prefer dark colors on non-Linux platforms as well
+ * gui: Make gain/fps slider layout a lot more compact
+ * python: Expose logging features
+ * Use std::expected for error reporting where sensible
+ * Make it easy to build the Python wheel and document the process
+ * Poll the run result instead of blocking, and pass frame data as struct
+ * ci: Build Linux binaries for arm64 as well
+ * debian: Build Python package separately
+
+### Bugfixes:
+ * ci: Make setup build work on newer Inno-Setup-Action versions
+ * gui: Recreate GL texture when the frame channel count changes
+ * gui: Keep the record button in sync with the actual recording state
+ * gui: Provide more details on connection issues
+ * gui: Don't busy-wait on new frames
+ * gui: Don't process events while we may be inside a library call
+ * gui: Only upload new images to the texture, and request an OpenGL core profile
+ * gui: Properly save window geometry/position and splitter state
+ * Fix build with OpenCV 5.0
+ * Fix unused-parameter warnings on Windows and drop GCC-unknown flags
+ * lib: Ensure onControlValueChange is never run concurrently
+ * Don't terminate recording on a single dropped frame
+ * Re-enable sync pulses after an unexpected disconnect
+ * videowriter: Drain encoder, fix timestamp alignment and stop busy-waiting
+ * zstack: Never move past the end position, and use identical planes for 3D accumulation
+ * Check at runtime that the FFmpeg version we use has the required codecs
+ * Validate control value inputs more strictly and return errors on bad values
+ * Make controlValue() return the current value of a control properly
+ * Count our own acquired frames, don't trust the Miniscope hardware
+ * Add proper export headers for Windows for the Miniscope library
+ * Fix the displayed recording time, and set unixCaptureStartTime()
+ * python: Raise proper errors instead of crashing in the NumPy converter
+ * Don't report success when waiting for frames that did not arrive
+
+### Miscellaneous:
+ * README: Update APT repo install instructions
+ * ci: Simplify Linux builds with debspawn
+ * ci: Attach distro version slug to built package versions
+ * Namespace miniscope library include path by directory
+ * lib: Drop redundant udata in our callbacks
+ * Document external triggers are unsupported
+ * bno: Don't store the quality value in BNO output CSV table
+ * Do nothing if run() is called multiple times in a row
+ * Rename currentDisplayFrame() to fetchDisplayFrame(), and keep the display live
+ * Harmonize frame count names in the API
+ * Move private helper functions out of the public header
+ * Remove the visible color channels API
+ * python: Polish the example a little
+
 Version 0.6.1
 -------------
 Released: 2026-03-10
